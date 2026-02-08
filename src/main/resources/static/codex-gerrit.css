@@ -1,0 +1,77 @@
+.codex-chat {
+  border-top: 1px solid #d6d6d6;
+  margin-top: 16px;
+  padding: 16px 0;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+.codex-header {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+  color: #5b3a1d;
+}
+
+.codex-input {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  border: 1px solid #c4c4c4;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  background: #fff9f2;
+}
+
+.codex-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.codex-button {
+  border: none;
+  background: #b65a2a;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.codex-button.secondary {
+  background: #3a5f6f;
+}
+
+.codex-button.outline {
+  background: transparent;
+  border: 1px solid #b65a2a;
+  color: #b65a2a;
+}
+
+.codex-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.codex-status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #5a5a5a;
+}
+
+.codex-output {
+  margin-top: 12px;
+  background: #101010;
+  color: #f2f2f2;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 320px;
+  overflow: auto;
+}
