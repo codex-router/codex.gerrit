@@ -24,6 +24,7 @@ import com.google.gerrit.extensions.api.changes.ChangeApi;
 import com.google.gerrit.extensions.common.ChangeInfo;
 import com.google.gerrit.extensions.common.FileInfo;
 import com.google.gerrit.extensions.restapi.BadRequestException;
+import com.google.gerrit.extensions.restapi.Response;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gerrit.extensions.restapi.RestModifyView;
 import com.google.gerrit.server.change.RevisionResource;
@@ -61,7 +62,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
   }
 
   @Override
-  public CodexChatResponse apply(RevisionResource resource, CodexChatInput input)
+  public Response<CodexChatResponse> apply(RevisionResource resource, CodexChatInput input)
       throws RestApiException {
     CodexChatInput normalized = normalizeInput(input);
     String changeId = String.valueOf(resource.getChangeResource().getId().get());
@@ -93,7 +94,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       }
     }
 
-    return new CodexChatResponse(responseReply, normalized.mode, config.getGerritBotUser());
+    return Response.ok(new CodexChatResponse(responseReply, normalized.mode, config.getGerritBotUser()));
   }
 
   private CodexChatInput normalizeInput(CodexChatInput input) throws BadRequestException {
