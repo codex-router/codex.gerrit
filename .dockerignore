@@ -1,0 +1,14 @@
+.git
+.gitignore
+.dockerignore
+README.md
+LICENSE
+Dockerfile
+build.sh
+build.log
+*.log
+*.jar
+target/
+.idea/
+.vscode/
+*.iml
