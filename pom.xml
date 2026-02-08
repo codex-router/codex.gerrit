@@ -26,6 +26,7 @@
             <manifestEntries>
               <Gerrit-PluginName>codex-gerrit</Gerrit-PluginName>
               <Gerrit-Module>com.codex.gerrit.Module</Gerrit-Module>
+              <Gerrit-HttpModule>com.codex.gerrit.HttpModule</Gerrit-HttpModule>
               <Implementation-Title>Codex Gerrit Plugin</Implementation-Title>
               <Implementation-Version>${project.version}</Implementation-Version>
               <Gerrit-ApiType>${Gerrit-ApiType}</Gerrit-ApiType>

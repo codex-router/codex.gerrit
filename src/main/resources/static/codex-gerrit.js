@@ -208,5 +208,13 @@ Gerrit.install(plugin => {
   }
 
   customElements.define('codex-chat-panel', CodexChatPanel);
-  plugin.registerCustomComponent('change-footer', 'codex-chat-panel');
+
+  // Use panel() for Gerrit 3.x compatibility
+  // This is the standard way to add panels to screens
+  plugin.panel('CHANGE_SCREEN_BELOW_COMMIT_INFO_BLOCK', (ctx) => {
+    const panel = document.createElement('codex-chat-panel');
+    panel.style.display = 'block';
+    panel.style.marginTop = '20px';
+    return panel;
+  });
 });
