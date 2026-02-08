@@ -40,6 +40,10 @@ public class CodexCliClient {
   }
 
   public String run(String prompt) throws RestApiException {
+    return run(prompt, null);
+  }
+
+  public String run(String prompt, String model) throws RestApiException {
     if (!config.hasCodexPath()) {
       throw new BadRequestException("codexPath is not configured");
     }
@@ -47,7 +51,21 @@ public class CodexCliClient {
     command.add(config.getCodexPath());
     command.addAll(config.getCodexArgs());
 
+    // Add model parameter if specified
+    if (model != null && !model.trim().isEmpty()) {
+      command.add("--model");
+      command.add(model.trim());
+    }
+
     ProcessBuilder builder = new ProcessBuilder(command);
+
+    // Set litellm environment variables if configured
+    if (!config.getLitellmBaseUrl().isEmpty()) {
+      builder.environment().put("LITELLM_API_BASE", config.getLitellmBaseUrl());
+    }
+    if (!config.getLitellmApiKey().isEmpty()) {
+      builder.environment().put("LITELLM_API_KEY", config.getLitellmApiKey());
+    }
     builder.redirectErrorStream(true);
 
     try {

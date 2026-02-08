@@ -19,4 +19,5 @@ public class CodexChatInput {
   public String mode;
   public boolean postAsReview;
   public boolean applyPatchset;
+  public String model;
 }

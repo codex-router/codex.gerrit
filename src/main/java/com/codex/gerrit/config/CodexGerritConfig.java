@@ -32,6 +32,9 @@ public class CodexGerritConfig {
   private final String codexPath;
   private final List<String> codexArgs;
   private final int maxFiles;
+  private final String litellmBaseUrl;
+  private final String litellmApiKey;
+  private final List<String> litellmModels;
 
   @Inject
   CodexGerritConfig(PluginConfigFactory configFactory, @PluginName String pluginName) {
@@ -40,6 +43,9 @@ public class CodexGerritConfig {
     this.codexPath = trimToEmpty(config.getString("codexPath"));
     this.codexArgs = parseArgs(config.getString("codexArgs"));
     this.maxFiles = config.getInt("maxFiles", DEFAULT_MAX_FILES);
+    this.litellmBaseUrl = trimToEmpty(config.getString("litellmBaseUrl"));
+    this.litellmApiKey = trimToEmpty(config.getString("litellmApiKey"));
+    this.litellmModels = parseList(config.getString("litellmModels"));
   }
 
   public String getGerritBotUser() {
@@ -62,6 +68,18 @@ public class CodexGerritConfig {
     return !codexPath.isEmpty();
   }
 
+  public String getLitellmBaseUrl() {
+    return litellmBaseUrl;
+  }
+
+  public String getLitellmApiKey() {
+    return litellmApiKey;
+  }
+
+  public List<String> getLitellmModels() {
+    return litellmModels;
+  }
+
   private static List<String> parseArgs(String raw) {
     if (raw == null || raw.trim().isEmpty()) {
       return Collections.emptyList();
@@ -72,6 +90,20 @@ public class CodexGerritConfig {
       args.add(tokenizer.nextToken());
     }
     return args;
+  }
+
+  private static List<String> parseList(String raw) {
+    if (raw == null || raw.trim().isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<String> items = new ArrayList<>();
+    for (String item : raw.split(",")) {
+      String trimmed = item.trim();
+      if (!trimmed.isEmpty()) {
+        items.add(trimmed);
+      }
+    }
+    return items;
   }
 
   private static String trimToEmpty(String value) {

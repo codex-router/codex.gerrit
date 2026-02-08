@@ -32,6 +32,24 @@ Gerrit.install(plugin => {
       header.className = 'codex-header';
       header.textContent = 'Codex Chat';
 
+      const modelContainer = document.createElement('div');
+      modelContainer.className = 'codex-model-container';
+
+      const modelLabel = document.createElement('label');
+      modelLabel.className = 'codex-model-label';
+      modelLabel.textContent = 'Model:';
+
+      const modelSelect = document.createElement('select');
+      modelSelect.className = 'codex-model-select';
+
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'Default';
+      modelSelect.appendChild(defaultOption);
+
+      modelContainer.appendChild(modelLabel);
+      modelContainer.appendChild(modelSelect);
+
       const input = document.createElement('textarea');
       input.className = 'codex-input';
       input.placeholder = 'Describe what you want. Use Review for feedback, Generate for ideas, or Apply Patchset to update files.';
@@ -63,6 +81,7 @@ Gerrit.install(plugin => {
       actions.appendChild(applyButton);
 
       wrapper.appendChild(header);
+      wrapper.appendChild(modelContainer);
       wrapper.appendChild(input);
       wrapper.appendChild(actions);
       wrapper.appendChild(status);
@@ -80,11 +99,36 @@ Gerrit.install(plugin => {
       applyButton.addEventListener('click', () => this.submit('patchset', true, true));
 
       this.input = input;
+      this.modelSelect = modelSelect;
       this.output = output;
       this.status = status;
       this.reviewButton = reviewButton;
       this.generateButton = generateButton;
       this.applyButton = applyButton;
+
+      this.loadModels();
+    }
+
+    async loadModels() {
+      const changeId = this.getChangeId();
+      if (!changeId) {
+        return;
+      }
+
+      try {
+        const path = `/changes/${changeId}/revisions/current/codex-config`;
+        const response = await plugin.restApi().get(path);
+        if (response && response.models && response.models.length > 0) {
+          response.models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = model;
+            this.modelSelect.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to load models:', error);
+      }
     }
 
     async submit(mode, postAsReview, applyPatchset) {
@@ -103,13 +147,16 @@ Gerrit.install(plugin => {
       this.setBusy(true);
       this.setStatus(`Running ${mode}...`);
 
+      const model = this.modelSelect && this.modelSelect.value ? this.modelSelect.value : null;
+
       try {
         const path = `/changes/${changeId}/revisions/current/codex-chat`;
         const response = await plugin.restApi().post(path, {
           prompt,
           mode,
           postAsReview,
-          applyPatchset
+          applyPatchset,
+          model
         });
         if (response && response.reply) {
           this.output.textContent = response.reply;

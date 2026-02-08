@@ -7,10 +7,12 @@ as a Gerrit review comment.
 ## Features
 
 - Chat panel in the change footer with input and reply UI.
+- Model selection dropdown to choose from configured LiteLLM models.
 - Review action posts a Gerrit review comment (optionally tagged with a bot name).
 - Generate action returns a reply in the UI without posting.
 - Apply Patchset updates files and publishes a new patchset on the change.
 - Uses the OpenAI Codex CLI as the AI agent (configurable path and args).
+- Supports LiteLLM proxy integration with configurable base URL and API key.
 
 ## Build
 
@@ -32,20 +34,39 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 	codexPath = /usr/local/bin/codex
 
 	# Optional: extra CLI args passed to codex.
-	codexArgs = --model gpt-4o-mini --format text
+	codexArgs = --format text
 
 	# Optional: Gerrit bot username used as a message prefix.
 	gerritBotUser = codex-bot
 
 	# Optional: limit how many file names are included in prompts.
 	maxFiles = 200
+
+	# Optional: LiteLLM proxy base URL.
+	litellmBaseUrl = http://localhost:4000
+
+	# Optional: LiteLLM API key.
+	litellmApiKey = sk-your-api-key
+
+	# Optional: Comma-separated list of available models for UI selection.
+	litellmModels = gpt-4,gpt-3.5-turbo,claude-3-opus,claude-3-sonnet
 ```
 
 The Codex CLI is expected to accept the prompt via stdin and print the response to stdout.
 
+### LiteLLM Configuration
+
+When `litellmBaseUrl` and `litellmApiKey` are configured, the plugin sets the `LITELLM_API_BASE`
+and `LITELLM_API_KEY` environment variables when invoking the Codex CLI. If `litellmModels` is
+configured, users can select a model from a dropdown in the chat panel, which is passed to the
+CLI via the `--model` parameter.
+
+See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration instructions.
+
 ## Usage
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
+- (Optional) Select a model from the dropdown if multiple models are configured.
 - Enter a prompt and click `Review` to post the reply as a Gerrit review message.
 - Enter a prompt and click `Generate` to receive a reply in the UI only.
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.

@@ -14,6 +14,36 @@
   color: #5b3a1d;
 }
 
+.codex-model-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.codex-model-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #5b3a1d;
+}
+
+.codex-model-select {
+  flex: 1;
+  max-width: 300px;
+  padding: 6px 10px;
+  border: 1px solid #c4c4c4;
+  border-radius: 4px;
+  background: #fff9f2;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+}
+
+.codex-model-select:focus {
+  outline: none;
+  border-color: #b65a2a;
+}
+
 .codex-input {
   width: 100%;
   min-height: 90px;
