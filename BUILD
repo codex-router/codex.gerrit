@@ -1,7 +1,7 @@
 load("//tools/bzl:plugin.bzl", "gerrit_plugin")
 
 gerrit_plugin(
-    name = "codex-gerrit",
+    name = "codex",
     srcs = glob(["src/main/java/**/*.java"]),
     manifest_entries = [
         "Gerrit-PluginName: codex-gerrit",
