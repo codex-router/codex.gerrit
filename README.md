@@ -97,4 +97,5 @@ files and publish the edit using the existing commit message.
 
 ## Reference
 
+- [gerrit-dev-plugins-ui-extension](https://gerrit.cloudera.org/Documentation/dev-plugins.html#ui_extension)
 - [gerrit-plugins-ai-code-review](https://gerrit.googlesource.com/plugins/ai-code-review/)

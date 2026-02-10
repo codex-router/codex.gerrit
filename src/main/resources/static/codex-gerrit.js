@@ -14,6 +14,7 @@
 
 Gerrit.install(plugin => {
   const pluginName = plugin.getPluginName();
+  const elementName = 'codex-chat-panel';
 
   class CodexChatPanel extends HTMLElement {
     connectedCallback() {
@@ -207,14 +208,22 @@ Gerrit.install(plugin => {
     }
   }
 
-  customElements.define('codex-chat-panel', CodexChatPanel);
+  if (!customElements.get(elementName)) {
+    customElements.define(elementName, CodexChatPanel);
+  }
 
-  // Use panel() for Gerrit 3.x compatibility
-  // This is the standard way to add panels to screens
-  plugin.panel('CHANGE_SCREEN_BELOW_COMMIT_INFO_BLOCK', (ctx) => {
-    const panel = document.createElement('codex-chat-panel');
-    panel.style.display = 'block';
-    panel.style.marginTop = '20px';
-    return panel;
-  });
+  // PolyGerrit UI extension point (Gerrit 3.x).
+  if (typeof plugin.registerCustomComponent === 'function') {
+    plugin.registerCustomComponent('change-view-integration', elementName);
+  }
+
+  // GWT UI fallback for older Gerrit setups.
+  if (typeof plugin.panel === 'function') {
+    plugin.panel('CHANGE_SCREEN_BELOW_COMMIT_INFO_BLOCK', () => {
+      const panel = document.createElement(elementName);
+      panel.style.display = 'block';
+      panel.style.marginTop = '20px';
+      return panel;
+    });
+  }
 });
