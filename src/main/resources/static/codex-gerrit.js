@@ -212,12 +212,22 @@ Gerrit.install(plugin => {
     customElements.define(elementName, CodexChatPanel);
   }
 
-  // PolyGerrit UI extension point (Gerrit 3.x).
+  // PolyGerrit UI extension (Gerrit 3.x): register panel at change-view-integration
+  // (between Files and Change Log). See pg-plugin-endpoints.html.
   if (typeof plugin.registerCustomComponent === 'function') {
     plugin.registerCustomComponent('change-view-integration', elementName);
+  } else if (typeof plugin.hook === 'function') {
+    // Low-level DOM hook fallback for PolyGerrit.
+    const domHook = plugin.hook('change-view-integration');
+    domHook.onAttached(function (element) {
+      const panel = document.createElement(elementName);
+      if (element.appendChild) {
+        element.appendChild(panel);
+      }
+    });
   }
 
-  // GWT UI fallback for older Gerrit setups.
+  // GWT UI fallback for pre–PolyGerrit Gerrit.
   if (typeof plugin.panel === 'function') {
     plugin.panel('CHANGE_SCREEN_BELOW_COMMIT_INFO_BLOCK', () => {
       const panel = document.createElement(elementName);

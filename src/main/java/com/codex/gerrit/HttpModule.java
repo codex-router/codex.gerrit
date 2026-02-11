@@ -14,12 +14,15 @@
 
 package com.codex.gerrit;
 
-import com.google.inject.servlet.ServletModule;
+import com.google.gerrit.extensions.registration.DynamicSet;
+import com.google.gerrit.httpd.plugins.HttpPluginModule;
+import com.google.gerrit.httpd.plugins.JavaScriptPlugin;
+import com.google.gerrit.server.plugins.WebUiPlugin;
 
-public class HttpModule extends ServletModule {
+public class HttpModule extends HttpPluginModule {
   @Override
   protected void configureServlets() {
-    // Serve static resources (JS, CSS files) from src/main/resources/static/
-    // This makes the plugin's JavaScript and CSS files accessible to the Gerrit UI
+    DynamicSet.bind(binder(), WebUiPlugin.class)
+        .toInstance(new JavaScriptPlugin("codex-gerrit.js"));
   }
 }
