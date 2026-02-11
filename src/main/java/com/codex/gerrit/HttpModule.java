@@ -14,15 +14,23 @@
 
 package com.codex.gerrit;
 
-import com.google.gerrit.extensions.registration.DynamicSet;
-import com.google.gerrit.httpd.plugins.HttpPluginModule;
-import com.google.gerrit.httpd.plugins.JavaScriptPlugin;
-import com.google.gerrit.server.plugins.WebUiPlugin;
+import com.google.inject.servlet.ServletModule;
 
-public class HttpModule extends HttpPluginModule {
+/**
+ * HTTP module for the Codex Gerrit plugin.
+ *
+ * <p>Static resources (e.g. {@code static/codex-gerrit.js}) are served by Gerrit from the plugin
+ * JAR at {@code /plugins/codex-gerrit/static/...}.
+ *
+ * <p>For PolyGerrit to load the chat panel script automatically, the plugin would need to register
+ * a WebUiPlugin (JavaScriptPlugin) in this module. That requires {@code WebUiPlugin} and {@code
+ * JavaScriptPlugin} from the server, which are not part of the public plugin API used by Bazel
+ * builds. If the chat panel does not appear in PolyGerrit, deploy {@code codex-gerrit.js} as a
+ * standalone file to {@code $GERRIT_SITE/plugins/codex-gerrit.js} so Gerrit loads it.
+ */
+public class HttpModule extends ServletModule {
   @Override
   protected void configureServlets() {
-    DynamicSet.bind(binder(), WebUiPlugin.class)
-        .toInstance(new JavaScriptPlugin("codex-gerrit.js"));
+    // Optional: add servlet bindings here if needed.
   }
 }
