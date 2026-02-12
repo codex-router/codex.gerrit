@@ -7,6 +7,7 @@ gerrit_plugin(
         "Gerrit-PluginName: codex-gerrit",
         "Gerrit-Module: com.codex.gerrit.Module",
         "Gerrit-HttpModule: com.codex.gerrit.HttpModule",
+        "Gerrit-JavaScript: codex-gerrit.js",
         "Implementation-Title: Codex Gerrit Plugin",
     ],
     resources = glob(["src/main/resources/**/*"]),

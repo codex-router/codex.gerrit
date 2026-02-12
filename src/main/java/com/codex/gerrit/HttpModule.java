@@ -20,13 +20,8 @@ import com.google.inject.servlet.ServletModule;
  * HTTP module for the Codex Gerrit plugin.
  *
  * <p>Static resources (e.g. {@code static/codex-gerrit.js}) are served by Gerrit from the plugin
- * JAR at {@code /plugins/codex-gerrit/static/...}.
- *
- * <p>For PolyGerrit to load the chat panel script automatically, the plugin would need to register
- * a WebUiPlugin (JavaScriptPlugin) in this module. That requires {@code WebUiPlugin} and {@code
- * JavaScriptPlugin} from the server, which are not part of the public plugin API used by Bazel
- * builds. If the chat panel does not appear in PolyGerrit, deploy {@code codex-gerrit.js} as a
- * standalone file to {@code $GERRIT_SITE/plugins/codex-gerrit.js} so Gerrit loads it.
+ * JAR at {@code /plugins/codex-gerrit/static/...}. Web UI auto-loading for PolyGerrit is declared
+ * via the plugin manifest entry {@code Gerrit-JavaScript: codex-gerrit.js}.
  */
 public class HttpModule extends ServletModule {
   @Override

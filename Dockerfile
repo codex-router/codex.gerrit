@@ -89,12 +89,12 @@ RUN java -version \
     && echo "build --tool_java_language_version=11" >> .bazelrc \
     && python3 -c "import re; content = open('WORKSPACE', 'r').read(); content = re.sub(r'(rbe_autoconfig\s*\()', r'\1use_checked_in_confs = \"Force\", ', content); open('WORKSPACE', 'w').write(content)" \
     && bazel sync --configure 2>&1 | tee /tmp/sync.log || (echo "Sync had errors, but continuing..." && tail -20 /tmp/sync.log) \
-    && bazel build --verbose_failures plugins/codex
+    && bazel build --verbose_failures //plugins/codex:codex
 
 # Export built plugin (switch back to root for file operations)
 USER root
 RUN mkdir -p /workspace/output \
-    && cp /workspace/gerrit/bazel-bin/plugins/codex/codex.jar /workspace/output/ \
+    && cp /workspace/gerrit/bazel-bin/plugins/codex/codex.jar /workspace/output/codex-gerrit.jar \
     && chown -R builder:builder /workspace/output
 
 # Set working directory

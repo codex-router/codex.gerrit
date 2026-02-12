@@ -18,12 +18,18 @@ import static com.google.gerrit.server.change.RevisionResource.REVISION_KIND;
 
 import com.codex.gerrit.rest.CodexChatRest;
 import com.codex.gerrit.rest.CodexConfigRest;
+import com.google.gerrit.extensions.registration.DynamicSet;
 import com.google.gerrit.extensions.restapi.RestApiModule;
+import com.google.gerrit.extensions.webui.JavaScriptPlugin;
+import com.google.gerrit.extensions.webui.WebUiPlugin;
 import com.google.inject.AbstractModule;
 
 public class Module extends AbstractModule {
   @Override
   protected void configure() {
+    // Register PolyGerrit UI plugin script explicitly (same loading model used by coder-workspace).
+    DynamicSet.bind(binder(), WebUiPlugin.class).toInstance(new JavaScriptPlugin("codex-gerrit.js"));
+
     install(
         new RestApiModule() {
           @Override

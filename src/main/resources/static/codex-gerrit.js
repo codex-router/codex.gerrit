@@ -15,17 +15,30 @@
 Gerrit.install(plugin => {
   const pluginName = plugin.getPluginName();
   const elementName = 'codex-chat-panel';
+  const logPrefix = '[codex-gerrit]';
+  const log = (...args) => console.log(logPrefix, ...args);
+  const warn = (...args) => console.warn(logPrefix, ...args);
+  const error = (...args) => console.error(logPrefix, ...args);
+
+  log('Plugin installed.', {
+    pluginName,
+    location: window.location.href
+  });
 
   class CodexChatPanel extends HTMLElement {
     connectedCallback() {
+      log('Panel connectedCallback invoked.');
       if (this.shadowRoot) {
+        log('Panel already has shadowRoot, skipping render.');
         return;
       }
       this.attachShadow({ mode: 'open' });
+      log('Panel shadowRoot created, rendering UI.');
       this.render();
     }
 
     render() {
+      log('Rendering panel UI.');
       const wrapper = document.createElement('div');
       wrapper.className = 'codex-chat';
 
@@ -94,6 +107,7 @@ Gerrit.install(plugin => {
 
       this.shadowRoot.appendChild(style);
       this.shadowRoot.appendChild(wrapper);
+      log('Panel DOM mounted. Loading models...');
 
       reviewButton.addEventListener('click', () => this.submit('review', true, false));
       generateButton.addEventListener('click', () => this.submit('generate', false, false));
@@ -113,12 +127,18 @@ Gerrit.install(plugin => {
     async loadModels() {
       const changeId = this.getChangeId();
       if (!changeId) {
+        warn('loadModels skipped: could not detect change id.', {
+          pathname: window.location.pathname,
+          hash: window.location.hash
+        });
         return;
       }
 
       try {
         const path = `/changes/${changeId}/revisions/current/codex-config`;
+        log('Loading models from REST API.', { path });
         const response = await plugin.restApi().get(path);
+        log('Model REST response received.', response);
         if (response && response.models && response.models.length > 0) {
           response.models.forEach(model => {
             const option = document.createElement('option');
@@ -126,9 +146,12 @@ Gerrit.install(plugin => {
             option.textContent = model;
             this.modelSelect.appendChild(option);
           });
+          log('Models populated.', { count: response.models.length });
+        } else {
+          log('No models returned; keeping Default only.');
         }
       } catch (error) {
-        console.warn('Failed to load models:', error);
+        warn('Failed to load models.', error);
       }
     }
 
@@ -141,6 +164,10 @@ Gerrit.install(plugin => {
 
       const changeId = this.getChangeId();
       if (!changeId) {
+        warn('Submit blocked: unable to detect change id.', {
+          pathname: window.location.pathname,
+          hash: window.location.hash
+        });
         this.setStatus('Unable to detect change id.');
         return;
       }
@@ -152,6 +179,7 @@ Gerrit.install(plugin => {
 
       try {
         const path = `/changes/${changeId}/revisions/current/codex-chat`;
+        log('Submitting chat request.', { mode, postAsReview, applyPatchset, model, path });
         const response = await plugin.restApi().post(path, {
           prompt,
           mode,
@@ -159,6 +187,7 @@ Gerrit.install(plugin => {
           applyPatchset,
           model
         });
+        log('Chat REST response received.', response);
         if (response && response.reply) {
           this.output.textContent = response.reply;
           this.setStatus('Done.');
@@ -167,6 +196,7 @@ Gerrit.install(plugin => {
           this.setStatus('No reply received.');
         }
       } catch (error) {
+        error('Chat request failed.', error);
         this.output.textContent = '';
         this.setStatus(`Request failed: ${error && error.message ? error.message : error}`);
       } finally {
@@ -194,46 +224,82 @@ Gerrit.install(plugin => {
 
     getChangeId() {
       if (window.Gerrit && typeof window.Gerrit.getChangeId === 'function') {
-        return window.Gerrit.getChangeId();
+        const idFromApi = window.Gerrit.getChangeId();
+        log('Detected change id via window.Gerrit.getChangeId().', idFromApi);
+        return idFromApi;
       }
       const match = window.location.pathname.match(/\/\+\/(\d+)/);
       if (match && match[1]) {
+        log('Detected change id via /+/ path match.', match[1]);
         return match[1];
       }
       const numericMatch = window.location.pathname.match(/\/(\d+)(?:$|\/)/);
       if (numericMatch && numericMatch[1]) {
+        log('Detected change id via numeric path match.', numericMatch[1]);
         return numericMatch[1];
       }
+      warn('Failed to detect change id from page URL.', {
+        pathname: window.location.pathname,
+        hash: window.location.hash
+      });
       return '';
     }
   }
 
   if (!customElements.get(elementName)) {
     customElements.define(elementName, CodexChatPanel);
+    log('Custom element registered.', elementName);
+  } else {
+    log('Custom element already registered.', elementName);
   }
 
   // PolyGerrit UI extension (Gerrit 3.x): register panel at change-view-integration
   // (between Files and Change Log). See pg-plugin-endpoints.html.
   if (typeof plugin.registerCustomComponent === 'function') {
+    log('Registering custom component at endpoint change-view-integration.');
     plugin.registerCustomComponent('change-view-integration', elementName);
   } else if (typeof plugin.hook === 'function') {
     // Low-level DOM hook fallback for PolyGerrit.
+    log('registerCustomComponent unavailable; using plugin.hook fallback.');
     const domHook = plugin.hook('change-view-integration');
     domHook.onAttached(function (element) {
+      log('Hook attached for change-view-integration.', element);
       const panel = document.createElement(elementName);
       if (element.appendChild) {
         element.appendChild(panel);
+        log('Panel appended via hook fallback.');
+      } else {
+        warn('Hook element has no appendChild; panel not appended.');
       }
     });
+  } else {
+    warn('Neither registerCustomComponent nor hook is available.');
   }
 
   // GWT UI fallback for pre–PolyGerrit Gerrit.
   if (typeof plugin.panel === 'function') {
+    log('Registering legacy GWT panel fallback.');
     plugin.panel('CHANGE_SCREEN_BELOW_COMMIT_INFO_BLOCK', () => {
+      log('Legacy GWT panel callback invoked.');
       const panel = document.createElement(elementName);
       panel.style.display = 'block';
       panel.style.marginTop = '20px';
       return panel;
+    });
+  } else {
+    log('Legacy GWT panel API unavailable (expected on PolyGerrit).');
+  }
+
+  if (typeof plugin.on === 'function') {
+    plugin.on('history', token => {
+      log('History event received.', token);
+    });
+    plugin.on('showchange', (change, revision) => {
+      log('Showchange event received.', {
+        changeNumber: change && change._number,
+        changeId: change && change.change_id,
+        revisionId: revision && revision._number
+      });
     });
   }
 });
