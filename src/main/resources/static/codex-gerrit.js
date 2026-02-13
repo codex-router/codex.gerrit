@@ -93,18 +93,14 @@ Gerrit.install(plugin => {
 
       const input = document.createElement('textarea');
       input.className = 'codex-input';
-      input.placeholder = 'Describe what you want. Use Review for feedback, Generate for ideas, or Apply Patchset to update files.';
+      input.placeholder = 'Chat with the selected CLI/model, or use Apply Patchset to generate and apply changes to this Gerrit change.';
 
       const actions = document.createElement('div');
       actions.className = 'codex-actions';
 
-      const reviewButton = document.createElement('button');
-      reviewButton.className = 'codex-button';
-      reviewButton.textContent = 'Review';
-
-      const generateButton = document.createElement('button');
-      generateButton.className = 'codex-button secondary';
-      generateButton.textContent = 'Generate';
+      const chatButton = document.createElement('button');
+      chatButton.className = 'codex-button';
+      chatButton.textContent = 'Chat';
 
       const applyButton = document.createElement('button');
       applyButton.className = 'codex-button outline';
@@ -117,8 +113,7 @@ Gerrit.install(plugin => {
       output.className = 'codex-output';
       output.textContent = '';
 
-      actions.appendChild(reviewButton);
-      actions.appendChild(generateButton);
+      actions.appendChild(chatButton);
       actions.appendChild(applyButton);
 
       wrapper.appendChild(header);
@@ -136,17 +131,15 @@ Gerrit.install(plugin => {
       this.shadowRoot.appendChild(wrapper);
       log('Panel DOM mounted. Loading models...');
 
-      reviewButton.addEventListener('click', () => this.submit('review', true, false));
-      generateButton.addEventListener('click', () => this.submit('generate', false, false));
-      applyButton.addEventListener('click', () => this.submit('patchset', true, true));
+      chatButton.addEventListener('click', () => this.submitChat());
+      applyButton.addEventListener('click', () => this.submitPatchset());
 
       this.input = input;
       this.cliSelect = cliSelect;
       this.modelSelect = modelSelect;
       this.output = output;
       this.status = status;
-      this.reviewButton = reviewButton;
-      this.generateButton = generateButton;
+      this.chatButton = chatButton;
       this.applyButton = applyButton;
 
       this.loadConfig();
@@ -205,6 +198,14 @@ Gerrit.install(plugin => {
       }
     }
 
+    async submitChat() {
+      await this.submit('chat', false, false);
+    }
+
+    async submitPatchset() {
+      await this.submit('patchset', true, true);
+    }
+
     async submit(mode, postAsReview, applyPatchset) {
       const prompt = (this.input && this.input.value || '').trim();
       if (!prompt) {
@@ -257,11 +258,8 @@ Gerrit.install(plugin => {
     }
 
     setBusy(isBusy) {
-      if (this.reviewButton) {
-        this.reviewButton.disabled = isBusy;
-      }
-      if (this.generateButton) {
-        this.generateButton.disabled = isBusy;
+      if (this.chatButton) {
+        this.chatButton.disabled = isBusy;
       }
       if (this.applyButton) {
         this.applyButton.disabled = isBusy;

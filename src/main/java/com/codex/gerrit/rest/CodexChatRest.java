@@ -123,16 +123,17 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       return "patchset";
     }
     if (mode == null) {
-      return "review";
+      return "chat";
     }
     String normalized = mode.trim().toLowerCase();
     if (normalized.isEmpty()) {
-      return "review";
+      return "chat";
     }
-    if (!"review".equals(normalized)
+    if (!"chat".equals(normalized)
+        && !"review".equals(normalized)
         && !"generate".equals(normalized)
         && !"patchset".equals(normalized)) {
-      return "review";
+      return "chat";
     }
     return normalized;
   }

@@ -64,6 +64,8 @@ public class CodexPromptBuilder {
       builder.append("BEGIN_FILE path/to/file\n<full file content>\nEND_FILE\n");
       builder.append("DELETE_FILE path/to/file\n");
       builder.append("\nDo not include extra commentary outside the markers.\n");
+    } else if ("chat".equals(input.mode)) {
+      builder.append("\nAnswer as a coding assistant for this Gerrit change. Be concise and actionable.\n");
     } else if ("generate".equals(input.mode)) {
       builder.append("\nOutput a unified diff if you propose code changes.\n");
     } else {

@@ -1,15 +1,14 @@
 # codex.gerrit
 
 Codex Gerrit plugin that adds a chat panel to the bottom of a change view. It can send prompts
-to the OpenAI Codex CLI to generate change suggestions or review feedback and can post the reply
-as a Gerrit review comment.
+to supported AI CLIs for interactive chat and can generate/apply a patchset to the current change.
 
 ## Features
 
 - Chat panel in the change footer with input and reply UI.
+- CLI provider dropdown to choose among configured supported CLIs.
 - Model selection dropdown to choose from configured LiteLLM models.
-- Review action posts a Gerrit review comment (optionally tagged with a bot name).
-- Generate action returns a reply in the UI without posting.
+- Chat action returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
 - Supports multiple AI CLIs: Codex (default), Claude, Gemini, OpenCode, and Qwen.
 - Supports LiteLLM proxy integration with configurable base URL and API key.
@@ -82,13 +81,12 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Select a CLI from the dropdown (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - (Optional) Select a model from the dropdown if multiple models are configured.
-- Enter a prompt and click `Review` to post the reply as a Gerrit review message.
-- Enter a prompt and click `Generate` to receive a reply in the UI only.
+- Enter a prompt and click `Chat` to receive a reply in the UI from the selected CLI/model.
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.
 	The patchset is published by the current user who triggered the action.
 
-`gerritBotUser` is used as a message prefix so the reply is easy to identify; the review is
-posted by the current user who triggered the action.
+`gerritBotUser` is used as a message prefix for Gerrit review messages posted by patchset flow;
+the review is posted by the current user who triggered the action.
 
 ### Patchset Output Format
 
