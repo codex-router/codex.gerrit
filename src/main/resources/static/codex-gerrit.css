@@ -1,8 +1,16 @@
+/* Match change page width: host fills the change-view-integration container */
+:host {
+  display: block;
+  width: 100%;
+}
+
 .codex-chat {
   border-top: 1px solid #d6d6d6;
   margin-top: 16px;
   padding: 16px 0;
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .codex-header {
