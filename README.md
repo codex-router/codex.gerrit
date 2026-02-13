@@ -11,7 +11,7 @@ as a Gerrit review comment.
 - Review action posts a Gerrit review comment (optionally tagged with a bot name).
 - Generate action returns a reply in the UI without posting.
 - Apply Patchset updates files and publishes a new patchset on the change.
-- Uses the OpenAI Codex CLI as the AI agent (configurable path and args).
+- Supports multiple AI CLIs: Codex (default), Claude, Gemini, OpenCode, and Qwen.
 - Supports LiteLLM proxy integration with configurable base URL and API key.
 
 ## Build
@@ -36,6 +36,20 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 	# Optional: extra CLI args passed to codex.
 	codexArgs = --format text
 
+	# Optional: path/args for other supported CLIs.
+	claudePath = /usr/local/bin/claude
+	claudeArgs = --print
+	geminiPath = /usr/local/bin/gemini
+	geminiArgs = --format text
+	opencodePath = /usr/local/bin/opencode
+	opencodeArgs = --format text
+	qwenPath = /usr/local/bin/qwen
+	qwenArgs = --format text
+
+	# Optional: default CLI for the panel when no explicit CLI is selected.
+	# Supported values: codex, claude, gemini, opencode, qwen.
+	defaultCli = codex
+
 	# Optional: Gerrit bot username used as a message prefix.
 	gerritBotUser = codex-bot
 
@@ -52,7 +66,7 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 	litellmModels = gpt-4,gpt-3.5-turbo,claude-3-opus,claude-3-sonnet
 ```
 
-The Codex CLI is expected to accept the prompt via stdin and print the response to stdout.
+Each configured CLI is expected to accept the prompt via stdin and print the response to stdout.
 
 ### LiteLLM Configuration
 
@@ -66,6 +80,7 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 ## Usage
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
+- Select a CLI from the dropdown (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - (Optional) Select a model from the dropdown if multiple models are configured.
 - Enter a prompt and click `Review` to post the reply as a Gerrit review message.
 - Enter a prompt and click `Generate` to receive a reply in the UI only.

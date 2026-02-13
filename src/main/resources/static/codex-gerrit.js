@@ -16,6 +16,7 @@ Gerrit.install(plugin => {
   const pluginName = plugin.getPluginName();
   const elementName = 'codex-chat-panel';
   const logPrefix = '[codex-gerrit]';
+  const supportedClis = ['codex', 'claude', 'gemini', 'opencode', 'qwen'];
   const log = (...args) => console.log(logPrefix, ...args);
   const warn = (...args) => console.warn(logPrefix, ...args);
   const error = (...args) => console.error(logPrefix, ...args);
@@ -46,15 +47,38 @@ Gerrit.install(plugin => {
       header.className = 'codex-header';
       header.textContent = 'Codex Chat';
 
+      const selectors = document.createElement('div');
+      selectors.className = 'codex-selectors';
+
+      const cliContainer = document.createElement('div');
+      cliContainer.className = 'codex-selector-container';
+
+      const cliLabel = document.createElement('label');
+      cliLabel.className = 'codex-selector-label';
+      cliLabel.textContent = 'CLI:';
+
+      const cliSelect = document.createElement('select');
+      cliSelect.className = 'codex-selector-select';
+
+      supportedClis.forEach(cli => {
+        const option = document.createElement('option');
+        option.value = cli;
+        option.textContent = cli;
+        cliSelect.appendChild(option);
+      });
+
+      cliContainer.appendChild(cliLabel);
+      cliContainer.appendChild(cliSelect);
+
       const modelContainer = document.createElement('div');
-      modelContainer.className = 'codex-model-container';
+      modelContainer.className = 'codex-selector-container';
 
       const modelLabel = document.createElement('label');
-      modelLabel.className = 'codex-model-label';
+      modelLabel.className = 'codex-selector-label';
       modelLabel.textContent = 'Model:';
 
       const modelSelect = document.createElement('select');
-      modelSelect.className = 'codex-model-select';
+      modelSelect.className = 'codex-selector-select';
 
       const defaultOption = document.createElement('option');
       defaultOption.value = '';
@@ -63,6 +87,9 @@ Gerrit.install(plugin => {
 
       modelContainer.appendChild(modelLabel);
       modelContainer.appendChild(modelSelect);
+
+      selectors.appendChild(cliContainer);
+      selectors.appendChild(modelContainer);
 
       const input = document.createElement('textarea');
       input.className = 'codex-input';
@@ -95,7 +122,7 @@ Gerrit.install(plugin => {
       actions.appendChild(applyButton);
 
       wrapper.appendChild(header);
-      wrapper.appendChild(modelContainer);
+      wrapper.appendChild(selectors);
       wrapper.appendChild(input);
       wrapper.appendChild(actions);
       wrapper.appendChild(status);
@@ -114,6 +141,7 @@ Gerrit.install(plugin => {
       applyButton.addEventListener('click', () => this.submit('patchset', true, true));
 
       this.input = input;
+      this.cliSelect = cliSelect;
       this.modelSelect = modelSelect;
       this.output = output;
       this.status = status;
@@ -121,13 +149,13 @@ Gerrit.install(plugin => {
       this.generateButton = generateButton;
       this.applyButton = applyButton;
 
-      this.loadModels();
+      this.loadConfig();
     }
 
-    async loadModels() {
+    async loadConfig() {
       const changeId = this.getChangeId();
       if (!changeId) {
-        warn('loadModels skipped: could not detect change id.', {
+        warn('loadConfig skipped: could not detect change id.', {
           pathname: window.location.pathname,
           hash: window.location.hash
         });
@@ -136,9 +164,31 @@ Gerrit.install(plugin => {
 
       try {
         const path = `/changes/${changeId}/revisions/current/codex-config`;
-        log('Loading models from REST API.', { path });
+        log('Loading panel config from REST API.', { path });
         const response = await plugin.restApi().get(path);
-        log('Model REST response received.', response);
+        log('Panel config REST response received.', response);
+
+        const apiClis = response && response.clis && response.clis.length > 0 ? response.clis : [];
+        const mergedClis = Array.from(new Set([...supportedClis, ...apiClis]));
+        if (mergedClis.length > 0) {
+          this.cliSelect.innerHTML = '';
+          mergedClis.forEach(cli => {
+            const option = document.createElement('option');
+            option.value = cli;
+            option.textContent = cli;
+            this.cliSelect.appendChild(option);
+          });
+          if (response.defaultCli) {
+            this.cliSelect.value = response.defaultCli;
+          }
+          log('CLI options populated.', {
+            count: mergedClis.length,
+            defaultCli: response.defaultCli
+          });
+        } else {
+          log('No CLI list returned; using codex default option.');
+        }
+
         if (response && response.models && response.models.length > 0) {
           response.models.forEach(model => {
             const option = document.createElement('option');
@@ -175,16 +225,18 @@ Gerrit.install(plugin => {
       this.setBusy(true);
       this.setStatus(`Running ${mode}...`);
 
+      const cli = this.cliSelect && this.cliSelect.value ? this.cliSelect.value : 'codex';
       const model = this.modelSelect && this.modelSelect.value ? this.modelSelect.value : null;
 
       try {
         const path = `/changes/${changeId}/revisions/current/codex-chat`;
-        log('Submitting chat request.', { mode, postAsReview, applyPatchset, model, path });
+        log('Submitting chat request.', { mode, postAsReview, applyPatchset, cli, model, path });
         const response = await plugin.restApi().post(path, {
           prompt,
           mode,
           postAsReview,
           applyPatchset,
+          cli,
           model
         });
         log('Chat REST response received.', response);

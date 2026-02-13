@@ -20,6 +20,7 @@ import com.google.gerrit.server.config.PluginConfigFactory;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -27,10 +28,22 @@ import java.util.StringTokenizer;
 @Singleton
 public class CodexGerritConfig {
   private static final int DEFAULT_MAX_FILES = 200;
+  private static final String DEFAULT_CLI = "codex";
+  private static final List<String> SUPPORTED_CLIS =
+      Collections.unmodifiableList(Arrays.asList("codex", "claude", "gemini", "opencode", "qwen"));
 
   private final String gerritBotUser;
   private final String codexPath;
   private final List<String> codexArgs;
+  private final String claudePath;
+  private final List<String> claudeArgs;
+  private final String geminiPath;
+  private final List<String> geminiArgs;
+  private final String opencodePath;
+  private final List<String> opencodeArgs;
+  private final String qwenPath;
+  private final List<String> qwenArgs;
+  private final String defaultCli;
   private final int maxFiles;
   private final String litellmBaseUrl;
   private final String litellmApiKey;
@@ -42,6 +55,15 @@ public class CodexGerritConfig {
     this.gerritBotUser = trimToEmpty(config.getString("gerritBotUser"));
     this.codexPath = trimToEmpty(config.getString("codexPath"));
     this.codexArgs = parseArgs(config.getString("codexArgs"));
+    this.claudePath = trimToEmpty(config.getString("claudePath"));
+    this.claudeArgs = parseArgs(config.getString("claudeArgs"));
+    this.geminiPath = trimToEmpty(config.getString("geminiPath"));
+    this.geminiArgs = parseArgs(config.getString("geminiArgs"));
+    this.opencodePath = trimToEmpty(config.getString("opencodePath"));
+    this.opencodeArgs = parseArgs(config.getString("opencodeArgs"));
+    this.qwenPath = trimToEmpty(config.getString("qwenPath"));
+    this.qwenArgs = parseArgs(config.getString("qwenArgs"));
+    this.defaultCli = normalizeCli(config.getString("defaultCli"));
     this.maxFiles = config.getInt("maxFiles", DEFAULT_MAX_FILES);
     this.litellmBaseUrl = trimToEmpty(config.getString("litellmBaseUrl"));
     this.litellmApiKey = trimToEmpty(config.getString("litellmApiKey"));
@@ -68,6 +90,73 @@ public class CodexGerritConfig {
     return !codexPath.isEmpty();
   }
 
+  public String getDefaultCli() {
+    return defaultCli;
+  }
+
+  public static List<String> getSupportedClis() {
+    return SUPPORTED_CLIS;
+  }
+
+  public String normalizeCliOrDefault(String cli) {
+    return normalizeCli(cli);
+  }
+
+  public boolean isSupportedCli(String cli) {
+    return SUPPORTED_CLIS.contains(normalizeCli(cli));
+  }
+
+  public String getCliPath(String cli) {
+    String normalizedCli = normalizeCli(cli);
+    switch (normalizedCli) {
+      case "claude":
+        return claudePath;
+      case "gemini":
+        return geminiPath;
+      case "opencode":
+        return opencodePath;
+      case "qwen":
+        return qwenPath;
+      case "codex":
+      default:
+        return codexPath;
+    }
+  }
+
+  public List<String> getCliArgs(String cli) {
+    String normalizedCli = normalizeCli(cli);
+    switch (normalizedCli) {
+      case "claude":
+        return claudeArgs;
+      case "gemini":
+        return geminiArgs;
+      case "opencode":
+        return opencodeArgs;
+      case "qwen":
+        return qwenArgs;
+      case "codex":
+      default:
+        return codexArgs;
+    }
+  }
+
+  public boolean hasCliPath(String cli) {
+    return !getCliPath(cli).isEmpty();
+  }
+
+  public List<String> getConfiguredClis() {
+    List<String> configured = new ArrayList<>();
+    for (String cli : SUPPORTED_CLIS) {
+      if (hasCliPath(cli)) {
+        configured.add(cli);
+      }
+    }
+    if (configured.isEmpty()) {
+      configured.add(DEFAULT_CLI);
+    }
+    return configured;
+  }
+
   public String getLitellmBaseUrl() {
     return litellmBaseUrl;
   }
@@ -78,6 +167,20 @@ public class CodexGerritConfig {
 
   public List<String> getLitellmModels() {
     return litellmModels;
+  }
+
+  private String normalizeCli(String rawCli) {
+    if (rawCli == null) {
+      return DEFAULT_CLI;
+    }
+    String normalized = rawCli.trim().toLowerCase();
+    if (normalized.isEmpty()) {
+      return DEFAULT_CLI;
+    }
+    if (!SUPPORTED_CLIS.contains(normalized)) {
+      return DEFAULT_CLI;
+    }
+    return normalized;
   }
 
   private static List<String> parseArgs(String raw) {

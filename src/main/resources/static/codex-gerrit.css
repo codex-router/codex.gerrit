@@ -23,20 +23,25 @@
   color: #5b3a1d;
 }
 
-.codex-model-container {
+.codex-selectors {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 10px;
 }
 
-.codex-model-label {
+.codex-selector-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.codex-selector-label {
   font-size: 13px;
   font-weight: 500;
   color: #5b3a1d;
 }
 
-.codex-model-select {
+.codex-selector-select {
   flex: 1;
   max-width: 300px;
   padding: 6px 10px;
@@ -48,7 +53,7 @@
   cursor: pointer;
 }
 
-.codex-model-select:focus {
+.codex-selector-select:focus {
   outline: none;
   border-color: #b65a2a;
 }

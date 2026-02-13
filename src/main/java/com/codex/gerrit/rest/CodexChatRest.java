@@ -72,7 +72,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     Map<String, FileInfo> files = changeApi.current().files();
 
     String prompt = promptBuilder.buildPrompt(changeInfo, files, normalized);
-    String reply = cliClient.run(prompt, normalized.model);
+    String reply = cliClient.run(prompt, normalized.model, normalized.cli);
     String responseReply = reply;
     String reviewMessage = reply;
 
@@ -110,9 +110,10 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     normalized.mode = normalizeMode(input.mode, input.applyPatchset);
     normalized.postAsReview = input.postAsReview;
     normalized.applyPatchset = input.applyPatchset;
+    normalized.cli = config.normalizeCliOrDefault(input.cli);
     normalized.model = input.model;
-    if (!config.hasCodexPath()) {
-      throw new BadRequestException("codexPath is not configured");
+    if (!config.hasCliPath(normalized.cli)) {
+      throw new BadRequestException(normalized.cli + "Path is not configured");
     }
     return normalized;
   }

@@ -34,14 +34,20 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
 
   @Override
   public Response<CodexConfigResponse> apply(RevisionResource resource) throws RestApiException {
-    return Response.ok(new CodexConfigResponse(config.getLitellmModels()));
+    return Response.ok(
+        new CodexConfigResponse(
+            config.getLitellmModels(), CodexGerritConfig.getSupportedClis(), config.getDefaultCli()));
   }
 
   public static class CodexConfigResponse {
     public List<String> models;
+    public List<String> clis;
+    public String defaultCli;
 
-    public CodexConfigResponse(List<String> models) {
+    public CodexConfigResponse(List<String> models, List<String> clis, String defaultCli) {
       this.models = models;
+      this.clis = clis;
+      this.defaultCli = defaultCli;
     }
   }
 }

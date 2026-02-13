@@ -40,16 +40,21 @@ public class CodexCliClient {
   }
 
   public String run(String prompt) throws RestApiException {
-    return run(prompt, null);
+    return run(prompt, null, null);
   }
 
   public String run(String prompt, String model) throws RestApiException {
-    if (!config.hasCodexPath()) {
-      throw new BadRequestException("codexPath is not configured");
+    return run(prompt, model, null);
+  }
+
+  public String run(String prompt, String model, String cli) throws RestApiException {
+    String normalizedCli = config.normalizeCliOrDefault(cli);
+    if (!config.hasCliPath(normalizedCli)) {
+      throw new BadRequestException(normalizedCli + "Path is not configured");
     }
     List<String> command = new ArrayList<>();
-    command.add(config.getCodexPath());
-    command.addAll(config.getCodexArgs());
+    command.add(config.getCliPath(normalizedCli));
+    command.addAll(config.getCliArgs(normalizedCli));
 
     // Add model parameter if specified
     if (model != null && !model.trim().isEmpty()) {
@@ -80,14 +85,15 @@ public class CodexCliClient {
       String output = readOutput(process);
       int exitCode = process.waitFor();
       if (exitCode != 0) {
-        throw new BadRequestException("codex exited with status " + exitCode + "\n" + output);
+        throw new BadRequestException(
+            normalizedCli + " exited with status " + exitCode + "\n" + output);
       }
       return output.trim();
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
-      throw new BadRequestException("codex execution interrupted: " + ex.getMessage());
+      throw new BadRequestException(normalizedCli + " execution interrupted: " + ex.getMessage());
     } catch (IOException ex) {
-      throw new BadRequestException("codex execution failed: " + ex.getMessage());
+      throw new BadRequestException(normalizedCli + " execution failed: " + ex.getMessage());
     }
   }
 
