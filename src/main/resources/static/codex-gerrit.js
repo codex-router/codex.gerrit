@@ -45,7 +45,7 @@ Gerrit.install(plugin => {
 
       const header = document.createElement('div');
       header.className = 'codex-header';
-      header.textContent = 'Codex Chat';
+      header.textContent = '🤖 Codex Chat';
 
       const selectors = document.createElement('div');
       selectors.className = 'codex-selectors';
