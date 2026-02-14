@@ -96,7 +96,8 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 - Select a CLI from the dropdown (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - Model defaults to `Auto` for automatic model selection; optionally choose a specific model from the dropdown.
 - Select `Console` from the `Run` dropdown (next to `Model`) to open the web sandbox popup and run bash or git commands.
-- In the Console popup, use `Run` to execute a command, `Close` to dismiss, `Esc` to close quickly, and `Ctrl+Enter` to run from the command input.
+- In the Console popup, commands run in a terminal-style view with a PS1 prompt (`sandbox$`) and inline command output.
+- Use `Run` or press `Enter` from the command input to execute, `Close` to dismiss, and `Esc` to close quickly.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and click `Chat` to receive a reply in the UI from the selected CLI/model (or auto-selected model when `Auto` is chosen).
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.
@@ -130,7 +131,7 @@ files and publish the edit using the existing commit message.
 - Console commands run via `bash -lc`.
 - Git commands are supported. For repository-scoped commands (for example `git status`), set
 	`consoleWorkDir` to a valid git repository path.
-- Console output is merged from stdout/stderr and may be truncated for safety.
+- Console output is merged from stdout/stderr and printed inline in the terminal view; output may be truncated for safety.
 
 ## Reference
 

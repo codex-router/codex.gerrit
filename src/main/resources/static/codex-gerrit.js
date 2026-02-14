@@ -29,6 +29,7 @@ Gerrit.install(plugin => {
   class CodexChatPanel extends HTMLElement {
     constructor() {
       super();
+      this.consolePs1 = 'sandbox$ ';
       this.patchsetFiles = [];
       this.filteredMentionFiles = [];
       this.activeMentionIndex = -1;
@@ -169,7 +170,19 @@ Gerrit.install(plugin => {
       consoleHeader.className = 'codex-console-header';
       consoleHeader.textContent = 'Bash Console Sandbox';
 
-      const consoleInput = document.createElement('textarea');
+      const consoleTerminal = document.createElement('pre');
+      consoleTerminal.className = 'codex-console-terminal';
+      consoleTerminal.textContent = '';
+
+      const consoleInputRow = document.createElement('div');
+      consoleInputRow.className = 'codex-console-input-row';
+
+      const consolePrompt = document.createElement('span');
+      consolePrompt.className = 'codex-console-prompt';
+      consolePrompt.textContent = this.consolePs1;
+
+      const consoleInput = document.createElement('input');
+      consoleInput.type = 'text';
       consoleInput.className = 'codex-console-input';
       consoleInput.placeholder = 'Enter bash command (for example: ls -la)';
 
@@ -186,16 +199,15 @@ Gerrit.install(plugin => {
       consoleCloseButton.className = 'codex-button outline';
       consoleCloseButton.textContent = 'Close';
 
-      const consoleOutput = document.createElement('pre');
-      consoleOutput.className = 'codex-console-output';
-      consoleOutput.textContent = '';
+      consoleInputRow.appendChild(consolePrompt);
+      consoleInputRow.appendChild(consoleInput);
 
       consoleActions.appendChild(consoleRunButton);
       consoleActions.appendChild(consoleCloseButton);
       consoleDialog.appendChild(consoleHeader);
-      consoleDialog.appendChild(consoleInput);
+      consoleDialog.appendChild(consoleTerminal);
+      consoleDialog.appendChild(consoleInputRow);
       consoleDialog.appendChild(consoleActions);
-      consoleDialog.appendChild(consoleOutput);
       consoleModal.appendChild(consoleDialog);
 
       actions.appendChild(chatButton);
@@ -249,8 +261,8 @@ Gerrit.install(plugin => {
       this.chatButton = chatButton;
       this.applyButton = applyButton;
       this.consoleModal = consoleModal;
+      this.consoleTerminal = consoleTerminal;
       this.consoleInput = consoleInput;
-      this.consoleOutput = consoleOutput;
       this.consoleRunButton = consoleRunButton;
       this.consoleCloseButton = consoleCloseButton;
       this.headerVersion = headerVersion;
@@ -369,7 +381,7 @@ Gerrit.install(plugin => {
     }
 
     handleConsoleInputKeydown(event) {
-      if (event.key === 'Enter' && event.ctrlKey) {
+      if (event.key === 'Enter') {
         event.preventDefault();
         this.runConsoleCommand();
       }
@@ -412,15 +424,34 @@ Gerrit.install(plugin => {
         log('Console REST response received.', response);
         const output = response && typeof response.output === 'string' ? response.output : '';
         const exitCode = response && typeof response.exitCode === 'number' ? response.exitCode : null;
-        this.consoleOutput.textContent = output;
+        this.appendConsoleLine(`${this.consolePs1}${command}`);
+        if (output) {
+          this.appendConsoleLine(output.replace(/\s+$/, ''));
+        }
+        if (this.consoleInput) {
+          this.consoleInput.value = '';
+        }
         this.setStatus(exitCode === null ? 'Console command finished.' : `Console command finished (exit ${exitCode}).`);
       } catch (error) {
         error('Console request failed.', error);
-        this.consoleOutput.textContent = '';
+        this.appendConsoleLine(`${this.consolePs1}${command}`);
+        this.appendConsoleLine(`Error: ${error && error.message ? error.message : error}`);
         this.setStatus(`Console failed: ${error && error.message ? error.message : error}`);
       } finally {
         this.setConsoleBusy(false);
       }
+    }
+
+    appendConsoleLine(text) {
+      if (!this.consoleTerminal) {
+        return;
+      }
+      const existing = this.consoleTerminal.textContent || '';
+      const normalizedText = text == null ? '' : String(text);
+      this.consoleTerminal.textContent = existing
+          ? `${existing}${normalizedText}\n`
+          : `${normalizedText}\n`;
+      this.consoleTerminal.scrollTop = this.consoleTerminal.scrollHeight;
     }
 
     async submit(mode, postAsReview, applyPatchset) {
@@ -494,6 +525,9 @@ Gerrit.install(plugin => {
       }
       if (this.consoleCloseButton) {
         this.consoleCloseButton.disabled = isBusy;
+      }
+      if (this.consoleInput) {
+        this.consoleInput.disabled = isBusy;
       }
     }
 
