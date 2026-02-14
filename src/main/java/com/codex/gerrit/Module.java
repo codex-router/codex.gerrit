@@ -17,6 +17,7 @@ package com.codex.gerrit;
 import static com.google.gerrit.server.change.RevisionResource.REVISION_KIND;
 
 import com.codex.gerrit.rest.CodexChatRest;
+import com.codex.gerrit.rest.CodexConsoleRest;
 import com.codex.gerrit.rest.CodexConfigRest;
 import com.google.gerrit.extensions.registration.DynamicSet;
 import com.google.gerrit.extensions.restapi.RestApiModule;
@@ -35,6 +36,7 @@ public class Module extends AbstractModule {
           @Override
           protected void configure() {
             post(REVISION_KIND, "codex-chat").to(CodexChatRest.class);
+            post(REVISION_KIND, "codex-console").to(CodexConsoleRest.class);
             get(REVISION_KIND, "codex-config").to(CodexConfigRest.class);
           }
         });

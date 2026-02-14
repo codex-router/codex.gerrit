@@ -103,8 +103,14 @@ Gerrit.install(plugin => {
       defaultOption.selected = true;
       modelSelect.appendChild(defaultOption);
 
+      const consoleButton = document.createElement('button');
+      consoleButton.type = 'button';
+      consoleButton.className = 'codex-console-button';
+      consoleButton.textContent = 'Console';
+
       modelContainer.appendChild(modelLabel);
       modelContainer.appendChild(modelSelect);
+      modelContainer.appendChild(consoleButton);
 
       selectors.appendChild(cliContainer);
       selectors.appendChild(modelContainer);
@@ -155,6 +161,7 @@ Gerrit.install(plugin => {
 
       chatButton.addEventListener('click', () => this.submitChat());
       applyButton.addEventListener('click', () => this.submitPatchset());
+      consoleButton.addEventListener('click', () => this.submitConsole());
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
@@ -172,6 +179,7 @@ Gerrit.install(plugin => {
       this.status = status;
       this.chatButton = chatButton;
       this.applyButton = applyButton;
+      this.consoleButton = consoleButton;
       this.headerVersion = headerVersion;
 
       this.loadConfig();
@@ -258,6 +266,44 @@ Gerrit.install(plugin => {
       await this.submit('patchset', true, true);
     }
 
+    async submitConsole() {
+      const command = (this.input && this.input.value || '').trim();
+      if (!command) {
+        this.setStatus('Enter a bash command first.');
+        return;
+      }
+
+      const changeId = this.getChangeId();
+      if (!changeId) {
+        warn('Console blocked: unable to detect change id.', {
+          pathname: window.location.pathname,
+          hash: window.location.hash
+        });
+        this.setStatus('Unable to detect change id.');
+        return;
+      }
+
+      this.setBusy(true);
+      this.setStatus('Running console command...');
+
+      try {
+        const path = `/changes/${changeId}/revisions/current/codex-console`;
+        log('Submitting console request.', { path });
+        const response = await plugin.restApi().post(path, { command });
+        log('Console REST response received.', response);
+        const output = response && typeof response.output === 'string' ? response.output : '';
+        const exitCode = response && typeof response.exitCode === 'number' ? response.exitCode : null;
+        this.output.textContent = output;
+        this.setStatus(exitCode === null ? 'Console command finished.' : `Console command finished (exit ${exitCode}).`);
+      } catch (error) {
+        error('Console request failed.', error);
+        this.output.textContent = '';
+        this.setStatus(`Console failed: ${error && error.message ? error.message : error}`);
+      } finally {
+        this.setBusy(false);
+      }
+    }
+
     async submit(mode, postAsReview, applyPatchset) {
       const prompt = (this.input && this.input.value || '').trim();
       if (!prompt) {
@@ -317,6 +363,9 @@ Gerrit.install(plugin => {
       }
       if (this.applyButton) {
         this.applyButton.disabled = isBusy;
+      }
+      if (this.consoleButton) {
+        this.consoleButton.disabled = isBusy;
       }
     }
 

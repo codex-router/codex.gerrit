@@ -8,6 +8,7 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 - Chat panel in the change footer with input and reply UI.
 - CLI provider dropdown to choose among configured supported CLIs.
 - Model selection dropdown that defaults to `Auto`, plus configured LiteLLM models.
+- Console button next to Model to run bash commands in a web sandbox flow.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - Chat action returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
@@ -56,6 +57,12 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 	# Optional: limit how many file names are included in prompts.
 	maxFiles = 200
 
+	# Optional: bash executable used by the Console button sandbox.
+	bashPath = /bin/bash
+
+	# Optional: timeout in seconds for each Console command.
+	consoleTimeoutSeconds = 20
+
 	# Optional: LiteLLM proxy base URL.
 	litellmBaseUrl = http://localhost:4000
 
@@ -84,6 +91,7 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Select a CLI from the dropdown (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - Model defaults to `Auto` for automatic model selection; optionally choose a specific model from the dropdown.
+- Click `Console` (to the right of `Model`) to execute the input box content as a bash command.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and click `Chat` to receive a reply in the UI from the selected CLI/model (or auto-selected model when `Auto` is chosen).
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.

@@ -50,6 +50,10 @@
   gap: 8px;
 }
 
+.codex-selector-container .codex-selector-select {
+  min-width: 120px;
+}
+
 .codex-selector-label {
   font-size: 13px;
   font-weight: 500;
@@ -71,6 +75,22 @@
 .codex-selector-select:focus {
   outline: none;
   border-color: #b65a2a;
+}
+
+.codex-console-button {
+  border: 1px solid #b65a2a;
+  background: transparent;
+  color: #b65a2a;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.codex-console-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .codex-input {

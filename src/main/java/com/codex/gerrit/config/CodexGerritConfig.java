@@ -29,6 +29,8 @@ import java.util.StringTokenizer;
 public class CodexGerritConfig {
   private static final int DEFAULT_MAX_FILES = 200;
   private static final String DEFAULT_CLI = "codex";
+  private static final String DEFAULT_BASH_PATH = "/bin/bash";
+  private static final int DEFAULT_CONSOLE_TIMEOUT_SECONDS = 20;
   private static final List<String> SUPPORTED_CLIS =
       Collections.unmodifiableList(Arrays.asList("codex", "claude", "gemini", "opencode", "qwen"));
 
@@ -45,6 +47,8 @@ public class CodexGerritConfig {
   private final List<String> qwenArgs;
   private final String defaultCli;
   private final int maxFiles;
+  private final String bashPath;
+  private final int consoleTimeoutSeconds;
   private final String litellmBaseUrl;
   private final String litellmApiKey;
   private final List<String> litellmModels;
@@ -65,6 +69,12 @@ public class CodexGerritConfig {
     this.qwenArgs = parseArgs(config.getString("qwenArgs"));
     this.defaultCli = normalizeCli(config.getString("defaultCli"));
     this.maxFiles = config.getInt("maxFiles", DEFAULT_MAX_FILES);
+    this.bashPath = trimToDefault(config.getString("bashPath"), DEFAULT_BASH_PATH);
+    int configuredConsoleTimeout =
+      config.getInt("consoleTimeoutSeconds", DEFAULT_CONSOLE_TIMEOUT_SECONDS);
+    this.consoleTimeoutSeconds = configuredConsoleTimeout > 0
+      ? configuredConsoleTimeout
+      : DEFAULT_CONSOLE_TIMEOUT_SECONDS;
     this.litellmBaseUrl = trimToEmpty(config.getString("litellmBaseUrl"));
     this.litellmApiKey = trimToEmpty(config.getString("litellmApiKey"));
     this.litellmModels = parseList(config.getString("litellmModels"));
@@ -84,6 +94,14 @@ public class CodexGerritConfig {
 
   public int getMaxFiles() {
     return maxFiles;
+  }
+
+  public String getBashPath() {
+    return bashPath;
+  }
+
+  public int getConsoleTimeoutSeconds() {
+    return consoleTimeoutSeconds;
   }
 
   public boolean hasCodexPath() {
@@ -211,5 +229,10 @@ public class CodexGerritConfig {
 
   private static String trimToEmpty(String value) {
     return value == null ? "" : value.trim();
+  }
+
+  private static String trimToDefault(String value, String defaultValue) {
+    String trimmed = trimToEmpty(value);
+    return trimmed.isEmpty() ? defaultValue : trimmed;
   }
 }
