@@ -45,7 +45,16 @@ Gerrit.install(plugin => {
 
       const header = document.createElement('div');
       header.className = 'codex-header';
-      header.textContent = '🤖 Codex Chat';
+
+      const headerTitle = document.createElement('span');
+      headerTitle.className = 'codex-header-title';
+      headerTitle.textContent = '🤖 Codex Chat';
+
+      const headerVersion = document.createElement('span');
+      headerVersion.className = 'codex-header-version';
+
+      header.appendChild(headerTitle);
+      header.appendChild(headerVersion);
 
       const selectors = document.createElement('div');
       selectors.className = 'codex-selectors';
@@ -141,7 +150,7 @@ Gerrit.install(plugin => {
       this.status = status;
       this.chatButton = chatButton;
       this.applyButton = applyButton;
-      this.header = header;
+      this.headerVersion = headerVersion;
 
       this.loadConfig();
     }
@@ -163,7 +172,7 @@ Gerrit.install(plugin => {
         log('Panel config REST response received.', response);
 
         if (response && response.pluginVersion) {
-          this.header.textContent = `🤖 Codex Chat (${response.pluginVersion})`;
+          this.headerVersion.textContent = response.pluginVersion;
         }
 
         const apiClis = response && response.clis && response.clis.length > 0 ? response.clis : [];

@@ -15,11 +15,27 @@
 }
 
 .codex-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.08em;
   margin-bottom: 10px;
   color: #5b3a1d;
+}
+
+.codex-header-title {
+  white-space: nowrap;
+}
+
+.codex-header-version {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: #5a5a5a;
 }
 
 .codex-selectors {
