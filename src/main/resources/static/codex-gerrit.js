@@ -283,9 +283,6 @@ Gerrit.install(plugin => {
           this.cliSelect.innerHTML = '';
           mergedClis.forEach(cli => {
             const option = document.createElement('option');
-      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-        event.preventDefault();
-        this.submitChat();
             option.value = cli;
             option.textContent = cli;
             this.cliSelect.appendChild(option);
