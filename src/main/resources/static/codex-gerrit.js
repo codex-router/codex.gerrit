@@ -141,6 +141,7 @@ Gerrit.install(plugin => {
       this.status = status;
       this.chatButton = chatButton;
       this.applyButton = applyButton;
+      this.header = header;
 
       this.loadConfig();
     }
@@ -160,6 +161,10 @@ Gerrit.install(plugin => {
         log('Loading panel config from REST API.', { path });
         const response = await plugin.restApi().get(path);
         log('Panel config REST response received.', response);
+
+        if (response && response.pluginVersion) {
+          this.header.textContent = `🤖 Codex Chat (${response.pluginVersion})`;
+        }
 
         const apiClis = response && response.clis && response.clis.length > 0 ? response.clis : [];
         const mergedClis = Array.from(new Set([...supportedClis, ...apiClis]));

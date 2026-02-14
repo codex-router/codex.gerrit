@@ -36,18 +36,29 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
   public Response<CodexConfigResponse> apply(RevisionResource resource) throws RestApiException {
     return Response.ok(
         new CodexConfigResponse(
-            config.getLitellmModels(), CodexGerritConfig.getSupportedClis(), config.getDefaultCli()));
+            config.getLitellmModels(),
+            CodexGerritConfig.getSupportedClis(),
+            config.getDefaultCli(),
+            getPluginVersion()));
+  }
+
+  private String getPluginVersion() {
+    String implementationVersion = getClass().getPackage().getImplementationVersion();
+    return implementationVersion == null ? "" : implementationVersion;
   }
 
   public static class CodexConfigResponse {
     public List<String> models;
     public List<String> clis;
     public String defaultCli;
+    public String pluginVersion;
 
-    public CodexConfigResponse(List<String> models, List<String> clis, String defaultCli) {
+    public CodexConfigResponse(
+        List<String> models, List<String> clis, String defaultCli, String pluginVersion) {
       this.models = models;
       this.clis = clis;
       this.defaultCli = defaultCli;
+      this.pluginVersion = pluginVersion;
     }
   }
 }
