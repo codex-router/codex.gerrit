@@ -149,10 +149,6 @@ Gerrit.install(plugin => {
       const footer = document.createElement('div');
       footer.className = 'codex-footer';
 
-      const chatButton = document.createElement('button');
-      chatButton.className = 'codex-button';
-      chatButton.textContent = 'Chat';
-
       const applyButton = document.createElement('button');
       applyButton.className = 'codex-button outline';
       applyButton.textContent = 'Apply Patchset';
@@ -199,9 +195,7 @@ Gerrit.install(plugin => {
       consoleDialog.appendChild(consoleActions);
       consoleModal.appendChild(consoleDialog);
 
-      actions.appendChild(chatButton);
       actions.appendChild(applyButton);
-
       footer.appendChild(selectors);
       footer.appendChild(actions);
 
@@ -221,7 +215,6 @@ Gerrit.install(plugin => {
       this.shadowRoot.appendChild(wrapper);
       log('Panel DOM mounted. Loading models...');
 
-      chatButton.addEventListener('click', () => this.submitChat());
       applyButton.addEventListener('click', () => this.submitPatchset());
       runSelect.addEventListener('change', event => this.handleRunSelectChanged(event));
       consoleClearButton.addEventListener('click', () => this.clearConsoleTerminal());
@@ -250,7 +243,6 @@ Gerrit.install(plugin => {
       this.mentionDropdown = mentionDropdown;
       this.output = output;
       this.status = status;
-      this.chatButton = chatButton;
       this.applyButton = applyButton;
       this.consoleModal = consoleModal;
       this.consoleTerminal = consoleTerminal;
@@ -291,13 +283,13 @@ Gerrit.install(plugin => {
           this.cliSelect.innerHTML = '';
           mergedClis.forEach(cli => {
             const option = document.createElement('option');
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        this.submitChat();
             option.value = cli;
             option.textContent = cli;
             this.cliSelect.appendChild(option);
           });
-          if (defaultCli) {
-            this.cliSelect.value = defaultCli;
-          }
           log('CLI options populated.', {
             count: mergedClis.length,
             defaultCli
@@ -580,9 +572,6 @@ Gerrit.install(plugin => {
     }
 
     setBusy(isBusy) {
-      if (this.chatButton) {
-        this.chatButton.disabled = isBusy;
-      }
       if (this.applyButton) {
         this.applyButton.disabled = isBusy;
       }
@@ -626,32 +615,37 @@ Gerrit.install(plugin => {
     }
 
     handleInputKeydown(event) {
-      if (!this.isMentionDropdownVisible()) {
-        return;
-      }
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        this.activeMentionIndex = (this.activeMentionIndex + 1) % this.filteredMentionFiles.length;
-        this.renderMentionDropdown();
-        return;
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        this.activeMentionIndex = (this.activeMentionIndex - 1 + this.filteredMentionFiles.length) % this.filteredMentionFiles.length;
-        this.renderMentionDropdown();
-        return;
-      }
-      if (event.key === 'Enter' || event.key === 'Tab') {
-        event.preventDefault();
-        const selectedFile = this.filteredMentionFiles[this.activeMentionIndex];
-        if (selectedFile) {
-          this.applyMentionSelection(selectedFile);
+      if (this.isMentionDropdownVisible()) {
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          this.activeMentionIndex = (this.activeMentionIndex + 1) % this.filteredMentionFiles.length;
+          this.renderMentionDropdown();
+          return;
         }
-        return;
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          this.activeMentionIndex = (this.activeMentionIndex - 1 + this.filteredMentionFiles.length) % this.filteredMentionFiles.length;
+          this.renderMentionDropdown();
+          return;
+        }
+        if (event.key === 'Enter' || event.key === 'Tab') {
+          event.preventDefault();
+          const selectedFile = this.filteredMentionFiles[this.activeMentionIndex];
+          if (selectedFile) {
+            this.applyMentionSelection(selectedFile);
+          }
+          return;
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          this.hideMentionDropdown();
+          return;
+        }
       }
-      if (event.key === 'Escape') {
+
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
         event.preventDefault();
-        this.hideMentionDropdown();
+        this.submitChat();
       }
     }
 
