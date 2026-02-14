@@ -192,8 +192,12 @@ Gerrit.install(plugin => {
         const response = await plugin.restApi().get(path);
         log('Panel config REST response received.', response);
 
-        if (response && response.pluginVersion) {
-          this.headerVersion.textContent = response.pluginVersion;
+        const pluginVersion = response ? response.pluginVersion || response.plugin_version : null;
+        const defaultCli = response ? response.defaultCli || response.default_cli : null;
+        const patchsetFiles = response ? response.patchsetFiles || response.patchset_files : null;
+
+        if (pluginVersion) {
+          this.headerVersion.textContent = pluginVersion;
         }
 
         const apiClis = response && response.clis && response.clis.length > 0 ? response.clis : [];
@@ -206,12 +210,12 @@ Gerrit.install(plugin => {
             option.textContent = cli;
             this.cliSelect.appendChild(option);
           });
-          if (response.defaultCli) {
-            this.cliSelect.value = response.defaultCli;
+          if (defaultCli) {
+            this.cliSelect.value = defaultCli;
           }
           log('CLI options populated.', {
             count: mergedClis.length,
-            defaultCli: response.defaultCli
+            defaultCli
           });
         } else {
           log('No CLI list returned; using codex default option.');
@@ -229,8 +233,8 @@ Gerrit.install(plugin => {
           log('No models returned; keeping Default only.');
         }
 
-        if (response && response.patchsetFiles && response.patchsetFiles.length > 0) {
-          this.patchsetFiles = response.patchsetFiles.slice();
+        if (patchsetFiles && patchsetFiles.length > 0) {
+          this.patchsetFiles = patchsetFiles.slice();
           log('Patchset files loaded for @ mentions.', { count: this.patchsetFiles.length });
         } else {
           this.patchsetFiles = [];
