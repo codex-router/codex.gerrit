@@ -66,6 +66,12 @@ Gerrit.install(plugin => {
       header.appendChild(headerTitle);
       header.appendChild(headerVersion);
 
+      const chatHeaderArrow = document.createElement('button');
+      chatHeaderArrow.className = 'codex-arrow-toggle';
+      chatHeaderArrow.type = 'button';
+      chatHeaderArrow.setAttribute('aria-label', 'Toggle chat panel');
+      header.appendChild(chatHeaderArrow);
+
       const selectors = document.createElement('div');
       selectors.className = 'codex-selectors';
 
@@ -111,14 +117,6 @@ Gerrit.install(plugin => {
       selectors.appendChild(cliContainer);
       selectors.appendChild(modelContainer);
 
-      const chatToggleRow = document.createElement('div');
-      chatToggleRow.className = 'codex-toggle-row';
-
-      const chatToggleButton = document.createElement('button');
-      chatToggleButton.className = 'codex-toggle-button';
-      chatToggleButton.type = 'button';
-      chatToggleRow.appendChild(chatToggleButton);
-
       const chatSection = document.createElement('div');
       chatSection.className = 'codex-collapsible';
 
@@ -147,13 +145,20 @@ Gerrit.install(plugin => {
       output.className = 'codex-output';
       output.textContent = '';
 
-      const outputToggleRow = document.createElement('div');
-      outputToggleRow.className = 'codex-toggle-row';
+      const outputHeader = document.createElement('div');
+      outputHeader.className = 'codex-section-header';
 
-      const outputToggleButton = document.createElement('button');
-      outputToggleButton.className = 'codex-toggle-button';
-      outputToggleButton.type = 'button';
-      outputToggleRow.appendChild(outputToggleButton);
+      const outputHeaderTitle = document.createElement('span');
+      outputHeaderTitle.className = 'codex-section-title';
+      outputHeaderTitle.textContent = 'Output';
+
+      const outputHeaderArrow = document.createElement('button');
+      outputHeaderArrow.className = 'codex-arrow-toggle';
+      outputHeaderArrow.type = 'button';
+      outputHeaderArrow.setAttribute('aria-label', 'Toggle output panel');
+
+      outputHeader.appendChild(outputHeaderTitle);
+      outputHeader.appendChild(outputHeaderArrow);
 
       const outputSection = document.createElement('div');
       outputSection.className = 'codex-collapsible';
@@ -162,14 +167,13 @@ Gerrit.install(plugin => {
       actions.appendChild(applyButton);
 
       wrapper.appendChild(header);
-      wrapper.appendChild(selectors);
-      wrapper.appendChild(chatToggleRow);
+      chatSection.appendChild(selectors);
       chatSection.appendChild(input);
       chatSection.appendChild(mentionDropdown);
       chatSection.appendChild(actions);
       chatSection.appendChild(status);
       wrapper.appendChild(chatSection);
-      wrapper.appendChild(outputToggleRow);
+      wrapper.appendChild(outputHeader);
       outputSection.appendChild(output);
       wrapper.appendChild(outputSection);
 
@@ -203,11 +207,11 @@ Gerrit.install(plugin => {
       this.headerVersion = headerVersion;
       this.chatSection = chatSection;
       this.outputSection = outputSection;
-      this.chatToggleButton = chatToggleButton;
-      this.outputToggleButton = outputToggleButton;
+      this.chatHeaderArrow = chatHeaderArrow;
+      this.outputHeaderArrow = outputHeaderArrow;
 
-      chatToggleButton.addEventListener('click', () => this.setChatPanelExpanded(!this.isChatExpanded));
-      outputToggleButton.addEventListener('click', () => this.setOutputPanelExpanded(!this.isOutputExpanded));
+      chatHeaderArrow.addEventListener('click', () => this.setChatPanelExpanded(!this.isChatExpanded));
+      outputHeaderArrow.addEventListener('click', () => this.setOutputPanelExpanded(!this.isOutputExpanded));
 
       this.setChatPanelExpanded(this.isChatExpanded);
       this.setOutputPanelExpanded(this.isOutputExpanded);
@@ -220,9 +224,9 @@ Gerrit.install(plugin => {
       if (this.chatSection) {
         this.chatSection.classList.toggle('collapsed', !this.isChatExpanded);
       }
-      if (this.chatToggleButton) {
-        this.chatToggleButton.textContent = this.isChatExpanded ? 'Collapse Chat' : 'Expand Chat';
-        this.chatToggleButton.setAttribute('aria-expanded', String(this.isChatExpanded));
+      if (this.chatHeaderArrow) {
+        this.chatHeaderArrow.textContent = this.isChatExpanded ? '▴' : '▾';
+        this.chatHeaderArrow.setAttribute('aria-expanded', String(this.isChatExpanded));
       }
     }
 
@@ -231,9 +235,9 @@ Gerrit.install(plugin => {
       if (this.outputSection) {
         this.outputSection.classList.toggle('collapsed', !this.isOutputExpanded);
       }
-      if (this.outputToggleButton) {
-        this.outputToggleButton.textContent = this.isOutputExpanded ? 'Collapse Output' : 'Expand Output';
-        this.outputToggleButton.setAttribute('aria-expanded', String(this.isOutputExpanded));
+      if (this.outputHeaderArrow) {
+        this.outputHeaderArrow.textContent = this.isOutputExpanded ? '▴' : '▾';
+        this.outputHeaderArrow.setAttribute('aria-expanded', String(this.isOutputExpanded));
       }
     }
 

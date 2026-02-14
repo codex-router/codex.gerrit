@@ -38,6 +38,42 @@
   color: #5a5a5a;
 }
 
+.codex-section-header {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5b3a1d;
+}
+
+.codex-section-title {
+  letter-spacing: 0.04em;
+}
+
+.codex-arrow-toggle {
+  margin-left: auto;
+  border: 1px solid #b65a2a;
+  background: transparent;
+  color: #b65a2a;
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.codex-arrow-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(182, 90, 42, 0.25);
+}
+
 .codex-selectors {
   display: flex;
   gap: 12px;
@@ -84,28 +120,6 @@
   line-height: 1.4;
   background: #ffffff;
   box-sizing: border-box;
-}
-
-.codex-toggle-row {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-}
-
-.codex-toggle-button {
-  border: 1px solid #b65a2a;
-  background: transparent;
-  color: #b65a2a;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.codex-toggle-button:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(182, 90, 42, 0.25);
 }
 
 .codex-collapsible {

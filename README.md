@@ -84,7 +84,8 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - The panel header (`Codex Chat`) and selectors (`CLI`, `Model`) are shown by default.
-- Click `Expand Chat` to open the prompt/actions area, or `Expand Output` to view replies.
+- Use the up/down arrow on `Codex Chat` to collapse/expand the full chat section.
+- Use the up/down arrow on `Output` to collapse/expand the output section.
 - Select a CLI from the dropdown (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - Model defaults to `Auto` for automatic model selection; optionally choose a specific model from the dropdown.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
