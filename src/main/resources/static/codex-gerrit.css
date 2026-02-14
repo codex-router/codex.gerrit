@@ -6,6 +6,7 @@
 
 .codex-chat {
   --codex-panel-height: 90px;
+  position: relative;
   border-top: 1px solid #d6d6d6;
   margin-top: 16px;
   padding: 16px 0;
@@ -90,6 +91,45 @@
   margin-top: 10px;
   display: flex;
   gap: 8px;
+}
+
+.codex-mention-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 10;
+  max-height: 220px;
+  overflow: auto;
+  background: #ffffff;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.codex-mention-dropdown.hidden {
+  display: none;
+}
+
+.codex-mention-item {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #efefef;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #1f1f1f;
+  cursor: pointer;
+}
+
+.codex-mention-item:last-child {
+  border-bottom: none;
+}
+
+.codex-mention-item:hover,
+.codex-mention-item.active {
+  background: #f5f5f5;
 }
 
 .codex-button {

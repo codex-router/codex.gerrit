@@ -56,6 +56,14 @@ public class CodexPromptBuilder {
       builder.append("- ").append(file).append("\n");
     }
 
+    if (input.contextFiles != null && !input.contextFiles.isEmpty()) {
+      builder.append("\nSelected context files:\n");
+      for (String file : input.contextFiles) {
+        builder.append("- ").append(file).append("\n");
+      }
+      builder.append("Focus your response primarily on the selected context files.\n");
+    }
+
     builder.append("\nUser prompt:\n").append(input.prompt).append("\n");
     if ("patchset".equals(input.mode)) {
       builder.append("\nOutput only in this exact format:\n");

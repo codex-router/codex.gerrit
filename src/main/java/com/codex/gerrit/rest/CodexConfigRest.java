@@ -15,31 +15,55 @@
 package com.codex.gerrit.rest;
 
 import com.codex.gerrit.config.CodexGerritConfig;
+import com.google.gerrit.extensions.api.GerritApi;
+import com.google.gerrit.extensions.api.changes.ChangeApi;
+import com.google.gerrit.extensions.common.FileInfo;
 import com.google.gerrit.extensions.restapi.Response;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gerrit.extensions.restapi.RestReadView;
 import com.google.gerrit.server.change.RevisionResource;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Singleton
 public class CodexConfigRest implements RestReadView<RevisionResource> {
   private final CodexGerritConfig config;
+  private final GerritApi gerritApi;
 
   @Inject
-  CodexConfigRest(CodexGerritConfig config) {
+  CodexConfigRest(CodexGerritConfig config, GerritApi gerritApi) {
     this.config = config;
+    this.gerritApi = gerritApi;
   }
 
   @Override
   public Response<CodexConfigResponse> apply(RevisionResource resource) throws RestApiException {
+    String changeId = String.valueOf(resource.getChangeResource().getId().get());
+    ChangeApi changeApi = gerritApi.changes().id(changeId);
+    Map<String, FileInfo> files = changeApi.current().files();
     return Response.ok(
         new CodexConfigResponse(
             config.getLitellmModels(),
             CodexGerritConfig.getSupportedClis(),
             config.getDefaultCli(),
-            getPluginVersion()));
+            getPluginVersion(),
+            normalizeFiles(files)));
+  }
+
+  private static List<String> normalizeFiles(Map<String, FileInfo> files) {
+    List<String> result = new ArrayList<>();
+    for (String file : files.keySet()) {
+      if (file == null || file.isEmpty() || file.startsWith("/")) {
+        continue;
+      }
+      result.add(file);
+    }
+    Collections.sort(result);
+    return result;
   }
 
   private String getPluginVersion() {
@@ -52,13 +76,19 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
     public List<String> clis;
     public String defaultCli;
     public String pluginVersion;
+    public List<String> patchsetFiles;
 
     public CodexConfigResponse(
-        List<String> models, List<String> clis, String defaultCli, String pluginVersion) {
+        List<String> models,
+        List<String> clis,
+        String defaultCli,
+        String pluginVersion,
+        List<String> patchsetFiles) {
       this.models = models;
       this.clis = clis;
       this.defaultCli = defaultCli;
       this.pluginVersion = pluginVersion;
+      this.patchsetFiles = patchsetFiles;
     }
   }
 }

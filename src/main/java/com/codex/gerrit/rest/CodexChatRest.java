@@ -30,7 +30,11 @@ import com.google.gerrit.extensions.restapi.RestModifyView;
 import com.google.gerrit.server.change.RevisionResource;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,12 +68,12 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
   @Override
   public Response<CodexChatResponse> apply(RevisionResource resource, CodexChatInput input)
       throws RestApiException {
-    CodexChatInput normalized = normalizeInput(input);
     String changeId = String.valueOf(resource.getChangeResource().getId().get());
 
     ChangeApi changeApi = gerritApi.changes().id(changeId);
     ChangeInfo changeInfo = changeApi.get();
     Map<String, FileInfo> files = changeApi.current().files();
+    CodexChatInput normalized = normalizeInput(input, files);
 
     String prompt = promptBuilder.buildPrompt(changeInfo, files, normalized);
     String reply = cliClient.run(prompt, normalized.model, normalized.cli);
@@ -97,7 +101,8 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     return Response.ok(new CodexChatResponse(responseReply, normalized.mode, config.getGerritBotUser()));
   }
 
-  private CodexChatInput normalizeInput(CodexChatInput input) throws BadRequestException {
+  private CodexChatInput normalizeInput(CodexChatInput input, Map<String, FileInfo> files)
+      throws BadRequestException {
     if (input == null) {
       throw new BadRequestException("Missing request body");
     }
@@ -112,8 +117,38 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     normalized.applyPatchset = input.applyPatchset;
     normalized.cli = config.normalizeCliOrDefault(input.cli);
     normalized.model = input.model;
+    normalized.contextFiles = normalizeContextFiles(input.contextFiles, files);
     if (!config.hasCliPath(normalized.cli)) {
       throw new BadRequestException(normalized.cli + "Path is not configured");
+    }
+    return normalized;
+  }
+
+  private static List<String> normalizeContextFiles(
+      List<String> contextFiles, Map<String, FileInfo> files) {
+    if (contextFiles == null || contextFiles.isEmpty() || files == null || files.isEmpty()) {
+      return new ArrayList<>();
+    }
+    Set<String> availableFiles = new HashSet<>();
+    for (String file : files.keySet()) {
+      if (file == null || file.isEmpty() || file.startsWith("/")) {
+        continue;
+      }
+      availableFiles.add(file);
+    }
+    List<String> normalized = new ArrayList<>();
+    Set<String> seen = new HashSet<>();
+    for (String selectedFile : contextFiles) {
+      if (selectedFile == null) {
+        continue;
+      }
+      String trimmed = selectedFile.trim();
+      if (trimmed.isEmpty()) {
+        continue;
+      }
+      if (availableFiles.contains(trimmed) && seen.add(trimmed)) {
+        normalized.add(trimmed);
+      }
     }
     return normalized;
   }

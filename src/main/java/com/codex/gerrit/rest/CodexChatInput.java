@@ -14,6 +14,8 @@
 
 package com.codex.gerrit.rest;
 
+import java.util.List;
+
 public class CodexChatInput {
   public String prompt;
   public String mode;
@@ -21,4 +23,5 @@ public class CodexChatInput {
   public boolean applyPatchset;
   public String cli;
   public String model;
+  public List<String> contextFiles;
 }

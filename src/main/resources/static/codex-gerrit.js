@@ -27,6 +27,14 @@ Gerrit.install(plugin => {
   });
 
   class CodexChatPanel extends HTMLElement {
+    constructor() {
+      super();
+      this.patchsetFiles = [];
+      this.filteredMentionFiles = [];
+      this.activeMentionIndex = -1;
+      this.currentMentionRange = null;
+    }
+
     connectedCallback() {
       log('Panel connectedCallback invoked.');
       if (this.shadowRoot) {
@@ -104,6 +112,9 @@ Gerrit.install(plugin => {
       input.className = 'codex-input';
       input.placeholder = 'Chat with the selected CLI/model, or use Apply Patchset to generate and apply changes to this Gerrit change.';
 
+      const mentionDropdown = document.createElement('div');
+      mentionDropdown.className = 'codex-mention-dropdown hidden';
+
       const actions = document.createElement('div');
       actions.className = 'codex-actions';
 
@@ -128,6 +139,7 @@ Gerrit.install(plugin => {
       wrapper.appendChild(header);
       wrapper.appendChild(selectors);
       wrapper.appendChild(input);
+      wrapper.appendChild(mentionDropdown);
       wrapper.appendChild(actions);
       wrapper.appendChild(status);
       wrapper.appendChild(output);
@@ -142,10 +154,19 @@ Gerrit.install(plugin => {
 
       chatButton.addEventListener('click', () => this.submitChat());
       applyButton.addEventListener('click', () => this.submitPatchset());
+      input.addEventListener('input', () => this.handleInputChanged());
+      input.addEventListener('keydown', event => this.handleInputKeydown(event));
+      input.addEventListener('click', () => this.handleInputChanged());
+      document.addEventListener('click', event => {
+        if (!this.shadowRoot || !this.shadowRoot.contains(event.target)) {
+          this.hideMentionDropdown();
+        }
+      });
 
       this.input = input;
       this.cliSelect = cliSelect;
       this.modelSelect = modelSelect;
+      this.mentionDropdown = mentionDropdown;
       this.output = output;
       this.status = status;
       this.chatButton = chatButton;
@@ -207,6 +228,14 @@ Gerrit.install(plugin => {
         } else {
           log('No models returned; keeping Default only.');
         }
+
+        if (response && response.patchsetFiles && response.patchsetFiles.length > 0) {
+          this.patchsetFiles = response.patchsetFiles.slice();
+          log('Patchset files loaded for @ mentions.', { count: this.patchsetFiles.length });
+        } else {
+          this.patchsetFiles = [];
+          log('No patchset files returned for @ mentions.');
+        }
       } catch (error) {
         warn('Failed to load models.', error);
       }
@@ -242,17 +271,19 @@ Gerrit.install(plugin => {
 
       const cli = this.cliSelect && this.cliSelect.value ? this.cliSelect.value : 'codex';
       const model = this.modelSelect && this.modelSelect.value ? this.modelSelect.value : null;
+      const contextFiles = this.extractContextFiles(prompt);
 
       try {
         const path = `/changes/${changeId}/revisions/current/codex-chat`;
-        log('Submitting chat request.', { mode, postAsReview, applyPatchset, cli, model, path });
+        log('Submitting chat request.', { mode, postAsReview, applyPatchset, cli, model, contextFilesCount: contextFiles.length, path });
         const response = await plugin.restApi().post(path, {
           prompt,
           mode,
           postAsReview,
           applyPatchset,
           cli,
-          model
+          model,
+          contextFiles
         });
         log('Chat REST response received.', response);
         if (response && response.reply) {
@@ -278,6 +309,158 @@ Gerrit.install(plugin => {
       if (this.applyButton) {
         this.applyButton.disabled = isBusy;
       }
+    }
+
+    handleInputChanged() {
+      const mentionInfo = this.getMentionAtCursor();
+      if (!mentionInfo) {
+        this.hideMentionDropdown();
+        return;
+      }
+      this.currentMentionRange = {
+        start: mentionInfo.start,
+        end: mentionInfo.end
+      };
+      const query = mentionInfo.query.toLowerCase();
+      this.filteredMentionFiles = this.patchsetFiles
+          .filter(file => file.toLowerCase().includes(query))
+          .slice(0, 20);
+      if (this.filteredMentionFiles.length === 0) {
+        this.hideMentionDropdown();
+        return;
+      }
+      this.activeMentionIndex = 0;
+      this.renderMentionDropdown();
+    }
+
+    handleInputKeydown(event) {
+      if (!this.isMentionDropdownVisible()) {
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.activeMentionIndex = (this.activeMentionIndex + 1) % this.filteredMentionFiles.length;
+        this.renderMentionDropdown();
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.activeMentionIndex = (this.activeMentionIndex - 1 + this.filteredMentionFiles.length) % this.filteredMentionFiles.length;
+        this.renderMentionDropdown();
+        return;
+      }
+      if (event.key === 'Enter' || event.key === 'Tab') {
+        event.preventDefault();
+        const selectedFile = this.filteredMentionFiles[this.activeMentionIndex];
+        if (selectedFile) {
+          this.applyMentionSelection(selectedFile);
+        }
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.hideMentionDropdown();
+      }
+    }
+
+    getMentionAtCursor() {
+      if (!this.input) {
+        return null;
+      }
+      const text = this.input.value || '';
+      const cursorPosition = this.input.selectionStart;
+      const beforeCursor = text.substring(0, cursorPosition);
+      const atIndex = beforeCursor.lastIndexOf('@');
+      if (atIndex < 0) {
+        return null;
+      }
+      const previousChar = atIndex > 0 ? beforeCursor.charAt(atIndex - 1) : '';
+      if (previousChar && !/\s/.test(previousChar)) {
+        return null;
+      }
+      const mentionText = beforeCursor.substring(atIndex + 1);
+      if (/\s/.test(mentionText)) {
+        return null;
+      }
+      return {
+        start: atIndex,
+        end: cursorPosition,
+        query: mentionText
+      };
+    }
+
+    renderMentionDropdown() {
+      if (!this.mentionDropdown || !this.input) {
+        return;
+      }
+      this.mentionDropdown.style.top = `${this.input.offsetTop + this.input.offsetHeight + 4}px`;
+      this.mentionDropdown.innerHTML = '';
+      this.filteredMentionFiles.forEach((file, index) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = `codex-mention-item ${index === this.activeMentionIndex ? 'active' : ''}`;
+        item.textContent = file;
+        item.addEventListener('mousedown', event => {
+          event.preventDefault();
+          this.applyMentionSelection(file);
+        });
+        this.mentionDropdown.appendChild(item);
+      });
+      this.mentionDropdown.classList.remove('hidden');
+    }
+
+    applyMentionSelection(file) {
+      if (!this.input || !this.currentMentionRange) {
+        this.hideMentionDropdown();
+        return;
+      }
+      const text = this.input.value || '';
+      const before = text.substring(0, this.currentMentionRange.start);
+      const after = text.substring(this.currentMentionRange.end);
+      const replacement = `@${file} `;
+      this.input.value = `${before}${replacement}${after}`;
+      const nextCursor = before.length + replacement.length;
+      this.input.focus();
+      this.input.setSelectionRange(nextCursor, nextCursor);
+      this.hideMentionDropdown();
+    }
+
+    isMentionDropdownVisible() {
+      return this.mentionDropdown && !this.mentionDropdown.classList.contains('hidden');
+    }
+
+    hideMentionDropdown() {
+      if (this.mentionDropdown) {
+        this.mentionDropdown.classList.add('hidden');
+        this.mentionDropdown.innerHTML = '';
+      }
+      this.filteredMentionFiles = [];
+      this.activeMentionIndex = -1;
+      this.currentMentionRange = null;
+    }
+
+    extractContextFiles(prompt) {
+      if (!prompt || !this.patchsetFiles || this.patchsetFiles.length === 0) {
+        return [];
+      }
+      const available = new Set(this.patchsetFiles);
+      const selected = [];
+      const seen = new Set();
+      const tokens = prompt.split(/\s+/);
+      tokens.forEach(token => {
+        if (!token || !token.startsWith('@')) {
+          return;
+        }
+        const candidate = token.substring(1).replace(/[.,!?;:]+$/, '');
+        if (!candidate) {
+          return;
+        }
+        if (available.has(candidate) && !seen.has(candidate)) {
+          seen.add(candidate);
+          selected.push(candidate);
+        }
+      });
+      return selected;
     }
 
     setStatus(text) {
