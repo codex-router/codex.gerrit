@@ -6,7 +6,6 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 ## Features
 
 - Chat panel in the change footer with input and reply UI.
-- Expand/collapse controls for Chat and Output sections; both are collapsed by default.
 - CLI provider dropdown to choose among configured supported CLIs.
 - Model selection dropdown that defaults to `Auto`, plus configured LiteLLM models.
 - `@` file mention dropdown sourced from current patchset files for context selection.
@@ -83,9 +82,6 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 ## Usage
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
-- The panel header (`Codex Chat`) and selectors (`CLI`, `Model`) are shown by default.
-- Use the up/down arrow on `Codex Chat` to collapse/expand the full chat section.
-- Use the up/down arrow on `Output` to collapse/expand the output section.
 - Select a CLI from the dropdown (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - Model defaults to `Auto` for automatic model selection; optionally choose a specific model from the dropdown.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.

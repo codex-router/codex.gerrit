@@ -33,8 +33,6 @@ Gerrit.install(plugin => {
       this.filteredMentionFiles = [];
       this.activeMentionIndex = -1;
       this.currentMentionRange = null;
-      this.isChatExpanded = false;
-      this.isOutputExpanded = false;
     }
 
     connectedCallback() {
@@ -65,12 +63,6 @@ Gerrit.install(plugin => {
 
       header.appendChild(headerTitle);
       header.appendChild(headerVersion);
-
-      const chatHeaderArrow = document.createElement('button');
-      chatHeaderArrow.className = 'codex-arrow-toggle';
-      chatHeaderArrow.type = 'button';
-      chatHeaderArrow.setAttribute('aria-label', 'Toggle chat panel');
-      header.appendChild(chatHeaderArrow);
 
       const selectors = document.createElement('div');
       selectors.className = 'codex-selectors';
@@ -117,9 +109,6 @@ Gerrit.install(plugin => {
       selectors.appendChild(cliContainer);
       selectors.appendChild(modelContainer);
 
-      const chatSection = document.createElement('div');
-      chatSection.className = 'codex-collapsible';
-
       const input = document.createElement('textarea');
       input.className = 'codex-input';
       input.placeholder = 'Chat with the selected CLI/model, or use Apply Patchset to generate and apply changes to this Gerrit change.';
@@ -145,37 +134,16 @@ Gerrit.install(plugin => {
       output.className = 'codex-output';
       output.textContent = '';
 
-      const outputHeader = document.createElement('div');
-      outputHeader.className = 'codex-section-header';
-
-      const outputHeaderTitle = document.createElement('span');
-      outputHeaderTitle.className = 'codex-section-title';
-      outputHeaderTitle.textContent = 'Output';
-
-      const outputHeaderArrow = document.createElement('button');
-      outputHeaderArrow.className = 'codex-arrow-toggle';
-      outputHeaderArrow.type = 'button';
-      outputHeaderArrow.setAttribute('aria-label', 'Toggle output panel');
-
-      outputHeader.appendChild(outputHeaderTitle);
-      outputHeader.appendChild(outputHeaderArrow);
-
-      const outputSection = document.createElement('div');
-      outputSection.className = 'codex-collapsible';
-
       actions.appendChild(chatButton);
       actions.appendChild(applyButton);
 
       wrapper.appendChild(header);
-      chatSection.appendChild(selectors);
-      chatSection.appendChild(input);
-      chatSection.appendChild(mentionDropdown);
-      chatSection.appendChild(actions);
-      chatSection.appendChild(status);
-      wrapper.appendChild(chatSection);
-      wrapper.appendChild(outputHeader);
-      outputSection.appendChild(output);
-      wrapper.appendChild(outputSection);
+      wrapper.appendChild(selectors);
+      wrapper.appendChild(input);
+      wrapper.appendChild(mentionDropdown);
+      wrapper.appendChild(actions);
+      wrapper.appendChild(status);
+      wrapper.appendChild(output);
 
       const style = document.createElement('link');
       style.rel = 'stylesheet';
@@ -205,40 +173,8 @@ Gerrit.install(plugin => {
       this.chatButton = chatButton;
       this.applyButton = applyButton;
       this.headerVersion = headerVersion;
-      this.chatSection = chatSection;
-      this.outputSection = outputSection;
-      this.chatHeaderArrow = chatHeaderArrow;
-      this.outputHeaderArrow = outputHeaderArrow;
-
-      chatHeaderArrow.addEventListener('click', () => this.setChatPanelExpanded(!this.isChatExpanded));
-      outputHeaderArrow.addEventListener('click', () => this.setOutputPanelExpanded(!this.isOutputExpanded));
-
-      this.setChatPanelExpanded(this.isChatExpanded);
-      this.setOutputPanelExpanded(this.isOutputExpanded);
 
       this.loadConfig();
-    }
-
-    setChatPanelExpanded(isExpanded) {
-      this.isChatExpanded = Boolean(isExpanded);
-      if (this.chatSection) {
-        this.chatSection.classList.toggle('collapsed', !this.isChatExpanded);
-      }
-      if (this.chatHeaderArrow) {
-        this.chatHeaderArrow.textContent = this.isChatExpanded ? '▴' : '▾';
-        this.chatHeaderArrow.setAttribute('aria-expanded', String(this.isChatExpanded));
-      }
-    }
-
-    setOutputPanelExpanded(isExpanded) {
-      this.isOutputExpanded = Boolean(isExpanded);
-      if (this.outputSection) {
-        this.outputSection.classList.toggle('collapsed', !this.isOutputExpanded);
-      }
-      if (this.outputHeaderArrow) {
-        this.outputHeaderArrow.textContent = this.isOutputExpanded ? '▴' : '▾';
-        this.outputHeaderArrow.setAttribute('aria-expanded', String(this.isOutputExpanded));
-      }
     }
 
     async loadConfig() {
