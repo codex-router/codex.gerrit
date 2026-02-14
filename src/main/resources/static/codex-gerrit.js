@@ -215,11 +215,11 @@ Gerrit.install(plugin => {
 
       wrapper.appendChild(header);
       wrapper.appendChild(selectors);
+      wrapper.appendChild(output);
       wrapper.appendChild(input);
       wrapper.appendChild(mentionDropdown);
       wrapper.appendChild(actions);
       wrapper.appendChild(status);
-      wrapper.appendChild(output);
       wrapper.appendChild(consoleModal);
 
       const style = document.createElement('link');

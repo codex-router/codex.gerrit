@@ -5,7 +5,8 @@
 }
 
 .codex-chat {
-  --codex-panel-height: 90px;
+  --codex-input-height: 72px;
+  --codex-output-height: 240px;
   position: relative;
   border-top: 1px solid #d6d6d6;
   margin-top: 16px;
@@ -79,7 +80,7 @@
 
 .codex-input {
   width: 100%;
-  min-height: var(--codex-panel-height);
+  min-height: var(--codex-input-height);
   resize: vertical;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
@@ -250,12 +251,12 @@
 }
 
 .codex-output {
-  margin-top: 12px;
+  margin-bottom: 12px;
   width: 100%;
   background: #f0f0f0;
   color: #1f1f1f;
   border: 1px solid #d9d9d9;
-  min-height: var(--codex-panel-height);
+  min-height: var(--codex-output-height);
   padding: 12px;
   border-radius: 8px;
   font-size: 12px;
