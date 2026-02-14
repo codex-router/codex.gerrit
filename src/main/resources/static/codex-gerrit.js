@@ -182,17 +182,17 @@ Gerrit.install(plugin => {
       const consoleActions = document.createElement('div');
       consoleActions.className = 'codex-console-actions';
 
-      const consoleRunButton = document.createElement('button');
-      consoleRunButton.type = 'button';
-      consoleRunButton.className = 'codex-button';
-      consoleRunButton.textContent = 'Run';
+      const consoleClearButton = document.createElement('button');
+      consoleClearButton.type = 'button';
+      consoleClearButton.className = 'codex-button outline';
+      consoleClearButton.textContent = 'Clear';
 
       const consoleCloseButton = document.createElement('button');
       consoleCloseButton.type = 'button';
       consoleCloseButton.className = 'codex-button outline';
       consoleCloseButton.textContent = 'Close';
 
-      consoleActions.appendChild(consoleRunButton);
+      consoleActions.appendChild(consoleClearButton);
       consoleActions.appendChild(consoleCloseButton);
       consoleDialog.appendChild(consoleHeader);
       consoleDialog.appendChild(consoleTerminal);
@@ -224,7 +224,7 @@ Gerrit.install(plugin => {
       chatButton.addEventListener('click', () => this.submitChat());
       applyButton.addEventListener('click', () => this.submitPatchset());
       runSelect.addEventListener('change', event => this.handleRunSelectChanged(event));
-      consoleRunButton.addEventListener('click', () => this.runConsoleCommandFromTerminal());
+      consoleClearButton.addEventListener('click', () => this.clearConsoleTerminal());
       consoleCloseButton.addEventListener('click', () => this.closeConsole());
       consoleTerminal.addEventListener('keydown', event => this.handleConsoleTerminalKeydown(event));
       consoleTerminal.addEventListener('click', () => this.ensureConsoleCaretAtInput());
@@ -254,7 +254,7 @@ Gerrit.install(plugin => {
       this.applyButton = applyButton;
       this.consoleModal = consoleModal;
       this.consoleTerminal = consoleTerminal;
-      this.consoleRunButton = consoleRunButton;
+      this.consoleClearButton = consoleClearButton;
       this.consoleCloseButton = consoleCloseButton;
       this.headerVersion = headerVersion;
 
@@ -515,6 +515,17 @@ Gerrit.install(plugin => {
       this.setConsoleSelection(this.consoleTerminal.value.length, this.consoleTerminal.value.length);
     }
 
+    clearConsoleTerminal() {
+      if (!this.consoleTerminal) {
+        return;
+      }
+      this.consoleTerminal.value = '';
+      this.consoleInputStart = 0;
+      this.startConsolePrompt();
+      this.focusConsoleTerminal();
+      this.setStatus('Console cleared.');
+    }
+
     async submit(mode, postAsReview, applyPatchset) {
       const prompt = (this.input && this.input.value || '').trim();
       if (!prompt) {
@@ -581,8 +592,8 @@ Gerrit.install(plugin => {
     }
 
     setConsoleBusy(isBusy) {
-      if (this.consoleRunButton) {
-        this.consoleRunButton.disabled = isBusy;
+      if (this.consoleClearButton) {
+        this.consoleClearButton.disabled = isBusy;
       }
       if (this.consoleCloseButton) {
         this.consoleCloseButton.disabled = isBusy;

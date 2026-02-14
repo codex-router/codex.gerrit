@@ -9,7 +9,7 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 - Selector row includes `CLI`, `Model`, and `Run` controls.
 - CLI selector chooses among configured supported CLIs.
 - Model selector defaults to `Auto`, plus configured LiteLLM models.
-- Run selector includes `Console` to open a web sandbox popup for bash/git commands.
+- Run selector includes `Console` to open a bash sandbox popup (supports bash/git commands).
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - Chat action returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
@@ -58,7 +58,7 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 	# Optional: limit how many file names are included in prompts.
 	maxFiles = 200
 
-	# Optional: bash executable used by the Console button sandbox.
+	# Optional: bash executable used by the Console sandbox.
 	bashPath = /bin/bash
 
 	# Optional: working directory for Console commands.
@@ -98,7 +98,7 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 - `Model` defaults to `Auto` for automatic model selection; optionally choose a specific model.
 - Select `Console` from the `Run` selector to open the web sandbox popup and run bash or git commands.
 - In the Console popup, commands run in an interactive terminal-style view with a PS1 prompt (`sandbox$`) and inline command output.
-- Type directly in the bash console and press `Enter` to execute, use `Run` to execute the current input line, `Close` to dismiss, and `Esc` to close quickly.
+- Type directly in the bash console and press `Enter` to execute; use `Clear` to clear the screen, `Close` to dismiss, and `Esc` to close quickly.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and click `Chat` to receive a reply in the UI from the selected CLI/model (or auto-selected model when `Auto` is chosen).
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.
