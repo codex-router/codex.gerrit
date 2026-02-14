@@ -86,6 +86,36 @@
   box-sizing: border-box;
 }
 
+.codex-toggle-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.codex-toggle-button {
+  border: 1px solid #b65a2a;
+  background: transparent;
+  color: #b65a2a;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.codex-toggle-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(182, 90, 42, 0.25);
+}
+
+.codex-collapsible {
+  margin-top: 8px;
+}
+
+.codex-collapsible.collapsed {
+  display: none;
+}
+
 .codex-actions {
   margin-top: 10px;
   display: flex;

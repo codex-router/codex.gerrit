@@ -33,6 +33,8 @@ Gerrit.install(plugin => {
       this.filteredMentionFiles = [];
       this.activeMentionIndex = -1;
       this.currentMentionRange = null;
+      this.isChatExpanded = false;
+      this.isOutputExpanded = false;
     }
 
     connectedCallback() {
@@ -109,6 +111,17 @@ Gerrit.install(plugin => {
       selectors.appendChild(cliContainer);
       selectors.appendChild(modelContainer);
 
+      const chatToggleRow = document.createElement('div');
+      chatToggleRow.className = 'codex-toggle-row';
+
+      const chatToggleButton = document.createElement('button');
+      chatToggleButton.className = 'codex-toggle-button';
+      chatToggleButton.type = 'button';
+      chatToggleRow.appendChild(chatToggleButton);
+
+      const chatSection = document.createElement('div');
+      chatSection.className = 'codex-collapsible';
+
       const input = document.createElement('textarea');
       input.className = 'codex-input';
       input.placeholder = 'Chat with the selected CLI/model, or use Apply Patchset to generate and apply changes to this Gerrit change.';
@@ -134,16 +147,31 @@ Gerrit.install(plugin => {
       output.className = 'codex-output';
       output.textContent = '';
 
+      const outputToggleRow = document.createElement('div');
+      outputToggleRow.className = 'codex-toggle-row';
+
+      const outputToggleButton = document.createElement('button');
+      outputToggleButton.className = 'codex-toggle-button';
+      outputToggleButton.type = 'button';
+      outputToggleRow.appendChild(outputToggleButton);
+
+      const outputSection = document.createElement('div');
+      outputSection.className = 'codex-collapsible';
+
       actions.appendChild(chatButton);
       actions.appendChild(applyButton);
 
       wrapper.appendChild(header);
       wrapper.appendChild(selectors);
-      wrapper.appendChild(input);
-      wrapper.appendChild(mentionDropdown);
-      wrapper.appendChild(actions);
-      wrapper.appendChild(status);
-      wrapper.appendChild(output);
+      wrapper.appendChild(chatToggleRow);
+      chatSection.appendChild(input);
+      chatSection.appendChild(mentionDropdown);
+      chatSection.appendChild(actions);
+      chatSection.appendChild(status);
+      wrapper.appendChild(chatSection);
+      wrapper.appendChild(outputToggleRow);
+      outputSection.appendChild(output);
+      wrapper.appendChild(outputSection);
 
       const style = document.createElement('link');
       style.rel = 'stylesheet';
@@ -173,8 +201,40 @@ Gerrit.install(plugin => {
       this.chatButton = chatButton;
       this.applyButton = applyButton;
       this.headerVersion = headerVersion;
+      this.chatSection = chatSection;
+      this.outputSection = outputSection;
+      this.chatToggleButton = chatToggleButton;
+      this.outputToggleButton = outputToggleButton;
+
+      chatToggleButton.addEventListener('click', () => this.setChatPanelExpanded(!this.isChatExpanded));
+      outputToggleButton.addEventListener('click', () => this.setOutputPanelExpanded(!this.isOutputExpanded));
+
+      this.setChatPanelExpanded(this.isChatExpanded);
+      this.setOutputPanelExpanded(this.isOutputExpanded);
 
       this.loadConfig();
+    }
+
+    setChatPanelExpanded(isExpanded) {
+      this.isChatExpanded = Boolean(isExpanded);
+      if (this.chatSection) {
+        this.chatSection.classList.toggle('collapsed', !this.isChatExpanded);
+      }
+      if (this.chatToggleButton) {
+        this.chatToggleButton.textContent = this.isChatExpanded ? 'Collapse Chat' : 'Expand Chat';
+        this.chatToggleButton.setAttribute('aria-expanded', String(this.isChatExpanded));
+      }
+    }
+
+    setOutputPanelExpanded(isExpanded) {
+      this.isOutputExpanded = Boolean(isExpanded);
+      if (this.outputSection) {
+        this.outputSection.classList.toggle('collapsed', !this.isOutputExpanded);
+      }
+      if (this.outputToggleButton) {
+        this.outputToggleButton.textContent = this.isOutputExpanded ? 'Collapse Output' : 'Expand Output';
+        this.outputToggleButton.setAttribute('aria-expanded', String(this.isOutputExpanded));
+      }
     }
 
     async loadConfig() {
