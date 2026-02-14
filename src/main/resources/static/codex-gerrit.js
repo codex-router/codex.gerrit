@@ -103,14 +103,8 @@ Gerrit.install(plugin => {
       defaultOption.selected = true;
       modelSelect.appendChild(defaultOption);
 
-      const consoleButton = document.createElement('button');
-      consoleButton.type = 'button';
-      consoleButton.className = 'codex-console-button';
-      consoleButton.textContent = 'Console';
-
       modelContainer.appendChild(modelLabel);
       modelContainer.appendChild(modelSelect);
-      modelContainer.appendChild(consoleButton);
 
       selectors.appendChild(cliContainer);
       selectors.appendChild(modelContainer);
@@ -133,6 +127,11 @@ Gerrit.install(plugin => {
       applyButton.className = 'codex-button outline';
       applyButton.textContent = 'Apply Patchset';
 
+      const consoleButton = document.createElement('button');
+      consoleButton.type = 'button';
+      consoleButton.className = 'codex-button outline codex-console-action';
+      consoleButton.textContent = 'Console';
+
       const status = document.createElement('div');
       status.className = 'codex-status';
 
@@ -140,8 +139,48 @@ Gerrit.install(plugin => {
       output.className = 'codex-output';
       output.textContent = '';
 
+      const consoleModal = document.createElement('div');
+      consoleModal.className = 'codex-console-modal hidden';
+
+      const consoleDialog = document.createElement('div');
+      consoleDialog.className = 'codex-console-dialog';
+
+      const consoleHeader = document.createElement('div');
+      consoleHeader.className = 'codex-console-header';
+      consoleHeader.textContent = 'Bash Console Sandbox';
+
+      const consoleInput = document.createElement('textarea');
+      consoleInput.className = 'codex-console-input';
+      consoleInput.placeholder = 'Enter bash command (for example: ls -la)';
+
+      const consoleActions = document.createElement('div');
+      consoleActions.className = 'codex-console-actions';
+
+      const consoleRunButton = document.createElement('button');
+      consoleRunButton.type = 'button';
+      consoleRunButton.className = 'codex-button';
+      consoleRunButton.textContent = 'Run';
+
+      const consoleCloseButton = document.createElement('button');
+      consoleCloseButton.type = 'button';
+      consoleCloseButton.className = 'codex-button outline';
+      consoleCloseButton.textContent = 'Close';
+
+      const consoleOutput = document.createElement('pre');
+      consoleOutput.className = 'codex-console-output';
+      consoleOutput.textContent = '';
+
+      consoleActions.appendChild(consoleRunButton);
+      consoleActions.appendChild(consoleCloseButton);
+      consoleDialog.appendChild(consoleHeader);
+      consoleDialog.appendChild(consoleInput);
+      consoleDialog.appendChild(consoleActions);
+      consoleDialog.appendChild(consoleOutput);
+      consoleModal.appendChild(consoleDialog);
+
       actions.appendChild(chatButton);
       actions.appendChild(applyButton);
+      actions.appendChild(consoleButton);
 
       wrapper.appendChild(header);
       wrapper.appendChild(selectors);
@@ -150,6 +189,7 @@ Gerrit.install(plugin => {
       wrapper.appendChild(actions);
       wrapper.appendChild(status);
       wrapper.appendChild(output);
+      wrapper.appendChild(consoleModal);
 
       const style = document.createElement('link');
       style.rel = 'stylesheet';
@@ -161,7 +201,15 @@ Gerrit.install(plugin => {
 
       chatButton.addEventListener('click', () => this.submitChat());
       applyButton.addEventListener('click', () => this.submitPatchset());
-      consoleButton.addEventListener('click', () => this.submitConsole());
+      consoleButton.addEventListener('click', () => this.openConsole());
+      consoleRunButton.addEventListener('click', () => this.runConsoleCommand());
+      consoleCloseButton.addEventListener('click', () => this.closeConsole());
+      consoleInput.addEventListener('keydown', event => this.handleConsoleInputKeydown(event));
+      consoleModal.addEventListener('click', event => {
+        if (event.target === consoleModal) {
+          this.closeConsole();
+        }
+      });
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
@@ -170,6 +218,7 @@ Gerrit.install(plugin => {
           this.hideMentionDropdown();
         }
       });
+      document.addEventListener('keydown', event => this.handleDocumentKeydown(event));
 
       this.input = input;
       this.cliSelect = cliSelect;
@@ -180,6 +229,11 @@ Gerrit.install(plugin => {
       this.chatButton = chatButton;
       this.applyButton = applyButton;
       this.consoleButton = consoleButton;
+      this.consoleModal = consoleModal;
+      this.consoleInput = consoleInput;
+      this.consoleOutput = consoleOutput;
+      this.consoleRunButton = consoleRunButton;
+      this.consoleCloseButton = consoleCloseButton;
       this.headerVersion = headerVersion;
 
       this.loadConfig();
@@ -266,8 +320,44 @@ Gerrit.install(plugin => {
       await this.submit('patchset', true, true);
     }
 
-    async submitConsole() {
-      const command = (this.input && this.input.value || '').trim();
+    openConsole() {
+      if (!this.consoleModal) {
+        return;
+      }
+      if (this.consoleInput && !this.consoleInput.value.trim() && this.input && this.input.value.trim()) {
+        this.consoleInput.value = this.input.value;
+      }
+      this.consoleModal.classList.remove('hidden');
+      if (this.consoleInput) {
+        this.consoleInput.focus();
+      }
+    }
+
+    closeConsole() {
+      if (this.consoleModal) {
+        this.consoleModal.classList.add('hidden');
+      }
+    }
+
+    handleConsoleInputKeydown(event) {
+      if (event.key === 'Enter' && event.ctrlKey) {
+        event.preventDefault();
+        this.runConsoleCommand();
+      }
+    }
+
+    handleDocumentKeydown(event) {
+      if (!this.consoleModal || this.consoleModal.classList.contains('hidden')) {
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.closeConsole();
+      }
+    }
+
+    async runConsoleCommand() {
+      const command = (this.consoleInput && this.consoleInput.value || '').trim();
       if (!command) {
         this.setStatus('Enter a bash command first.');
         return;
@@ -283,7 +373,7 @@ Gerrit.install(plugin => {
         return;
       }
 
-      this.setBusy(true);
+      this.setConsoleBusy(true);
       this.setStatus('Running console command...');
 
       try {
@@ -293,14 +383,14 @@ Gerrit.install(plugin => {
         log('Console REST response received.', response);
         const output = response && typeof response.output === 'string' ? response.output : '';
         const exitCode = response && typeof response.exitCode === 'number' ? response.exitCode : null;
-        this.output.textContent = output;
+        this.consoleOutput.textContent = output;
         this.setStatus(exitCode === null ? 'Console command finished.' : `Console command finished (exit ${exitCode}).`);
       } catch (error) {
         error('Console request failed.', error);
-        this.output.textContent = '';
+        this.consoleOutput.textContent = '';
         this.setStatus(`Console failed: ${error && error.message ? error.message : error}`);
       } finally {
-        this.setBusy(false);
+        this.setConsoleBusy(false);
       }
     }
 
@@ -366,6 +456,15 @@ Gerrit.install(plugin => {
       }
       if (this.consoleButton) {
         this.consoleButton.disabled = isBusy;
+      }
+    }
+
+    setConsoleBusy(isBusy) {
+      if (this.consoleRunButton) {
+        this.consoleRunButton.disabled = isBusy;
+      }
+      if (this.consoleCloseButton) {
+        this.consoleCloseButton.disabled = isBusy;
       }
     }
 
