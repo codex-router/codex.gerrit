@@ -145,6 +145,9 @@ Gerrit.install(plugin => {
       const actions = document.createElement('div');
       actions.className = 'codex-actions';
 
+      const footer = document.createElement('div');
+      footer.className = 'codex-footer';
+
       const chatButton = document.createElement('button');
       chatButton.className = 'codex-button';
       chatButton.textContent = 'Chat';
@@ -213,12 +216,14 @@ Gerrit.install(plugin => {
       actions.appendChild(chatButton);
       actions.appendChild(applyButton);
 
+      footer.appendChild(selectors);
+      footer.appendChild(actions);
+
       wrapper.appendChild(header);
-      wrapper.appendChild(selectors);
       wrapper.appendChild(output);
       wrapper.appendChild(input);
       wrapper.appendChild(mentionDropdown);
-      wrapper.appendChild(actions);
+      wrapper.appendChild(footer);
       wrapper.appendChild(status);
       wrapper.appendChild(consoleModal);
 
