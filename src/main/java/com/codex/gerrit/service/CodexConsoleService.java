@@ -20,10 +20,12 @@ import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Singleton
@@ -50,6 +52,8 @@ public class CodexConsoleService {
     ProcessBuilder builder =
         new ProcessBuilder(Arrays.asList(config.getBashPath(), "-lc", normalizedCommand));
     builder.redirectErrorStream(true);
+    configureWorkingDirectory(builder);
+    configureEnvironment(builder.environment());
 
     try {
       Process process = builder.start();
@@ -68,6 +72,24 @@ public class CodexConsoleService {
     } catch (IOException ex) {
       throw new BadRequestException("Console execution failed: " + ex.getMessage());
     }
+  }
+
+  private void configureWorkingDirectory(ProcessBuilder builder) throws BadRequestException {
+    String configuredDir = config.getConsoleWorkDir();
+    if (configuredDir == null || configuredDir.isEmpty()) {
+      return;
+    }
+    File workDir = new File(configuredDir);
+    if (!workDir.exists() || !workDir.isDirectory()) {
+      throw new BadRequestException("consoleWorkDir is not a valid directory: " + configuredDir);
+    }
+    builder.directory(workDir);
+  }
+
+  private static void configureEnvironment(Map<String, String> env) {
+    env.put("TERM", "dumb");
+    env.put("PAGER", "cat");
+    env.put("GIT_PAGER", "cat");
   }
 
   private static String readOutput(Process process) throws IOException {

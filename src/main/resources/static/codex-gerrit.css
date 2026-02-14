@@ -68,6 +68,10 @@
   cursor: pointer;
 }
 
+.codex-run-select {
+  max-width: 140px;
+}
+
 .codex-selector-select:focus {
   outline: none;
   border-color: #b65a2a;
@@ -90,10 +94,6 @@
   margin-top: 10px;
   display: flex;
   gap: 8px;
-}
-
-.codex-console-action {
-  margin-left: auto;
 }
 
 .codex-console-modal {

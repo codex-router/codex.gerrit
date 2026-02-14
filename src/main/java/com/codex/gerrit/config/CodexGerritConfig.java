@@ -48,6 +48,7 @@ public class CodexGerritConfig {
   private final String defaultCli;
   private final int maxFiles;
   private final String bashPath;
+  private final String consoleWorkDir;
   private final int consoleTimeoutSeconds;
   private final String litellmBaseUrl;
   private final String litellmApiKey;
@@ -70,6 +71,7 @@ public class CodexGerritConfig {
     this.defaultCli = normalizeCli(config.getString("defaultCli"));
     this.maxFiles = config.getInt("maxFiles", DEFAULT_MAX_FILES);
     this.bashPath = trimToDefault(config.getString("bashPath"), DEFAULT_BASH_PATH);
+    this.consoleWorkDir = trimToEmpty(config.getString("consoleWorkDir"));
     int configuredConsoleTimeout =
       config.getInt("consoleTimeoutSeconds", DEFAULT_CONSOLE_TIMEOUT_SECONDS);
     this.consoleTimeoutSeconds = configuredConsoleTimeout > 0
@@ -98,6 +100,10 @@ public class CodexGerritConfig {
 
   public String getBashPath() {
     return bashPath;
+  }
+
+  public String getConsoleWorkDir() {
+    return consoleWorkDir;
   }
 
   public int getConsoleTimeoutSeconds() {

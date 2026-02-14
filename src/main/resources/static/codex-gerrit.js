@@ -106,8 +106,33 @@ Gerrit.install(plugin => {
       modelContainer.appendChild(modelLabel);
       modelContainer.appendChild(modelSelect);
 
+      const runContainer = document.createElement('div');
+      runContainer.className = 'codex-selector-container';
+
+      const runLabel = document.createElement('label');
+      runLabel.className = 'codex-selector-label';
+      runLabel.textContent = 'Run:';
+
+      const runSelect = document.createElement('select');
+      runSelect.className = 'codex-selector-select codex-run-select';
+
+      const runDefaultOption = document.createElement('option');
+      runDefaultOption.value = '';
+      runDefaultOption.textContent = 'Select';
+      runDefaultOption.selected = true;
+      runSelect.appendChild(runDefaultOption);
+
+      const runConsoleOption = document.createElement('option');
+      runConsoleOption.value = 'console';
+      runConsoleOption.textContent = 'Console';
+      runSelect.appendChild(runConsoleOption);
+
+      runContainer.appendChild(runLabel);
+      runContainer.appendChild(runSelect);
+
       selectors.appendChild(cliContainer);
       selectors.appendChild(modelContainer);
+      selectors.appendChild(runContainer);
 
       const input = document.createElement('textarea');
       input.className = 'codex-input';
@@ -126,11 +151,6 @@ Gerrit.install(plugin => {
       const applyButton = document.createElement('button');
       applyButton.className = 'codex-button outline';
       applyButton.textContent = 'Apply Patchset';
-
-      const consoleButton = document.createElement('button');
-      consoleButton.type = 'button';
-      consoleButton.className = 'codex-button outline codex-console-action';
-      consoleButton.textContent = 'Console';
 
       const status = document.createElement('div');
       status.className = 'codex-status';
@@ -180,7 +200,6 @@ Gerrit.install(plugin => {
 
       actions.appendChild(chatButton);
       actions.appendChild(applyButton);
-      actions.appendChild(consoleButton);
 
       wrapper.appendChild(header);
       wrapper.appendChild(selectors);
@@ -201,7 +220,7 @@ Gerrit.install(plugin => {
 
       chatButton.addEventListener('click', () => this.submitChat());
       applyButton.addEventListener('click', () => this.submitPatchset());
-      consoleButton.addEventListener('click', () => this.openConsole());
+      runSelect.addEventListener('change', event => this.handleRunSelectChanged(event));
       consoleRunButton.addEventListener('click', () => this.runConsoleCommand());
       consoleCloseButton.addEventListener('click', () => this.closeConsole());
       consoleInput.addEventListener('keydown', event => this.handleConsoleInputKeydown(event));
@@ -223,12 +242,12 @@ Gerrit.install(plugin => {
       this.input = input;
       this.cliSelect = cliSelect;
       this.modelSelect = modelSelect;
+      this.runSelect = runSelect;
       this.mentionDropdown = mentionDropdown;
       this.output = output;
       this.status = status;
       this.chatButton = chatButton;
       this.applyButton = applyButton;
-      this.consoleButton = consoleButton;
       this.consoleModal = consoleModal;
       this.consoleInput = consoleInput;
       this.consoleOutput = consoleOutput;
@@ -318,6 +337,16 @@ Gerrit.install(plugin => {
 
     async submitPatchset() {
       await this.submit('patchset', true, true);
+    }
+
+    handleRunSelectChanged(event) {
+      const selected = event && event.target ? event.target.value : '';
+      if (selected === 'console') {
+        this.openConsole();
+      }
+      if (this.runSelect) {
+        this.runSelect.value = '';
+      }
     }
 
     openConsole() {
@@ -454,8 +483,8 @@ Gerrit.install(plugin => {
       if (this.applyButton) {
         this.applyButton.disabled = isBusy;
       }
-      if (this.consoleButton) {
-        this.consoleButton.disabled = isBusy;
+      if (this.runSelect) {
+        this.runSelect.disabled = isBusy;
       }
     }
 

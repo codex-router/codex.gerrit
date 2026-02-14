@@ -8,7 +8,7 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 - Chat panel in the change footer with input and reply UI.
 - CLI provider dropdown to choose among configured supported CLIs.
 - Model selection dropdown that defaults to `Auto`, plus configured LiteLLM models.
-- Console button in the action row (right side) to open a bash web sandbox popup.
+- Run dropdown next to Model, with Console as a menu item to open a web sandbox popup for bash/git commands.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - Chat action returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
@@ -60,6 +60,10 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 	# Optional: bash executable used by the Console button sandbox.
 	bashPath = /bin/bash
 
+	# Optional: working directory for Console commands.
+	# Set this to a git repository path if you want git commands like `git status`.
+	consoleWorkDir = /path/to/repo
+
 	# Optional: timeout in seconds for each Console command.
 	consoleTimeoutSeconds = 20
 
@@ -91,7 +95,8 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Select a CLI from the dropdown (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - Model defaults to `Auto` for automatic model selection; optionally choose a specific model from the dropdown.
-- Click `Console` (right side of the action row) to open the web sandbox popup and run bash commands.
+- Select `Console` from the `Run` dropdown (next to `Model`) to open the web sandbox popup and run bash or git commands.
+- In the Console popup, use `Run` to execute a command, `Close` to dismiss, `Esc` to close quickly, and `Ctrl+Enter` to run from the command input.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and click `Chat` to receive a reply in the UI from the selected CLI/model (or auto-selected model when `Auto` is chosen).
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.
@@ -119,6 +124,13 @@ DELETE_FILE path/to/old_file
 
 If no `BEGIN_SUMMARY` or `BEGIN_COMMIT_MESSAGE` block is provided, the plugin will apply the
 files and publish the edit using the existing commit message.
+
+### Console Notes
+
+- Console commands run via `bash -lc`.
+- Git commands are supported. For repository-scoped commands (for example `git status`), set
+	`consoleWorkDir` to a valid git repository path.
+- Console output is merged from stdout/stderr and may be truncated for safety.
 
 ## Reference
 
