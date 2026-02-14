@@ -5,10 +5,10 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 
 ## Features
 
-- Chat panel in the change footer with a larger output panel above a compact input box (Copilot-style layout).
-- Bottom embedded control bar with `CLI`, `Model`, and `Run` selectors (Copilot-style placement).
-- CLI selector to choose among configured supported CLIs.
-- Model selector that defaults to `Auto`, plus configured LiteLLM models.
+- Chat panel in the change footer with selector row, prompt input, actions, status, and output.
+- Selector row includes `CLI`, `Model`, and `Run` controls.
+- CLI selector chooses among configured supported CLIs.
+- Model selector defaults to `Auto`, plus configured LiteLLM models.
 - Run selector includes `Console` to open a web sandbox popup for bash/git commands.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - Chat action returns a reply in the UI using the selected CLI and model.
@@ -94,12 +94,11 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 ## Usage
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
-- The output panel is shown above the prompt input area; input is compact and output is taller for easier response reading.
-- Use the bottom embedded controls to select `CLI` (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
+- Use the selector row to choose `CLI` (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - `Model` defaults to `Auto` for automatic model selection; optionally choose a specific model.
-- Select `Console` from the bottom `Run` selector to open the web sandbox popup and run bash or git commands.
-- In the Console popup, commands run in a terminal-style view with a PS1 prompt (`sandbox$`) and inline command output.
-- Use `Run` or press `Enter` from the command input to execute, `Close` to dismiss, and `Esc` to close quickly.
+- Select `Console` from the `Run` selector to open the web sandbox popup and run bash or git commands.
+- In the Console popup, commands run in an interactive terminal-style view with a PS1 prompt (`sandbox$`) and inline command output.
+- Type directly in the bash console and press `Enter` to execute, use `Run` to execute the current input line, `Close` to dismiss, and `Esc` to close quickly.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and click `Chat` to receive a reply in the UI from the selected CLI/model (or auto-selected model when `Auto` is chosen).
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.
