@@ -7,7 +7,7 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 
 - Chat panel in the change footer with input and reply UI.
 - CLI provider dropdown to choose among configured supported CLIs.
-- Model selection dropdown to choose from configured LiteLLM models.
+- Model selection dropdown that defaults to `Auto`, plus configured LiteLLM models.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - Chat action returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
@@ -72,8 +72,10 @@ Each configured CLI is expected to accept the prompt via stdin and print the res
 
 When `litellmBaseUrl` and `litellmApiKey` are configured, the plugin sets the `LITELLM_API_BASE`
 and `LITELLM_API_KEY` environment variables when invoking the Codex CLI. If `litellmModels` is
-configured, users can select a model from a dropdown in the chat panel, which is passed to the
-CLI via the `--model` parameter.
+configured, users can select a model from a dropdown in the chat panel.
+
+- Selecting `Auto` (default) does not send `--model`, allowing the CLI/plugin to pick a model automatically.
+- Selecting a specific model sends that value via the `--model` parameter.
 
 See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration instructions.
 
@@ -81,9 +83,9 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Select a CLI from the dropdown (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
-- (Optional) Select a model from the dropdown if multiple models are configured.
+- Model defaults to `Auto` for automatic model selection; optionally choose a specific model from the dropdown.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
-- Enter a prompt and click `Chat` to receive a reply in the UI from the selected CLI/model.
+- Enter a prompt and click `Chat` to receive a reply in the UI from the selected CLI/model (or auto-selected model when `Auto` is chosen).
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.
 	The patchset is published by the current user who triggered the action.
 

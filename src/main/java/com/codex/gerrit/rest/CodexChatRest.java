@@ -116,7 +116,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     normalized.postAsReview = input.postAsReview;
     normalized.applyPatchset = input.applyPatchset;
     normalized.cli = config.normalizeCliOrDefault(input.cli);
-    normalized.model = input.model;
+    normalized.model = normalizeModel(input.model);
     normalized.contextFiles = normalizeContextFiles(input.contextFiles, files);
     if (!config.hasCliPath(normalized.cli)) {
       throw new BadRequestException(normalized.cli + "Path is not configured");
@@ -169,6 +169,21 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
         && !"generate".equals(normalized)
         && !"patchset".equals(normalized)) {
       return "chat";
+    }
+    return normalized;
+  }
+
+  private static String normalizeModel(String model) {
+    if (model == null) {
+      return null;
+    }
+    String normalized = model.trim();
+    if (normalized.isEmpty()) {
+      return null;
+    }
+    String lower = normalized.toLowerCase();
+    if ("auto".equals(lower) || "default".equals(lower)) {
+      return null;
     }
     return normalized;
   }
