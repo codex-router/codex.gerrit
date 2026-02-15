@@ -10,7 +10,7 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 - CLI selector chooses among configured supported CLIs.
 - Model selector defaults to `Auto`, plus configured LiteLLM models.
 - `@` file mention dropdown sourced from current patchset files for context selection.
-- `Codespaces` includes `Open in Browser`, `Open in VS Code`, `Open in Cursor`, and `Open in Android Studio` to open patchset files in browser/local IDEs.
+- `Codespaces` includes `Open Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
 - Chat mode is the default input mode and returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
 - Reverse Patchset restores the previous patchset state and publishes it as a new patchset on the same change.
@@ -87,7 +87,7 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Use the selector row to choose `CLI` (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - `Model` defaults to `Auto` for automatic model selection; optionally choose a specific model.
-- Use `Codespaces` → `Open in Browser`, `Open in VS Code`, `Open in Cursor`, or `Open in Android Studio` to open all patchset files.
+- Use `Codespaces` → `Open Android Studio`, `Open in Browser`, `Open in Cursor`, or `Open in VS Code` to open all patchset files.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and press `Enter` to send in default chat mode to the CLI selected in `CLI` (or use `Shift+Enter` for a newline).
 - Replies are shown in the UI using the selected CLI/model (or auto-selected model when `Auto` is chosen).
@@ -101,8 +101,18 @@ the review is posted by the current user who triggered the action.
 When using `Open in Browser` for the first time, the panel prompts for your GitHub repository URL
 (default: `https://github.com/codesandbox/codesandbox-client`) and stores it in browser local storage for future opens.
 
-When using `Open in VS Code`, `Open in Cursor`, or `Open in Android Studio` for the first time, the panel prompts for your local repository root
+When using `Open Android Studio`, `Open in Cursor`, or `Open in VS Code` for the first time, the panel prompts for your local repository root
 path and stores it in browser local storage for future opens. All actions open all current patchset files.
+
+### Codespaces: Open Android Studio
+
+- `Open Android Studio` opens every file in the current patchset in your local Android Studio IDE using `jetbrains://android-studio/...` links.
+- On first use, enter your local repository root path:
+	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
+	- Windows example: `C:\Users\<user>\src\codex.gerrit`
+- The root path is saved in browser local storage and reused for later opens.
+- If your browser asks for permission to open Android Studio links, allow it.
+- If files do not open, ensure JetBrains protocol handler support is enabled for Android Studio on your machine and that the saved root path matches your local checkout.
 
 ### Codespaces: Open in Browser
 
@@ -111,16 +121,6 @@ path and stores it in browser local storage for future opens. All actions open a
 	- Example: `https://github.com/codesandbox/codesandbox-client`
 - The repository URL is saved in browser local storage and reused for later opens.
 - If your browser blocks popups, allow popups for Gerrit to open all patchset files.
-
-### Codespaces: Open in VS Code
-
-- `Open in VS Code` opens every file in the current patchset using `vscode://file/...` links.
-- On first use, enter your local repository root path:
-	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
-	- Windows example: `C:\Users\<user>\src\codex.gerrit`
-- The root path is saved in browser local storage and reused for later opens.
-- If your browser asks for permission to open VS Code links, allow it.
-- If files do not open, check that VS Code URL handling is enabled on your machine and that the saved root path matches your local checkout.
 
 ### Codespaces: Open in Cursor
 
@@ -132,15 +132,15 @@ path and stores it in browser local storage for future opens. All actions open a
 - If your browser asks for permission to open Cursor links, allow it.
 - If files do not open, check that Cursor URL handling is enabled on your machine and that the saved root path matches your local checkout.
 
-### Codespaces: Open in Android Studio
+### Codespaces: Open in VS Code
 
-- `Open in Android Studio` opens every file in the current patchset in your local Android Studio IDE using `jetbrains://android-studio/...` links.
+- `Open in VS Code` opens every file in the current patchset using `vscode://file/...` links.
 - On first use, enter your local repository root path:
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
 - The root path is saved in browser local storage and reused for later opens.
-- If your browser asks for permission to open Android Studio links, allow it.
-- If files do not open, ensure JetBrains protocol handler support is enabled for Android Studio on your machine and that the saved root path matches your local checkout.
+- If your browser asks for permission to open VS Code links, allow it.
+- If files do not open, check that VS Code URL handling is enabled on your machine and that the saved root path matches your local checkout.
 
 ### Patchset Output Format
 

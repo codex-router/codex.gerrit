@@ -18,10 +18,10 @@ Gerrit.install(plugin => {
   const logPrefix = '[codex-gerrit]';
   const supportedClis = ['codex', 'claude', 'gemini', 'opencode', 'qwen'];
   const codespacesActions = [
+    { value: 'open-android-studio', label: 'Open Android Studio' },
     { value: 'open-browser', label: 'Open in Browser' },
-    { value: 'open-vscode', label: 'Open in VS Code' },
     { value: 'open-cursor', label: 'Open in Cursor' },
-    { value: 'open-android-studio', label: 'Open in Android Studio' }
+    { value: 'open-vscode', label: 'Open in VS Code' }
   ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
   const browserRepoStorageKey = `${pluginName}-browser-repo-url`;
