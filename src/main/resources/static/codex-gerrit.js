@@ -19,7 +19,8 @@ Gerrit.install(plugin => {
   const supportedClis = ['codex', 'claude', 'gemini', 'opencode', 'qwen'];
   const codespacesActions = [
     { value: 'open-vscode', label: 'Open in VS Code' },
-    { value: 'open-cursor', label: 'Open in Cursor' }
+    { value: 'open-cursor', label: 'Open in Cursor' },
+    { value: 'open-android-studio', label: 'Open in Android Studio' }
   ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
   const log = (...args) => console.log(logPrefix, ...args);
@@ -301,6 +302,10 @@ Gerrit.install(plugin => {
       }
       if (action === 'open-cursor') {
         await this.openPatchsetFilesInCursor();
+        return;
+      }
+      if (action === 'open-android-studio') {
+        await this.openPatchsetFilesInAndroidStudio();
       }
     }
 
@@ -348,6 +353,29 @@ Gerrit.install(plugin => {
         opened += 1;
       });
       this.setStatus(`Opening ${opened} patchset files in Cursor...`);
+    }
+
+    async openPatchsetFilesInAndroidStudio() {
+      if (!this.patchsetFiles || this.patchsetFiles.length === 0) {
+        this.setStatus('No patchset files found for this change.');
+        return;
+      }
+
+      const workspaceRoot = this.getOrPromptWorkspaceRoot();
+      if (!workspaceRoot) {
+        this.setStatus('Open in Android Studio canceled.');
+        return;
+      }
+
+      let opened = 0;
+      this.patchsetFiles.forEach((relativePath, index) => {
+        const uri = this.toAndroidStudioFileUri(workspaceRoot, this.joinPaths(workspaceRoot, relativePath));
+        window.setTimeout(() => {
+          window.open(uri, '_blank');
+        }, index * 60);
+        opened += 1;
+      });
+      this.setStatus(`Opening ${opened} patchset files in Android Studio...`);
     }
 
     getOrPromptWorkspaceRoot() {
@@ -402,6 +430,15 @@ Gerrit.install(plugin => {
           .join('/')
           .replace(/^\/(%[0-9A-Fa-f]{2})?([A-Za-z])%3A\//, '/$2:/');
       return `cursor://file${encodedPath}`;
+    }
+
+    toAndroidStudioFileUri(workspaceRoot, fullPath) {
+      const normalizedRoot = this.normalizePath(workspaceRoot).replace(/\/+$/, '');
+      const normalizedPath = this.normalizePath(fullPath);
+      const projectName = normalizedRoot.split('/').filter(Boolean).pop() || 'project';
+      const encodedProject = encodeURIComponent(projectName);
+      const encodedPath = encodeURIComponent(normalizedPath);
+      return `jetbrains://android-studio/navigate/reference?project=${encodedProject}&path=${encodedPath}`;
     }
 
     async submit(mode, postAsReview, applyPatchset) {
