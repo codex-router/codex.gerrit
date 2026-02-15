@@ -18,7 +18,7 @@ Gerrit.install(plugin => {
   const logPrefix = '[codex-gerrit]';
   const supportedClis = ['codex', 'claude', 'gemini', 'opencode', 'qwen'];
   const codespacesActions = [
-    { value: 'open-android-studio', label: 'Open Android Studio' },
+    { value: 'open-android-studio', label: 'Open in Android Studio' },
     { value: 'open-browser', label: 'Open in Browser' },
     { value: 'open-cursor', label: 'Open in Cursor' },
     { value: 'open-vscode', label: 'Open in VS Code' }
@@ -147,7 +147,7 @@ Gerrit.install(plugin => {
 
       const input = document.createElement('textarea');
       input.className = 'codex-input';
-      input.placeholder = 'Use CLI and Model to configure your session. Use Codespaces to open patchset files, chat here to draft changes, click Apply Patchset to generate/apply a patchset, or click Reverse Patchset to restore the previous patchset state.';
+      input.placeholder = 'Use CLI and Model to configure your session. Use Codespaces to open patchset files, type @ to reference files, chat here to draft changes, click Apply Patchset to generate/apply a patchset, or click Reverse Patchset to restore the previous patchset state.';
 
       const mentionDropdown = document.createElement('div');
       mentionDropdown.className = 'codex-mention-dropdown hidden';
