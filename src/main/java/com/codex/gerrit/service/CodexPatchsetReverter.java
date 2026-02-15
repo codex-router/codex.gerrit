@@ -146,12 +146,10 @@ public class CodexPatchsetReverter {
     try {
       return contentResult.asString();
     } catch (IOException ex) {
-      RestApiException restApiException =
-          new RestApiException(
-              String.format(
-                  "Failed to read content for file '%s' at revision '%s'", path, revisionId));
-      restApiException.initCause(ex);
-      throw restApiException;
+      throw new BadRequestException(
+          String.format(
+              "Failed to read content for file '%s' at revision '%s': %s",
+              path, revisionId, ex.getMessage()));
     }
   }
 
