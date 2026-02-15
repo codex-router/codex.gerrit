@@ -25,6 +25,7 @@ import com.google.gerrit.extensions.restapi.BinaryResult;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -142,7 +143,13 @@ public class CodexPatchsetReverter {
   private static String readFileContent(ChangeApi changeApi, String revisionId, String path)
       throws RestApiException {
     BinaryResult contentResult = changeApi.revision(revisionId).file(path).content();
-    return contentResult.asString();
+    try {
+      return contentResult.asString();
+    } catch (IOException ex) {
+      throw new RestApiException(
+          String.format("Failed to read content for file '%s' at revision '%s'", path, revisionId),
+          ex);
+    }
   }
 
   private static void ensureEditReady(ChangeEditApi editApi) throws RestApiException {
