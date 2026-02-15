@@ -147,7 +147,7 @@ Gerrit.install(plugin => {
 
       const input = document.createElement('textarea');
       input.className = 'codex-input';
-      input.placeholder = 'Use CLI and Model to configure your session. Use Codespaces to open files from this Gerrit change patchset in listed spaces (e.g., VS Code), then chat here or click Apply Patchset to generate and apply changes.';
+      input.placeholder = 'Use CLI and Model to configure your session. Use Codespaces to open patchset files, chat here to draft changes, click Apply Patchset to generate/apply a patchset, or click Reverse Patchset to restore the previous patchset state.';
 
       const mentionDropdown = document.createElement('div');
       mentionDropdown.className = 'codex-mention-dropdown hidden';
