@@ -116,7 +116,7 @@ public class CodexPatchsetReverter {
     }
 
     RevisionInfo current = changeInfo.revisions.get(currentRevisionId);
-    if (current == null || current._number == null) {
+    if (current == null) {
       return null;
     }
 
@@ -126,7 +126,7 @@ public class CodexPatchsetReverter {
 
     for (Map.Entry<String, RevisionInfo> entry : changeInfo.revisions.entrySet()) {
       RevisionInfo revision = entry.getValue();
-      if (revision == null || revision._number == null) {
+      if (revision == null) {
         continue;
       }
       int revisionNumber = revision._number;
