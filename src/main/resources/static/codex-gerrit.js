@@ -17,7 +17,10 @@ Gerrit.install(plugin => {
   const elementName = 'codex-chat-panel';
   const logPrefix = '[codex-gerrit]';
   const supportedClis = ['codex', 'claude', 'gemini', 'opencode', 'qwen'];
-  const codespacesActions = [{ value: 'open-vscode', label: 'Open in VS Code' }];
+  const codespacesActions = [
+    { value: 'open-vscode', label: 'Open in VS Code' },
+    { value: 'open-cursor', label: 'Open in Cursor' }
+  ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
   const log = (...args) => console.log(logPrefix, ...args);
   const warn = (...args) => console.warn(logPrefix, ...args);
@@ -294,6 +297,10 @@ Gerrit.install(plugin => {
       }
       if (action === 'open-vscode') {
         await this.openPatchsetFilesInVsCode();
+        return;
+      }
+      if (action === 'open-cursor') {
+        await this.openPatchsetFilesInCursor();
       }
     }
 
@@ -318,6 +325,29 @@ Gerrit.install(plugin => {
         opened += 1;
       });
       this.setStatus(`Opening ${opened} patchset files in VS Code...`);
+    }
+
+    async openPatchsetFilesInCursor() {
+      if (!this.patchsetFiles || this.patchsetFiles.length === 0) {
+        this.setStatus('No patchset files found for this change.');
+        return;
+      }
+
+      const workspaceRoot = this.getOrPromptWorkspaceRoot();
+      if (!workspaceRoot) {
+        this.setStatus('Open in Cursor canceled.');
+        return;
+      }
+
+      let opened = 0;
+      this.patchsetFiles.forEach((relativePath, index) => {
+        const uri = this.toCursorFileUri(this.joinPaths(workspaceRoot, relativePath));
+        window.setTimeout(() => {
+          window.open(uri, '_blank');
+        }, index * 60);
+        opened += 1;
+      });
+      this.setStatus(`Opening ${opened} patchset files in Cursor...`);
     }
 
     getOrPromptWorkspaceRoot() {
@@ -360,6 +390,18 @@ Gerrit.install(plugin => {
           .join('/')
           .replace(/^\/(%[0-9A-Fa-f]{2})?([A-Za-z])%3A\//, '/$2:/');
       return `vscode://file${encodedPath}`;
+    }
+
+    toCursorFileUri(path) {
+      const normalized = this.normalizePath(path);
+      const drivePathMatch = normalized.match(/^[A-Za-z]:\//);
+      const withLeadingSlash = drivePathMatch ? `/${normalized}` : normalized;
+      const encodedPath = withLeadingSlash
+          .split('/')
+          .map(segment => encodeURIComponent(segment))
+          .join('/')
+          .replace(/^\/(%[0-9A-Fa-f]{2})?([A-Za-z])%3A\//, '/$2:/');
+      return `cursor://file${encodedPath}`;
     }
 
     async submit(mode, postAsReview, applyPatchset) {
