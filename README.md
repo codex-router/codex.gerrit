@@ -6,10 +6,9 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 ## Features
 
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
-- Selector row includes `CLI`, `Model`, and `Run` controls.
+- Selector row includes `CLI` and `Model` controls.
 - CLI selector chooses among configured supported CLIs.
 - Model selector defaults to `Auto`, plus configured LiteLLM models.
-- Run selector includes `Console` to open a bash sandbox popup (supports bash/git commands).
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - Chat mode is the default input mode and returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
@@ -58,16 +57,6 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 	# Optional: limit how many file names are included in prompts.
 	maxFiles = 200
 
-	# Optional: bash executable used by the Console sandbox.
-	bashPath = /bin/bash
-
-	# Optional: working directory for Console commands.
-	# Set this to a git repository path if you want git commands like `git status`.
-	consoleWorkDir = /path/to/repo
-
-	# Optional: timeout in seconds for each Console command.
-	consoleTimeoutSeconds = 20
-
 	# Optional: LiteLLM proxy base URL.
 	litellmBaseUrl = http://localhost:4000
 
@@ -96,9 +85,6 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Use the selector row to choose `CLI` (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - `Model` defaults to `Auto` for automatic model selection; optionally choose a specific model.
-- Select `Console` from the `Run` selector to open the web sandbox popup and run bash or git commands.
-- In the Console popup, commands run in an interactive terminal-style view with a PS1 prompt (`sandbox$`) and inline command output.
-- Type directly in the bash console and press `Enter` to execute; use `Clear` to clear the screen, `Close` to dismiss, and `Esc` to close quickly.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and press `Enter` to send in default chat mode to the CLI selected in `CLI` (or use `Shift+Enter` for a newline).
 - Replies are shown in the UI using the selected CLI/model (or auto-selected model when `Auto` is chosen).
@@ -127,13 +113,6 @@ DELETE_FILE path/to/old_file
 
 If no `BEGIN_SUMMARY` or `BEGIN_COMMIT_MESSAGE` block is provided, the plugin will apply the
 files and publish the edit using the existing commit message.
-
-### Console Notes
-
-- Console commands run via `bash -lc`.
-- Git commands are supported. For repository-scoped commands (for example `git status`), set
-	`consoleWorkDir` to a valid git repository path.
-- Console output is merged from stdout/stderr and printed inline in the terminal view; output may be truncated for safety.
 
 ## Reference
 

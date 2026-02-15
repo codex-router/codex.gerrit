@@ -73,10 +73,6 @@
   cursor: pointer;
 }
 
-.codex-run-select {
-  max-width: 96px;
-}
-
 .codex-selector-select:focus {
   outline: none;
 }
@@ -104,66 +100,6 @@
 }
 
 .codex-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.codex-console-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-.codex-console-modal.hidden {
-  display: none;
-}
-
-.codex-console-dialog {
-  width: 100%;
-  max-width: 860px;
-  max-height: 80vh;
-  overflow: auto;
-  background: #ffffff;
-  border: 1px solid #d9d9d9;
-  border-radius: 10px;
-  padding: 14px;
-  box-sizing: border-box;
-}
-
-.codex-console-header {
-  font-size: 13px;
-  font-weight: 600;
-  color: #5b3a1d;
-  margin-bottom: 10px;
-}
-
-.codex-console-terminal {
-  width: 100%;
-  min-height: 220px;
-  max-height: 40vh;
-  overflow: auto;
-  resize: none;
-  background: #1b1b1b;
-  color: #e8e8e8;
-  border: 1px solid #2f2f2f;
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 12px;
-  font-family: "Consolas", "Menlo", monospace;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  box-sizing: border-box;
-  margin: 0;
-}
-
-.codex-console-actions {
-  margin-top: 10px;
   display: flex;
   gap: 8px;
 }

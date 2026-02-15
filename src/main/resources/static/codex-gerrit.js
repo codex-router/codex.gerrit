@@ -29,8 +29,6 @@ Gerrit.install(plugin => {
   class CodexChatPanel extends HTMLElement {
     constructor() {
       super();
-      this.consolePs1 = 'sandbox$ ';
-      this.consoleInputStart = 0;
       this.patchsetFiles = [];
       this.filteredMentionFiles = [];
       this.activeMentionIndex = -1;
@@ -108,33 +106,8 @@ Gerrit.install(plugin => {
       modelContainer.appendChild(modelLabel);
       modelContainer.appendChild(modelSelect);
 
-      const runContainer = document.createElement('div');
-      runContainer.className = 'codex-selector-container';
-
-      const runLabel = document.createElement('label');
-      runLabel.className = 'codex-selector-label';
-      runLabel.textContent = 'Run:';
-
-      const runSelect = document.createElement('select');
-      runSelect.className = 'codex-selector-select codex-run-select';
-
-      const runDefaultOption = document.createElement('option');
-      runDefaultOption.value = '';
-      runDefaultOption.textContent = 'Select';
-      runDefaultOption.selected = true;
-      runSelect.appendChild(runDefaultOption);
-
-      const runConsoleOption = document.createElement('option');
-      runConsoleOption.value = 'console';
-      runConsoleOption.textContent = 'Console';
-      runSelect.appendChild(runConsoleOption);
-
-      runContainer.appendChild(runLabel);
-      runContainer.appendChild(runSelect);
-
       selectors.appendChild(cliContainer);
       selectors.appendChild(modelContainer);
-      selectors.appendChild(runContainer);
 
       const input = document.createElement('textarea');
       input.className = 'codex-input';
@@ -160,41 +133,6 @@ Gerrit.install(plugin => {
       output.className = 'codex-output';
       output.textContent = '';
 
-      const consoleModal = document.createElement('div');
-      consoleModal.className = 'codex-console-modal hidden';
-
-      const consoleDialog = document.createElement('div');
-      consoleDialog.className = 'codex-console-dialog';
-
-      const consoleHeader = document.createElement('div');
-      consoleHeader.className = 'codex-console-header';
-      consoleHeader.textContent = 'Bash Console Sandbox';
-
-      const consoleTerminal = document.createElement('textarea');
-      consoleTerminal.className = 'codex-console-terminal';
-      consoleTerminal.setAttribute('spellcheck', 'false');
-      consoleTerminal.value = '';
-
-      const consoleActions = document.createElement('div');
-      consoleActions.className = 'codex-console-actions';
-
-      const consoleClearButton = document.createElement('button');
-      consoleClearButton.type = 'button';
-      consoleClearButton.className = 'codex-button outline';
-      consoleClearButton.textContent = 'Clear';
-
-      const consoleCloseButton = document.createElement('button');
-      consoleCloseButton.type = 'button';
-      consoleCloseButton.className = 'codex-button outline';
-      consoleCloseButton.textContent = 'Close';
-
-      consoleActions.appendChild(consoleClearButton);
-      consoleActions.appendChild(consoleCloseButton);
-      consoleDialog.appendChild(consoleHeader);
-      consoleDialog.appendChild(consoleTerminal);
-      consoleDialog.appendChild(consoleActions);
-      consoleModal.appendChild(consoleDialog);
-
       actions.appendChild(applyButton);
       footer.appendChild(selectors);
       footer.appendChild(actions);
@@ -205,7 +143,6 @@ Gerrit.install(plugin => {
       wrapper.appendChild(mentionDropdown);
       wrapper.appendChild(footer);
       wrapper.appendChild(status);
-      wrapper.appendChild(consoleModal);
 
       const style = document.createElement('link');
       style.rel = 'stylesheet';
@@ -216,16 +153,6 @@ Gerrit.install(plugin => {
       log('Panel DOM mounted. Loading models...');
 
       applyButton.addEventListener('click', () => this.submitPatchset());
-      runSelect.addEventListener('change', event => this.handleRunSelectChanged(event));
-      consoleClearButton.addEventListener('click', () => this.clearConsoleTerminal());
-      consoleCloseButton.addEventListener('click', () => this.closeConsole());
-      consoleTerminal.addEventListener('keydown', event => this.handleConsoleTerminalKeydown(event));
-      consoleTerminal.addEventListener('click', () => this.ensureConsoleCaretAtInput());
-      consoleModal.addEventListener('click', event => {
-        if (event.target === consoleModal) {
-          this.closeConsole();
-        }
-      });
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
@@ -234,20 +161,14 @@ Gerrit.install(plugin => {
           this.hideMentionDropdown();
         }
       });
-      document.addEventListener('keydown', event => this.handleDocumentKeydown(event));
 
       this.input = input;
       this.cliSelect = cliSelect;
       this.modelSelect = modelSelect;
-      this.runSelect = runSelect;
       this.mentionDropdown = mentionDropdown;
       this.output = output;
       this.status = status;
       this.applyButton = applyButton;
-      this.consoleModal = consoleModal;
-      this.consoleTerminal = consoleTerminal;
-      this.consoleClearButton = consoleClearButton;
-      this.consoleCloseButton = consoleCloseButton;
       this.headerVersion = headerVersion;
 
       this.loadConfig();
@@ -331,190 +252,6 @@ Gerrit.install(plugin => {
       await this.submit('patchset', true, true);
     }
 
-    handleRunSelectChanged(event) {
-      const selected = event && event.target ? event.target.value : '';
-      if (selected === 'console') {
-        this.openConsole();
-      }
-      if (this.runSelect) {
-        this.runSelect.value = '';
-      }
-    }
-
-    openConsole() {
-      if (!this.consoleModal) {
-        return;
-      }
-      this.ensureConsolePrompt();
-      this.consoleModal.classList.remove('hidden');
-      this.focusConsoleTerminal();
-    }
-
-    closeConsole() {
-      if (this.consoleModal) {
-        this.consoleModal.classList.add('hidden');
-      }
-    }
-
-    handleConsoleTerminalKeydown(event) {
-      if (!this.consoleTerminal) {
-        return;
-      }
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        this.runConsoleCommandFromTerminal();
-        return;
-      }
-      if (event.key === 'Backspace') {
-        if (this.consoleTerminal.selectionStart <= this.consoleInputStart
-            && this.consoleTerminal.selectionEnd <= this.consoleInputStart) {
-          event.preventDefault();
-        }
-        return;
-      }
-      if (event.key === 'ArrowLeft') {
-        if (this.consoleTerminal.selectionStart <= this.consoleInputStart
-            && this.consoleTerminal.selectionEnd <= this.consoleInputStart) {
-          event.preventDefault();
-        }
-        return;
-      }
-      if (event.key === 'Home') {
-        event.preventDefault();
-        this.setConsoleSelection(this.consoleInputStart, this.consoleInputStart);
-      }
-    }
-
-    handleDocumentKeydown(event) {
-      if (!this.consoleModal || this.consoleModal.classList.contains('hidden')) {
-        return;
-      }
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        this.closeConsole();
-      }
-    }
-
-    async runConsoleCommandFromTerminal() {
-      const command = this.getConsoleCurrentCommand();
-      this.appendConsoleText('\n');
-      if (!command) {
-        this.startConsolePrompt();
-        return;
-      }
-
-      await this.runConsoleCommand(command);
-    }
-
-    async runConsoleCommand(command) {
-      const normalizedCommand = command == null ? '' : command.trim();
-      if (!normalizedCommand) {
-        this.startConsolePrompt();
-        return;
-      }
-
-      const changeId = this.getChangeId();
-      if (!changeId) {
-        warn('Console blocked: unable to detect change id.', {
-          pathname: window.location.pathname,
-          hash: window.location.hash
-        });
-        this.setStatus('Unable to detect change id.');
-        this.startConsolePrompt();
-        return;
-      }
-
-      this.setConsoleBusy(true);
-      this.setStatus('Running console command...');
-
-      try {
-        const path = `/changes/${changeId}/revisions/current/codex-console`;
-        log('Submitting console request.', { path });
-        const response = await plugin.restApi().post(path, { command: normalizedCommand });
-        log('Console REST response received.', response);
-        const output = response && typeof response.output === 'string' ? response.output : '';
-        const exitCode = response && typeof response.exitCode === 'number' ? response.exitCode : null;
-        if (output) {
-          this.appendConsoleText(`${output.replace(/\s+$/, '')}\n`);
-        }
-        this.startConsolePrompt();
-        this.setStatus(exitCode === null ? 'Console command finished.' : `Console command finished (exit ${exitCode}).`);
-      } catch (error) {
-        error('Console request failed.', error);
-        this.appendConsoleText(`Error: ${error && error.message ? error.message : error}\n`);
-        this.startConsolePrompt();
-        this.setStatus(`Console failed: ${error && error.message ? error.message : error}`);
-      } finally {
-        this.setConsoleBusy(false);
-        this.focusConsoleTerminal();
-      }
-    }
-
-    ensureConsolePrompt() {
-      if (!this.consoleTerminal) {
-        return;
-      }
-      if (!this.consoleTerminal.value) {
-        this.startConsolePrompt();
-      }
-    }
-
-    startConsolePrompt() {
-      this.appendConsoleText(this.consolePs1);
-      this.consoleInputStart = this.consoleTerminal ? this.consoleTerminal.value.length : 0;
-      this.setConsoleSelection(this.consoleInputStart, this.consoleInputStart);
-    }
-
-    appendConsoleText(text) {
-      if (!this.consoleTerminal) {
-        return;
-      }
-      this.consoleTerminal.value += text == null ? '' : String(text);
-      this.consoleTerminal.scrollTop = this.consoleTerminal.scrollHeight;
-    }
-
-    getConsoleCurrentCommand() {
-      if (!this.consoleTerminal) {
-        return '';
-      }
-      return (this.consoleTerminal.value || '').substring(this.consoleInputStart).trim();
-    }
-
-    ensureConsoleCaretAtInput() {
-      if (!this.consoleTerminal) {
-        return;
-      }
-      if (this.consoleTerminal.selectionStart < this.consoleInputStart) {
-        this.setConsoleSelection(this.consoleTerminal.value.length, this.consoleTerminal.value.length);
-      }
-    }
-
-    setConsoleSelection(start, end) {
-      if (!this.consoleTerminal) {
-        return;
-      }
-      this.consoleTerminal.setSelectionRange(start, end);
-    }
-
-    focusConsoleTerminal() {
-      if (!this.consoleTerminal) {
-        return;
-      }
-      this.consoleTerminal.focus();
-      this.setConsoleSelection(this.consoleTerminal.value.length, this.consoleTerminal.value.length);
-    }
-
-    clearConsoleTerminal() {
-      if (!this.consoleTerminal) {
-        return;
-      }
-      this.consoleTerminal.value = '';
-      this.consoleInputStart = 0;
-      this.startConsolePrompt();
-      this.focusConsoleTerminal();
-      this.setStatus('Console cleared.');
-    }
-
     async submit(mode, postAsReview, applyPatchset) {
       const prompt = (this.input && this.input.value || '').trim();
       if (!prompt) {
@@ -571,21 +308,6 @@ Gerrit.install(plugin => {
     setBusy(isBusy) {
       if (this.applyButton) {
         this.applyButton.disabled = isBusy;
-      }
-      if (this.runSelect) {
-        this.runSelect.disabled = isBusy;
-      }
-    }
-
-    setConsoleBusy(isBusy) {
-      if (this.consoleClearButton) {
-        this.consoleClearButton.disabled = isBusy;
-      }
-      if (this.consoleCloseButton) {
-        this.consoleCloseButton.disabled = isBusy;
-      }
-      if (this.consoleTerminal) {
-        this.consoleTerminal.disabled = isBusy;
       }
     }
 
