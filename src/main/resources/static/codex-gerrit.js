@@ -18,11 +18,14 @@ Gerrit.install(plugin => {
   const logPrefix = '[codex-gerrit]';
   const supportedClis = ['codex', 'claude', 'gemini', 'opencode', 'qwen'];
   const codespacesActions = [
+    { value: 'open-browser', label: 'Open in Browser' },
     { value: 'open-vscode', label: 'Open in VS Code' },
     { value: 'open-cursor', label: 'Open in Cursor' },
     { value: 'open-android-studio', label: 'Open in Android Studio' }
   ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
+  const browserRepoStorageKey = `${pluginName}-browser-repo-url`;
+  const defaultBrowserRepoUrl = 'https://github.com/codesandbox/codesandbox-client';
   const log = (...args) => console.log(logPrefix, ...args);
   const warn = (...args) => console.warn(logPrefix, ...args);
   const error = (...args) => console.error(logPrefix, ...args);
@@ -296,6 +299,10 @@ Gerrit.install(plugin => {
       if (!action) {
         return;
       }
+      if (action === 'open-browser') {
+        await this.openPatchsetFilesInBrowser();
+        return;
+      }
       if (action === 'open-vscode') {
         await this.openPatchsetFilesInVsCode();
         return;
@@ -330,6 +337,29 @@ Gerrit.install(plugin => {
         opened += 1;
       });
       this.setStatus(`Opening ${opened} patchset files in VS Code...`);
+    }
+
+    async openPatchsetFilesInBrowser() {
+      if (!this.patchsetFiles || this.patchsetFiles.length === 0) {
+        this.setStatus('No patchset files found for this change.');
+        return;
+      }
+
+      const repoUrl = this.getOrPromptBrowserRepoUrl();
+      if (!repoUrl) {
+        this.setStatus('Open in Browser canceled.');
+        return;
+      }
+
+      let opened = 0;
+      this.patchsetFiles.forEach((relativePath, index) => {
+        const uri = this.toBrowserFileUrl(repoUrl, relativePath);
+        window.setTimeout(() => {
+          window.open(uri, '_blank');
+        }, index * 60);
+        opened += 1;
+      });
+      this.setStatus(`Opening ${opened} patchset files in browser...`);
     }
 
     async openPatchsetFilesInCursor() {
@@ -395,6 +425,23 @@ Gerrit.install(plugin => {
       return normalized;
     }
 
+    getOrPromptBrowserRepoUrl() {
+      const savedRepo = window.localStorage.getItem(browserRepoStorageKey);
+      const promptDefault = savedRepo || defaultBrowserRepoUrl;
+      const repoUrl = window.prompt(
+          'Enter your GitHub repository URL (e.g. https://github.com/codesandbox/codesandbox-client).',
+          promptDefault);
+      if (repoUrl === null) {
+        return '';
+      }
+      const normalized = this.normalizeBrowserRepoUrl(repoUrl);
+      if (!normalized) {
+        return '';
+      }
+      window.localStorage.setItem(browserRepoStorageKey, normalized);
+      return normalized;
+    }
+
     joinPaths(rootPath, relativePath) {
       const root = this.normalizePath(rootPath).replace(/\/+$/, '');
       const file = this.normalizePath(relativePath).replace(/^\/+/, '');
@@ -406,6 +453,37 @@ Gerrit.install(plugin => {
         return '';
       }
       return value.trim().replace(/\\/g, '/');
+    }
+
+    normalizeBrowserRepoUrl(value) {
+      if (!value) {
+        return '';
+      }
+      let normalized = value.trim();
+      if (!/^https?:\/\//i.test(normalized)) {
+        normalized = `https://${normalized}`;
+      }
+      normalized = normalized.replace(/\/+$/, '').replace(/\.git$/i, '');
+      const treeIndex = normalized.indexOf('/tree/');
+      if (treeIndex > 0) {
+        normalized = normalized.substring(0, treeIndex);
+      }
+      const blobIndex = normalized.indexOf('/blob/');
+      if (blobIndex > 0) {
+        normalized = normalized.substring(0, blobIndex);
+      }
+      return normalized;
+    }
+
+    toBrowserFileUrl(repoUrl, relativePath) {
+      const normalizedRepo = this.normalizeBrowserRepoUrl(repoUrl);
+      const normalizedFile = this.normalizePath(relativePath).replace(/^\/+/, '');
+      const encodedFile = normalizedFile
+          .split('/')
+          .filter(segment => segment && segment.length > 0)
+          .map(segment => encodeURIComponent(segment))
+          .join('/');
+      return `${normalizedRepo}/blob/HEAD/${encodedFile}`;
     }
 
     toVsCodeFileUri(path) {

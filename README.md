@@ -10,7 +10,7 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 - CLI selector chooses among configured supported CLIs.
 - Model selector defaults to `Auto`, plus configured LiteLLM models.
 - `@` file mention dropdown sourced from current patchset files for context selection.
-- `Codespaces` includes `Open in VS Code`, `Open in Cursor`, and `Open in Android Studio` to open patchset files in your local IDE.
+- `Codespaces` includes `Open in Browser`, `Open in VS Code`, `Open in Cursor`, and `Open in Android Studio` to open patchset files in browser/local IDEs.
 - Chat mode is the default input mode and returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
 - Supports multiple AI CLIs: Codex (default), Claude, Gemini, OpenCode, and Qwen.
@@ -86,7 +86,7 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Use the selector row to choose `CLI` (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - `Model` defaults to `Auto` for automatic model selection; optionally choose a specific model.
-- Use `Codespaces` → `Open in VS Code`, `Open in Cursor`, or `Open in Android Studio` to open all patchset files in your local IDE.
+- Use `Codespaces` → `Open in Browser`, `Open in VS Code`, `Open in Cursor`, or `Open in Android Studio` to open all patchset files.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and press `Enter` to send in default chat mode to the CLI selected in `CLI` (or use `Shift+Enter` for a newline).
 - Replies are shown in the UI using the selected CLI/model (or auto-selected model when `Auto` is chosen).
@@ -96,8 +96,19 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 `gerritBotUser` is used as a message prefix for Gerrit review messages posted by patchset flow;
 the review is posted by the current user who triggered the action.
 
+When using `Open in Browser` for the first time, the panel prompts for your GitHub repository URL
+(default: `https://github.com/codesandbox/codesandbox-client`) and stores it in browser local storage for future opens.
+
 When using `Open in VS Code`, `Open in Cursor`, or `Open in Android Studio` for the first time, the panel prompts for your local repository root
-path and stores it in browser local storage for future opens. All actions open all current patchset files locally.
+path and stores it in browser local storage for future opens. All actions open all current patchset files.
+
+### Codespaces: Open in Browser
+
+- `Open in Browser` opens every file in the current patchset in GitHub using `https://github.com/<owner>/<repo>/blob/HEAD/<path>` links.
+- On first use, enter your repository URL:
+	- Example: `https://github.com/codesandbox/codesandbox-client`
+- The repository URL is saved in browser local storage and reused for later opens.
+- If your browser blocks popups, allow popups for Gerrit to open all patchset files.
 
 ### Codespaces: Open in VS Code
 
