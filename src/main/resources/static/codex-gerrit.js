@@ -17,6 +17,8 @@ Gerrit.install(plugin => {
   const elementName = 'codex-chat-panel';
   const logPrefix = '[codex-gerrit]';
   const supportedClis = ['codex', 'claude', 'gemini', 'opencode', 'qwen'];
+  const codespacesActions = [{ value: 'open-vscode', label: 'Open in VS Code' }];
+  const workspaceRootStorageKey = `${pluginName}-workspace-root`;
   const log = (...args) => console.log(logPrefix, ...args);
   const warn = (...args) => console.warn(logPrefix, ...args);
   const error = (...args) => console.error(logPrefix, ...args);
@@ -106,8 +108,35 @@ Gerrit.install(plugin => {
       modelContainer.appendChild(modelLabel);
       modelContainer.appendChild(modelSelect);
 
+      const codespacesContainer = document.createElement('div');
+      codespacesContainer.className = 'codex-selector-container';
+
+      const codespacesLabel = document.createElement('label');
+      codespacesLabel.className = 'codex-selector-label';
+      codespacesLabel.textContent = 'Codespaces:';
+
+      const codespacesSelect = document.createElement('select');
+      codespacesSelect.className = 'codex-selector-select';
+
+      const codespacesDefaultOption = document.createElement('option');
+      codespacesDefaultOption.value = '';
+      codespacesDefaultOption.textContent = 'Select';
+      codespacesDefaultOption.selected = true;
+      codespacesSelect.appendChild(codespacesDefaultOption);
+
+      codespacesActions.forEach(action => {
+        const option = document.createElement('option');
+        option.value = action.value;
+        option.textContent = action.label;
+        codespacesSelect.appendChild(option);
+      });
+
+      codespacesContainer.appendChild(codespacesLabel);
+      codespacesContainer.appendChild(codespacesSelect);
+
       selectors.appendChild(cliContainer);
       selectors.appendChild(modelContainer);
+      selectors.appendChild(codespacesContainer);
 
       const input = document.createElement('textarea');
       input.className = 'codex-input';
@@ -156,6 +185,7 @@ Gerrit.install(plugin => {
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
+      codespacesSelect.addEventListener('change', () => this.handleCodespacesAction());
       document.addEventListener('click', event => {
         if (!this.shadowRoot || !this.shadowRoot.contains(event.target)) {
           this.hideMentionDropdown();
@@ -165,6 +195,7 @@ Gerrit.install(plugin => {
       this.input = input;
       this.cliSelect = cliSelect;
       this.modelSelect = modelSelect;
+      this.codespacesSelect = codespacesSelect;
       this.mentionDropdown = mentionDropdown;
       this.output = output;
       this.status = status;
@@ -250,6 +281,85 @@ Gerrit.install(plugin => {
 
     async submitPatchset() {
       await this.submit('patchset', true, true);
+    }
+
+    async handleCodespacesAction() {
+      if (!this.codespacesSelect) {
+        return;
+      }
+      const action = this.codespacesSelect.value;
+      this.codespacesSelect.value = '';
+      if (!action) {
+        return;
+      }
+      if (action === 'open-vscode') {
+        await this.openPatchsetFilesInVsCode();
+      }
+    }
+
+    async openPatchsetFilesInVsCode() {
+      if (!this.patchsetFiles || this.patchsetFiles.length === 0) {
+        this.setStatus('No patchset files found for this change.');
+        return;
+      }
+
+      const workspaceRoot = this.getOrPromptWorkspaceRoot();
+      if (!workspaceRoot) {
+        this.setStatus('Open in VS Code canceled.');
+        return;
+      }
+
+      let opened = 0;
+      this.patchsetFiles.forEach((relativePath, index) => {
+        const uri = this.toVsCodeFileUri(this.joinPaths(workspaceRoot, relativePath));
+        window.setTimeout(() => {
+          window.open(uri, '_blank');
+        }, index * 60);
+        opened += 1;
+      });
+      this.setStatus(`Opening ${opened} patchset files in VS Code...`);
+    }
+
+    getOrPromptWorkspaceRoot() {
+      const savedRoot = window.localStorage.getItem(workspaceRootStorageKey);
+      const promptDefault = savedRoot || '';
+      const workspaceRoot = window.prompt(
+          'Enter your local workspace root path for this repository (e.g. /home/user/repo or C:\\repo).',
+          promptDefault);
+      if (workspaceRoot === null) {
+        return '';
+      }
+      const normalized = this.normalizePath(workspaceRoot);
+      if (!normalized) {
+        return '';
+      }
+      window.localStorage.setItem(workspaceRootStorageKey, normalized);
+      return normalized;
+    }
+
+    joinPaths(rootPath, relativePath) {
+      const root = this.normalizePath(rootPath).replace(/\/+$/, '');
+      const file = this.normalizePath(relativePath).replace(/^\/+/, '');
+      return `${root}/${file}`;
+    }
+
+    normalizePath(value) {
+      if (!value) {
+        return '';
+      }
+      return value.trim().replace(/\\/g, '/');
+    }
+
+    toVsCodeFileUri(path) {
+      const normalized = this.normalizePath(path);
+      const drivePathMatch = normalized.match(/^[A-Za-z]:\//);
+      const withLeadingSlash = drivePathMatch ? `/${normalized}` : normalized;
+      const encodedPath = withLeadingSlash
+          .split('/')
+          .map(segment => encodeURIComponent(segment))
+          .join('/')
+          .replace(/^\/(%[0-9A-Fa-f]{2})?([A-Za-z])%3A\//, '/$2:/');
+      return `vscode://file${encodedPath}`;
     }
 
     async submit(mode, postAsReview, applyPatchset) {

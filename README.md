@@ -6,10 +6,11 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 ## Features
 
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
-- Selector row includes `CLI` and `Model` controls.
+- Selector row includes `CLI`, `Model`, and `Codespaces` controls.
 - CLI selector chooses among configured supported CLIs.
 - Model selector defaults to `Auto`, plus configured LiteLLM models.
 - `@` file mention dropdown sourced from current patchset files for context selection.
+- `Codespaces` includes `Open in VS Code` to open patchset files in local VS Code.
 - Chat mode is the default input mode and returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
 - Supports multiple AI CLIs: Codex (default), Claude, Gemini, OpenCode, and Qwen.
@@ -85,6 +86,7 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Use the selector row to choose `CLI` (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
 - `Model` defaults to `Auto` for automatic model selection; optionally choose a specific model.
+- Use `Codespaces` → `Open in VS Code` to open all patchset files in your local VS Code.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and press `Enter` to send in default chat mode to the CLI selected in `CLI` (or use `Shift+Enter` for a newline).
 - Replies are shown in the UI using the selected CLI/model (or auto-selected model when `Auto` is chosen).
@@ -93,6 +95,19 @@ See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration in
 
 `gerritBotUser` is used as a message prefix for Gerrit review messages posted by patchset flow;
 the review is posted by the current user who triggered the action.
+
+When using `Open in VS Code` for the first time, the panel prompts for your local repository root
+path and stores it in browser local storage for future opens.
+
+### Codespaces: Open in VS Code
+
+- `Open in VS Code` opens every file in the current patchset using `vscode://file/...` links.
+- On first use, enter your local repository root path:
+	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
+	- Windows example: `C:\Users\<user>\src\codex.gerrit`
+- The root path is saved in browser local storage and reused for later opens.
+- If your browser asks for permission to open VS Code links, allow it.
+- If files do not open, check that VS Code URL handling is enabled on your machine and that the saved root path matches your local checkout.
 
 ### Patchset Output Format
 
