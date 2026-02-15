@@ -162,6 +162,10 @@ Gerrit.install(plugin => {
       applyButton.className = 'codex-button outline';
       applyButton.textContent = 'Apply Patchset';
 
+      const reverseButton = document.createElement('button');
+      reverseButton.className = 'codex-button outline';
+      reverseButton.textContent = 'Reverse Patchset';
+
       const status = document.createElement('div');
       status.className = 'codex-status';
 
@@ -170,6 +174,7 @@ Gerrit.install(plugin => {
       output.textContent = '';
 
       actions.appendChild(applyButton);
+      actions.appendChild(reverseButton);
       footer.appendChild(selectors);
       footer.appendChild(actions);
 
@@ -189,6 +194,7 @@ Gerrit.install(plugin => {
       log('Panel DOM mounted. Loading models...');
 
       applyButton.addEventListener('click', () => this.submitPatchset());
+      reverseButton.addEventListener('click', () => this.submitReversePatchset());
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
@@ -207,6 +213,7 @@ Gerrit.install(plugin => {
       this.output = output;
       this.status = status;
       this.applyButton = applyButton;
+      this.reverseButton = reverseButton;
       this.headerVersion = headerVersion;
 
       this.loadConfig();
@@ -288,6 +295,41 @@ Gerrit.install(plugin => {
 
     async submitPatchset() {
       await this.submit('patchset', true, true);
+    }
+
+    async submitReversePatchset() {
+      const changeId = this.getChangeId();
+      if (!changeId) {
+        warn('Reverse patchset blocked: unable to detect change id.', {
+          pathname: window.location.pathname,
+          hash: window.location.hash
+        });
+        this.setStatus('Unable to detect change id.');
+        return;
+      }
+
+      this.setBusy(true);
+      this.setStatus('Reversing latest patchset...');
+
+      try {
+        const path = `/changes/${changeId}/revisions/current/codex-reverse-patchset`;
+        log('Submitting reverse patchset request.', { path });
+        const response = await plugin.restApi().post(path, {});
+        log('Reverse patchset REST response received.', response);
+        if (response && response.reply) {
+          this.output.textContent = response.reply;
+          this.setStatus('Done.');
+        } else {
+          this.output.textContent = '';
+          this.setStatus('No reply received.');
+        }
+      } catch (error) {
+        error('Reverse patchset request failed.', error);
+        this.output.textContent = '';
+        this.setStatus(`Request failed: ${error && error.message ? error.message : error}`);
+      } finally {
+        this.setBusy(false);
+      }
     }
 
     async handleCodespacesAction() {
@@ -575,6 +617,9 @@ Gerrit.install(plugin => {
     setBusy(isBusy) {
       if (this.applyButton) {
         this.applyButton.disabled = isBusy;
+      }
+      if (this.reverseButton) {
+        this.reverseButton.disabled = isBusy;
       }
     }
 
