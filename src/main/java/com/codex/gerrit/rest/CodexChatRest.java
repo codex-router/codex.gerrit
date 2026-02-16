@@ -118,9 +118,6 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     normalized.cli = config.normalizeCliOrDefault(input.cli);
     normalized.model = normalizeModel(input.model);
     normalized.contextFiles = normalizeContextFiles(input.contextFiles, files);
-    if (!config.hasCliPath(normalized.cli)) {
-      throw new BadRequestException(normalized.cli + "Path is not configured");
-    }
     return normalized;
   }
 

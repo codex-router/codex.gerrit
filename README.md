@@ -8,14 +8,14 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
 - Selector row includes `CLI`, `Model`, and `Codespaces` controls.
 - CLI selector chooses among configured supported CLIs.
-- Model selector defaults to `Auto`, plus configured LiteLLM models.
+- Model selector defaults to `Auto`, plus models returned by `codex.serve` `GET /models`.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - `Codespaces` includes `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
 - Chat mode is the default input mode and returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
 - Reverse Patchset restores the previous patchset state and publishes it as a new patchset on the same change.
 - Supports multiple AI CLIs: Codex (default), Claude, Gemini, OpenCode, and Qwen.
-- Supports LiteLLM proxy integration with configurable base URL and API key.
+- Loads available models from `codex.serve` via `GET /models`.
 
 ## Build
 
@@ -33,21 +33,8 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 
 ```
 [plugin "codex-gerrit"]
-	# Required: path to the Codex CLI binary.
-	codexPath = /usr/local/bin/codex
-
-	# Optional: extra CLI args passed to codex.
-	codexArgs = --format text
-
-	# Optional: path/args for other supported CLIs.
-	claudePath = /usr/local/bin/claude
-	claudeArgs = --print
-	geminiPath = /usr/local/bin/gemini
-	geminiArgs = --format text
-	opencodePath = /usr/local/bin/opencode
-	opencodeArgs = --format text
-	qwenPath = /usr/local/bin/qwen
-	qwenArgs = --format text
+	# Required: URL for codex.serve to run CLIs remotely.
+	codexServeUrl = http://localhost:8000
 
 	# Optional: default CLI for the panel when no explicit CLI is selected.
 	# Supported values: codex, claude, gemini, opencode, qwen.
@@ -58,26 +45,11 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 
 	# Optional: limit how many file names are included in prompts.
 	maxFiles = 200
-
-	# Optional: LiteLLM proxy base URL.
-	litellmBaseUrl = http://localhost:4000
-
-	# Optional: LiteLLM API key.
-	litellmApiKey = sk-your-api-key
-
-	# Optional: Comma-separated list of available models for UI selection.
-	litellmModels = gpt-4,gpt-3.5-turbo,claude-3-opus,claude-3-sonnet
-
-	# Optional: URL for codex.serve to run CLIs remotely.
-	# If configured, local CLI paths are ignored, and requests are sent to this URL.
-	codexServeUrl = http://localhost:8000
 ```
-
-Each configured CLI is expected to accept the prompt via stdin and print the response to stdout.
 
 ### Remote Execution (codex.serve)
 
-To run CLIs on a separate server (e.g. for better resource isolation or to use Docker), deploy `codex.serve` and configure `codexServeUrl`.
+`codex.gerrit` executes all CLIs via `codex.serve` using `POST /run`.
 
 ```
 [plugin "codex-gerrit"]
@@ -87,19 +59,17 @@ To run CLIs on a separate server (e.g. for better resource isolation or to use D
 When enabled:
 - All CLI requests are sent to the configured URL via HTTP POST.
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
-- Local CLI paths (`codexPath`, etc.) are ignored, but their configuration keys are still used to determine which CLI to request (e.g. `codex`, `claude`).
-- `litellmBaseUrl` and `litellmApiKey` are forwarded to the remote server.
+- The plugin sends `cli`, `stdin`, and `args` (`--model` when a specific model is selected).
+- The plugin fetches model options from `codex.serve` using `GET /models`.
 
 ### LiteLLM Configuration
 
-When `litellmBaseUrl` and `litellmApiKey` are configured, the plugin sets the `LITELLM_API_BASE`
-and `LITELLM_API_KEY` environment variables when invoking the Codex CLI. If `litellmModels` is
-configured, users can select a model from a dropdown in the chat panel.
+`codex.gerrit` does not configure LiteLLM directly.
+Configure LiteLLM on `codex.serve` (for example with `LITELLM_API_BASE` and `LITELLM_API_KEY`).
+The model dropdown is populated from `codex.serve` `GET /models`.
 
-- Selecting `Auto` (default) does not send `--model`, allowing the CLI/plugin to pick a model automatically.
+- Selecting `Auto` (default) does not send `--model`, allowing `codex.serve` and the CLI to pick a model automatically.
 - Selecting a specific model sends that value via the `--model` parameter.
-
-See [LITELLM_CONFIG.md](LITELLM_CONFIG.md) for detailed LiteLLM configuration instructions.
 
 ## Usage
 

@@ -22,25 +22,22 @@ import com.google.inject.Singleton;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.BufferedReader;
-
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
 
 
 @Singleton
 public class CodexCliClient {
   private static final int MAX_OUTPUT_CHARS = 20000;
+  private static final Gson GSON = new Gson();
 
   private final CodexGerritConfig config;
 
@@ -59,61 +56,26 @@ public class CodexCliClient {
 
   public String run(String prompt, String model, String cli) throws RestApiException {
     String normalizedCli = config.normalizeCliOrDefault(cli);
-    if (config.getCodexServeUrl().isEmpty() && !config.hasCliPath(normalizedCli)) {
-      throw new BadRequestException(normalizedCli + "Path is not configured");
+    if (config.getCodexServeUrl().isEmpty()) {
+      throw new BadRequestException("codexServeUrl is not configured");
     }
-
-    if (!config.getCodexServeUrl().isEmpty()) {
-      try {
-        return runOnServer(prompt, model, normalizedCli);
-      } catch (IOException e) {
-        throw new BadRequestException("Remote execution failed: " + e.getMessage());
-      }
-    }
-
-    List<String> command = new ArrayList<>();
-    command.add(config.getCliPath(normalizedCli));
-    command.addAll(config.getCliArgs(normalizedCli));
-
-    // Add model parameter if specified
-    if (model != null && !model.trim().isEmpty()) {
-      command.add("--model");
-      command.add(model.trim());
-    }
-
-    ProcessBuilder builder = new ProcessBuilder(command);
-
-    // Set litellm environment variables if configured
-    if (!config.getLitellmBaseUrl().isEmpty()) {
-      builder.environment().put("LITELLM_API_BASE", config.getLitellmBaseUrl());
-    }
-    if (!config.getLitellmApiKey().isEmpty()) {
-      builder.environment().put("LITELLM_API_KEY", config.getLitellmApiKey());
-    }
-    builder.redirectErrorStream(true);
 
     try {
-      Process process = builder.start();
+      return runOnServer(prompt, model, normalizedCli);
+    } catch (IOException e) {
+      throw new BadRequestException("Remote execution failed: " + e.getMessage());
+    }
+  }
 
-      try (BufferedWriter writer =
-          new BufferedWriter(
-              new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8))) {
-        writer.write(prompt);
-        writer.flush();
-      }
+  public List<String> getModels() throws RestApiException {
+    if (config.getCodexServeUrl().isEmpty()) {
+      throw new BadRequestException("codexServeUrl is not configured");
+    }
 
-      String output = readOutput(process);
-      int exitCode = process.waitFor();
-      if (exitCode != 0) {
-        throw new BadRequestException(
-            normalizedCli + " exited with status " + exitCode + "\n" + output);
-      }
-      return output.trim();
-    } catch (InterruptedException ex) {
-      Thread.currentThread().interrupt();
-      throw new BadRequestException(normalizedCli + " execution interrupted: " + ex.getMessage());
-    } catch (IOException ex) {
-      throw new BadRequestException(normalizedCli + " execution failed: " + ex.getMessage());
+    try {
+      return fetchModelsFromServer();
+    } catch (IOException e) {
+      throw new BadRequestException("Failed to fetch models: " + e.getMessage());
     }
   }
 
@@ -124,31 +86,19 @@ public class CodexCliClient {
     conn.setRequestProperty("Content-Type", "application/json");
     conn.setDoOutput(true);
 
-    List<String> args = new ArrayList<>(config.getCliArgs(cli));
+    ArrayList<String> args = new ArrayList<>();
     if (model != null && !model.trim().isEmpty()) {
       args.add("--model");
       args.add(model.trim());
-    }
-
-    Map<String, String> env = new HashMap<>();
-    if (!config.getLitellmBaseUrl().isEmpty()) {
-      env.put("LITELLM_API_BASE", config.getLitellmBaseUrl());
-    }
-    if (!config.getLitellmApiKey().isEmpty()) {
-      env.put("LITELLM_API_KEY", config.getLitellmApiKey());
     }
 
     JsonObject json = new JsonObject();
     json.addProperty("cli", cli);
     json.addProperty("stdin", prompt);
 
-    Gson gson = new Gson();
-    json.add("args", gson.toJsonTree(args));
-    if (!env.isEmpty()) {
-      json.add("env", gson.toJsonTree(env));
-    }
+    json.add("args", GSON.toJsonTree(args));
 
-    String jsonInputString = gson.toJson(json);
+    String jsonInputString = GSON.toJson(json);
 
     try (OutputStream os = conn.getOutputStream()) {
       byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
@@ -161,7 +111,6 @@ public class CodexCliClient {
     StringBuilder stdoutBuilder = new StringBuilder();
     StringBuilder stderrBuilder = new StringBuilder();
     int exitCode = 0;
-    boolean seenExit = false;
 
     if (is != null) {
         try (BufferedReader br = new BufferedReader(
@@ -170,7 +119,7 @@ public class CodexCliClient {
             while ((line = br.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
                 try {
-                    JsonObject event = gson.fromJson(line, JsonObject.class);
+                  JsonObject event = GSON.fromJson(line, JsonObject.class);
                     if (event.has("type")) {
                         String type = event.get("type").getAsString();
                         if ("stdout".equals(type)) {
@@ -183,7 +132,6 @@ public class CodexCliClient {
                             }
                         } else if ("exit".equals(type)) {
                             exitCode = event.get("code").getAsInt();
-                            seenExit = true;
                         }
                     }
                 } catch (Exception e) {
@@ -216,10 +164,54 @@ public class CodexCliClient {
     return stdout.trim();
   }
 
-  private static String readOutput(Process process) throws IOException {
+  private List<String> fetchModelsFromServer() throws IOException, RestApiException {
+    URL url = new URL(config.getCodexServeUrl() + "/models");
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.setRequestMethod("GET");
+    conn.setRequestProperty("Accept", "application/json");
+
+    int responseCode = conn.getResponseCode();
+    InputStream is =
+        (responseCode >= 200 && responseCode < 300) ? conn.getInputStream() : conn.getErrorStream();
+    String body = readText(is);
+
+    if (responseCode != 200) {
+      throw new BadRequestException("Remote server error " + responseCode + ": " + body);
+    }
+
+    if (body.trim().isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    JsonObject json = GSON.fromJson(body, JsonObject.class);
+    if (json == null || !json.has("models") || !json.get("models").isJsonArray()) {
+      throw new BadRequestException("Invalid /models response from codex.serve");
+    }
+
+    List<String> models = new ArrayList<>();
+    for (int i = 0; i < json.getAsJsonArray("models").size(); i++) {
+      if (!json.getAsJsonArray("models").get(i).isJsonPrimitive()) {
+        continue;
+      }
+      String model = json.getAsJsonArray("models").get(i).getAsString();
+      if (model == null) {
+        continue;
+      }
+      String trimmed = model.trim();
+      if (!trimmed.isEmpty()) {
+        models.add(trimmed);
+      }
+    }
+    return models;
+  }
+
+  private static String readText(InputStream is) throws IOException {
+    if (is == null) {
+      return "";
+    }
     StringBuilder output = new StringBuilder();
     try (BufferedReader reader =
-        new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+        new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
       char[] buffer = new char[2048];
       int read;
       while ((read = reader.read(buffer)) != -1) {

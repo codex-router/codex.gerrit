@@ -15,6 +15,7 @@
 package com.codex.gerrit.rest;
 
 import com.codex.gerrit.config.CodexGerritConfig;
+import com.codex.gerrit.service.CodexCliClient;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.changes.ChangeApi;
 import com.google.gerrit.extensions.common.FileInfo;
@@ -28,16 +29,22 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 public class CodexConfigRest implements RestReadView<RevisionResource> {
+  private static final Logger logger = LoggerFactory.getLogger(CodexConfigRest.class);
+
   private final CodexGerritConfig config;
   private final GerritApi gerritApi;
+  private final CodexCliClient cliClient;
 
   @Inject
-  CodexConfigRest(CodexGerritConfig config, GerritApi gerritApi) {
+  CodexConfigRest(CodexGerritConfig config, GerritApi gerritApi, CodexCliClient cliClient) {
     this.config = config;
     this.gerritApi = gerritApi;
+    this.cliClient = cliClient;
   }
 
   @Override
@@ -45,9 +52,18 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
     String changeId = String.valueOf(resource.getChangeResource().getId().get());
     ChangeApi changeApi = gerritApi.changes().id(changeId);
     Map<String, FileInfo> files = changeApi.current().files();
+
+    List<String> models;
+    try {
+      models = cliClient.getModels();
+    } catch (RestApiException e) {
+      logger.warn("Failed to fetch models from codex.serve", e);
+      models = Collections.emptyList();
+    }
+
     return Response.ok(
         new CodexConfigResponse(
-            config.getLitellmModels(),
+            models,
             CodexGerritConfig.getSupportedClis(),
             config.getDefaultCli(),
             getPluginVersion(),
