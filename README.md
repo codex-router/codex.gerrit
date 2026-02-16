@@ -67,9 +67,28 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 
 	# Optional: Comma-separated list of available models for UI selection.
 	litellmModels = gpt-4,gpt-3.5-turbo,claude-3-opus,claude-3-sonnet
+
+	# Optional: URL for codex.serve to run CLIs remotely.
+	# If configured, local CLI paths are ignored, and requests are sent to this URL.
+	codexServeUrl = http://localhost:8000
 ```
 
 Each configured CLI is expected to accept the prompt via stdin and print the response to stdout.
+
+### Remote Execution (codex.serve)
+
+To run CLIs on a separate server (e.g. for better resource isolation or to use Docker), deploy `codex.serve` and configure `codexServeUrl`.
+
+```
+[plugin "codex-gerrit"]
+    codexServeUrl = http://codex-serve:8000
+```
+
+When enabled:
+- All CLI requests are sent to the configured URL via HTTP POST.
+- The server must support the `codex.serve` API protocol (NDJSON streaming).
+- Local CLI paths (`codexPath`, etc.) are ignored, but their configuration keys are still used to determine which CLI to request (e.g. `codex`, `claude`).
+- `litellmBaseUrl` and `litellmApiKey` are forwarded to the remote server.
 
 ### LiteLLM Configuration
 

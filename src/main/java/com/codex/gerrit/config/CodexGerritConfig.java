@@ -50,6 +50,7 @@ public class CodexGerritConfig {
   private final String litellmBaseUrl;
   private final String litellmApiKey;
   private final List<String> litellmModels;
+  private final String codexServeUrl;
 
   @Inject
   CodexGerritConfig(PluginConfigFactory configFactory, @PluginName String pluginName) {
@@ -71,6 +72,7 @@ public class CodexGerritConfig {
     this.litellmBaseUrl = trimToEmpty(config.getString("litellmBaseUrl"));
     this.litellmApiKey = trimToEmpty(config.getString("litellmApiKey"));
     this.litellmModels = parseList(config.getString("litellmModels"));
+    this.codexServeUrl = trimToEmpty(config.getString("codexServeUrl"));
   }
 
   public String getGerritBotUser() {
@@ -153,8 +155,9 @@ public class CodexGerritConfig {
 
   public List<String> getConfiguredClis() {
     List<String> configured = new ArrayList<>();
+    boolean hasRemote = !codexServeUrl.isEmpty();
     for (String cli : SUPPORTED_CLIS) {
-      if (hasCliPath(cli)) {
+      if (hasRemote || hasCliPath(cli)) {
         configured.add(cli);
       }
     }
@@ -170,6 +173,10 @@ public class CodexGerritConfig {
 
   public String getLitellmApiKey() {
     return litellmApiKey;
+  }
+
+  public String getCodexServeUrl() {
+    return codexServeUrl;
   }
 
   public List<String> getLitellmModels() {
