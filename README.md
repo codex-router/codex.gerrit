@@ -7,14 +7,14 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
 - Selector row includes `CLI`, `Model`, and `Codespaces` controls.
-- CLI selector chooses among configured supported CLIs.
+- CLI selector is populated from `codex.serve` `GET /clis`.
 - Model selector defaults to `Auto`, plus models returned by `codex.serve` `GET /models`.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - `Codespaces` includes `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
 - Chat mode is the default input mode and returns a reply in the UI using the selected CLI and model.
 - Apply Patchset updates files and publishes a new patchset on the change.
 - Reverse Patchset restores the previous patchset state and publishes it as a new patchset on the same change.
-- Supports multiple AI CLIs: Codex (default), Claude, Gemini, OpenCode, and Qwen.
+- Supports multiple AI CLIs exposed by `codex.serve`.
 - Loads available models from `codex.serve` via `GET /models`.
 
 ## Build
@@ -37,7 +37,7 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 	codexServeUrl = http://localhost:8000
 
 	# Optional: default CLI for the panel when no explicit CLI is selected.
-	# Supported values: codex, claude, gemini, opencode, qwen.
+	# Must match a CLI returned by codex.serve GET /clis.
 	defaultCli = codex
 
 	# Optional: Gerrit bot username used as a message prefix.
@@ -60,6 +60,7 @@ When enabled:
 - All CLI requests are sent to the configured URL via HTTP POST.
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
 - The plugin sends `cli`, `stdin`, and `args` (`--model` when a specific model is selected).
+- The plugin fetches CLI options from `codex.serve` using `GET /clis`.
 - The plugin fetches model options from `codex.serve` using `GET /models`.
 
 ### LiteLLM Configuration
@@ -74,7 +75,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 ## Usage
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
-- Use the selector row to choose `CLI` (`codex`, `claude`, `gemini`, `opencode`, `qwen`; defaults to `codex`).
+- Use the selector row to choose `CLI` (options are loaded from `codex.serve` `GET /clis`; defaults to `codex`).
 - `Model` defaults to `Auto` for automatic model selection; optionally choose a specific model.
 - Use `Codespaces` → `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, or `Open in VS Code` to open all patchset files.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.

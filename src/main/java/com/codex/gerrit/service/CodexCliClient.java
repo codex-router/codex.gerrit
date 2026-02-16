@@ -79,6 +79,18 @@ public class CodexCliClient {
     }
   }
 
+  public List<String> getClis() throws RestApiException {
+    if (config.getCodexServeUrl().isEmpty()) {
+      throw new BadRequestException("codexServeUrl is not configured");
+    }
+
+    try {
+      return fetchClisFromServer();
+    } catch (IOException e) {
+      throw new BadRequestException("Failed to fetch CLIs: " + e.getMessage());
+    }
+  }
+
   private String runOnServer(String prompt, String model, String cli) throws IOException, RestApiException {
     URL url = new URL(config.getCodexServeUrl() + "/run");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -203,6 +215,47 @@ public class CodexCliClient {
       }
     }
     return models;
+  }
+
+  private List<String> fetchClisFromServer() throws IOException, RestApiException {
+    URL url = new URL(config.getCodexServeUrl() + "/clis");
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.setRequestMethod("GET");
+    conn.setRequestProperty("Accept", "application/json");
+
+    int responseCode = conn.getResponseCode();
+    InputStream is =
+        (responseCode >= 200 && responseCode < 300) ? conn.getInputStream() : conn.getErrorStream();
+    String body = readText(is);
+
+    if (responseCode != 200) {
+      throw new BadRequestException("Remote server error " + responseCode + ": " + body);
+    }
+
+    if (body.trim().isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    JsonObject json = GSON.fromJson(body, JsonObject.class);
+    if (json == null || !json.has("clis") || !json.get("clis").isJsonArray()) {
+      throw new BadRequestException("Invalid /clis response from codex.serve");
+    }
+
+    List<String> clis = new ArrayList<>();
+    for (int i = 0; i < json.getAsJsonArray("clis").size(); i++) {
+      if (!json.getAsJsonArray("clis").get(i).isJsonPrimitive()) {
+        continue;
+      }
+      String cli = json.getAsJsonArray("clis").get(i).getAsString();
+      if (cli == null) {
+        continue;
+      }
+      String trimmed = cli.trim();
+      if (!trimmed.isEmpty()) {
+        clis.add(trimmed);
+      }
+    }
+    return clis;
   }
 
   private static String readText(InputStream is) throws IOException {

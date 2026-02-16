@@ -61,10 +61,18 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
       models = Collections.emptyList();
     }
 
+    List<String> clis;
+    try {
+      clis = cliClient.getClis();
+    } catch (RestApiException e) {
+      logger.warn("Failed to fetch clis from codex.serve", e);
+      clis = CodexGerritConfig.getSupportedClis();
+    }
+
     return Response.ok(
         new CodexConfigResponse(
             models,
-            CodexGerritConfig.getSupportedClis(),
+            clis,
             config.getDefaultCli(),
             getPluginVersion(),
             normalizeFiles(files)));
