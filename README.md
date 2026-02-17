@@ -66,7 +66,8 @@ When enabled:
 ### LiteLLM Configuration
 
 `codex.gerrit` does not configure LiteLLM directly.
-Configure LiteLLM on `codex.serve` (for example with `LITELLM_BASE_URL` and `LITELLM_API_KEY`).
+Configure LiteLLM on `codex.serve` runtime environment (for example with `LITELLM_BASE_URL` and `LITELLM_API_KEY`).
+In Docker mode, `codex.serve` passes these values to the execution container by default.
 The model dropdown is populated from `codex.serve` `GET /models`.
 
 - Selecting `Auto` (default) does not send `--model`, allowing `codex.serve` and the CLI to pick a model automatically.
