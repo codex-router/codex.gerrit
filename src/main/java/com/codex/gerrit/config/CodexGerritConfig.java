@@ -19,17 +19,12 @@ import com.google.gerrit.server.config.PluginConfig;
 import com.google.gerrit.server.config.PluginConfigFactory;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 @Singleton
 public class CodexGerritConfig {
   private static final int DEFAULT_MAX_FILES = 200;
   private static final String DEFAULT_CLI = "codex";
   private static final String DEFAULT_BASH_PATH = "/bin/bash";
-  private static final List<String> SUPPORTED_CLIS =
-      Collections.unmodifiableList(Arrays.asList("codex", "claude", "gemini", "opencode", "qwen"));
 
   private final String gerritBotUser;
   private final String defaultCli;
@@ -63,20 +58,8 @@ public class CodexGerritConfig {
     return defaultCli;
   }
 
-  public static List<String> getSupportedClis() {
-    return SUPPORTED_CLIS;
-  }
-
   public String normalizeCliOrDefault(String cli) {
     return normalizeCli(cli);
-  }
-
-  public boolean isSupportedCli(String cli) {
-    return SUPPORTED_CLIS.contains(normalizeCli(cli));
-  }
-
-  public List<String> getConfiguredClis() {
-    return SUPPORTED_CLIS;
   }
 
   public String getCodexServeUrl() {
@@ -89,9 +72,6 @@ public class CodexGerritConfig {
     }
     String normalized = rawCli.trim().toLowerCase();
     if (normalized.isEmpty()) {
-      return DEFAULT_CLI;
-    }
-    if (!SUPPORTED_CLIS.contains(normalized)) {
       return DEFAULT_CLI;
     }
     return normalized;

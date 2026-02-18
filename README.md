@@ -8,6 +8,7 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
 - Selector row includes `CLI`, `Model`, and `Codespaces` controls.
 - CLI selector is populated from `codex.serve` `GET /clis`.
+- If `GET /clis` is unavailable, the selector falls back to `defaultCli` (or `codex`).
 - Model selector defaults to `Auto`, plus models returned by `codex.serve` `GET /models`.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - `Codespaces` includes `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
@@ -37,7 +38,7 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 	codexServeUrl = http://localhost:8000
 
 	# Optional: default CLI for the panel when no explicit CLI is selected.
-	# Must match a CLI returned by codex.serve GET /clis.
+	# Recommended to match a CLI returned by codex.serve GET /clis.
 	defaultCli = codex
 
 	# Optional: Gerrit bot username used as a message prefix.
@@ -61,6 +62,7 @@ When enabled:
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
 - The plugin sends `cli`, `stdin`, and `args` (`--model` when a specific model is selected).
 - The plugin fetches CLI options from `codex.serve` using `GET /clis`.
+- If `GET /clis` fails, the UI falls back to `defaultCli` (or `codex`).
 - The plugin fetches model options from `codex.serve` using `GET /models`.
 
 ### LiteLLM Configuration
@@ -76,7 +78,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 ## Usage
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
-- Use the selector row to choose `CLI` (options are loaded from `codex.serve` `GET /clis`; defaults to `codex`).
+- Use the selector row to choose `CLI` (options are loaded from `codex.serve` `GET /clis`; if unavailable, falls back to `defaultCli` or `codex`).
 - `Model` defaults to `Auto` for automatic model selection; optionally choose a specific model.
 - Use `Codespaces` → `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, or `Open in VS Code` to open all patchset files.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.

@@ -16,7 +16,7 @@ Gerrit.install(plugin => {
   const pluginName = plugin.getPluginName();
   const elementName = 'codex-chat-panel';
   const logPrefix = '[codex-gerrit]';
-  const supportedClis = ['codex', 'claude', 'gemini', 'opencode', 'qwen'];
+  const fallbackClis = ['codex'];
   const codespacesActions = [
     { value: 'open-android-studio', label: 'Open in Android Studio' },
     { value: 'open-browser', label: 'Open in Browser' },
@@ -86,7 +86,7 @@ Gerrit.install(plugin => {
       const cliSelect = document.createElement('select');
       cliSelect.className = 'codex-selector-select';
 
-      supportedClis.forEach(cli => {
+      fallbackClis.forEach(cli => {
         const option = document.createElement('option');
         option.value = cli;
         option.textContent = cli;
@@ -244,17 +244,22 @@ Gerrit.install(plugin => {
         }
 
         const apiClis = response && response.clis && response.clis.length > 0 ? response.clis : [];
-        const mergedClis = Array.from(new Set([...supportedClis, ...apiClis]));
-        if (mergedClis.length > 0) {
+        const clis = apiClis.length > 0 ? apiClis : fallbackClis;
+        if (clis.length > 0) {
           this.cliSelect.innerHTML = '';
-          mergedClis.forEach(cli => {
+          clis.forEach(cli => {
             const option = document.createElement('option');
             option.value = cli;
             option.textContent = cli;
             this.cliSelect.appendChild(option);
           });
+          if (defaultCli && clis.includes(defaultCli)) {
+            this.cliSelect.value = defaultCli;
+          } else {
+            this.cliSelect.value = clis[0];
+          }
           log('CLI options populated.', {
-            count: mergedClis.length,
+            count: clis.length,
             defaultCli
           });
         } else {

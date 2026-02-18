@@ -66,8 +66,10 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
       clis = cliClient.getClis();
     } catch (RestApiException e) {
       logger.warn("Failed to fetch clis from codex.serve", e);
-      clis = CodexGerritConfig.getSupportedClis();
+      clis = Collections.emptyList();
     }
+
+    clis = ensureDefaultCliPresent(clis, config.getDefaultCli());
 
     return Response.ok(
         new CodexConfigResponse(
@@ -87,6 +89,31 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
       result.add(file);
     }
     Collections.sort(result);
+    return result;
+  }
+
+  private static List<String> ensureDefaultCliPresent(List<String> clis, String defaultCli) {
+    String normalizedDefault = defaultCli == null ? "" : defaultCli.trim().toLowerCase();
+    if (normalizedDefault.isEmpty()) {
+      normalizedDefault = "codex";
+    }
+
+    List<String> result = new ArrayList<>();
+    if (clis != null) {
+      for (String cli : clis) {
+        if (cli == null) {
+          continue;
+        }
+        String trimmed = cli.trim();
+        if (!trimmed.isEmpty()) {
+          result.add(trimmed);
+        }
+      }
+    }
+
+    if (!result.contains(normalizedDefault)) {
+      result.add(0, normalizedDefault);
+    }
     return result;
   }
 
