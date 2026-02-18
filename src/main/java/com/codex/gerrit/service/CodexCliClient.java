@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URLEncoder;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -55,15 +56,35 @@ public class CodexCliClient {
   }
 
   public String run(String prompt, String model, String cli) throws RestApiException {
+    return run(prompt, model, cli, null);
+  }
+
+  public String run(String prompt, String model, String cli, String sessionId) throws RestApiException {
     String normalizedCli = config.normalizeCliOrDefault(cli);
     if (config.getCodexServeUrl().isEmpty()) {
       throw new BadRequestException("codexServeUrl is not configured");
     }
 
     try {
-      return runOnServer(prompt, model, normalizedCli);
+      return runOnServer(prompt, model, normalizedCli, sessionId);
     } catch (IOException e) {
       throw new BadRequestException("Remote execution failed: " + e.getMessage());
+    }
+  }
+
+  public void stopSession(String sessionId) throws RestApiException {
+    if (config.getCodexServeUrl().isEmpty()) {
+      throw new BadRequestException("codexServeUrl is not configured");
+    }
+    String normalizedSessionId = sessionId == null ? "" : sessionId.trim();
+    if (normalizedSessionId.isEmpty()) {
+      throw new BadRequestException("sessionId is required");
+    }
+
+    try {
+      stopSessionOnServer(normalizedSessionId);
+    } catch (IOException e) {
+      throw new BadRequestException("Failed to stop session: " + e.getMessage());
     }
   }
 
@@ -91,7 +112,8 @@ public class CodexCliClient {
     }
   }
 
-  private String runOnServer(String prompt, String model, String cli) throws IOException, RestApiException {
+  private String runOnServer(String prompt, String model, String cli, String sessionId)
+      throws IOException, RestApiException {
     URL url = new URL(config.getCodexServeUrl() + "/run");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("POST");
@@ -107,6 +129,10 @@ public class CodexCliClient {
     JsonObject json = new JsonObject();
     json.addProperty("cli", cli);
     json.addProperty("stdin", prompt);
+    String normalizedSessionId = sessionId == null ? "" : sessionId.trim();
+    if (!normalizedSessionId.isEmpty()) {
+      json.addProperty("session_id", normalizedSessionId);
+    }
 
     json.add("args", GSON.toJsonTree(args));
 
@@ -174,6 +200,29 @@ public class CodexCliClient {
     }
 
     return stdout.trim();
+  }
+
+  private void stopSessionOnServer(String sessionId) throws IOException, RestApiException {
+    String encodedSessionId = URLEncoder.encode(sessionId, StandardCharsets.UTF_8);
+    URL url = new URL(config.getCodexServeUrl() + "/sessions/" + encodedSessionId + "/stop");
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.setRequestMethod("POST");
+    conn.setRequestProperty("Accept", "application/json");
+
+    int responseCode = conn.getResponseCode();
+    InputStream is =
+        (responseCode >= 200 && responseCode < 300) ? conn.getInputStream() : conn.getErrorStream();
+    String body = readText(is);
+
+    if (responseCode >= 200 && responseCode < 300) {
+      return;
+    }
+
+    if (responseCode == 404) {
+      throw new BadRequestException("Session not found or already finished: " + sessionId);
+    }
+
+    throw new BadRequestException("Remote server error " + responseCode + ": " + body);
   }
 
   private List<String> fetchModelsFromServer() throws IOException, RestApiException {

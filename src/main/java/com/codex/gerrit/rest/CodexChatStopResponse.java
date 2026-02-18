@@ -14,15 +14,12 @@
 
 package com.codex.gerrit.rest;
 
-import java.util.List;
-
-public class CodexChatInput {
-  public String prompt;
-  public String mode;
-  public boolean postAsReview;
-  public boolean applyPatchset;
-  public String cli;
-  public String model;
+public class CodexChatStopResponse {
   public String sessionId;
-  public List<String> contextFiles;
+  public String status;
+
+  public CodexChatStopResponse(String sessionId, String status) {
+    this.sessionId = sessionId;
+    this.status = status;
+  }
 }

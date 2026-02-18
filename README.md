@@ -13,6 +13,7 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - `Codespaces` includes `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
 - Chat mode is the default input mode and returns a reply in the UI using the selected CLI and model.
+- Stop Chat interrupts an active chat request from the panel.
 - Apply Patchset updates files and publishes a new patchset on the change.
 - Reverse Patchset restores the previous patchset state and publishes it as a new patchset on the same change.
 - Supports multiple AI CLIs exposed by `codex.serve`.
@@ -60,7 +61,8 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 When enabled:
 - All CLI requests are sent to the configured URL via HTTP POST.
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
-- The plugin sends `cli`, `stdin`, and `args` (`--model` when a specific model is selected).
+- The plugin sends `cli`, `stdin`, `session_id`, and `args` (`--model` when a specific model is selected).
+- During an active chat request, the plugin can stop that session via `POST /sessions/{session_id}/stop`.
 - The plugin fetches CLI options from `codex.serve` using `GET /clis`.
 - If `GET /clis` fails, the UI falls back to `defaultCli` (or `codex`).
 - The plugin fetches model options from `codex.serve` using `GET /models`.
@@ -84,9 +86,16 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and press `Enter` to send in default chat mode to the CLI selected in `CLI` (or use `Shift+Enter` for a newline).
 - Replies are shown in the UI using the selected CLI/model (or auto-selected model when `Auto` is chosen).
+- While a chat request is running, click `Stop Chat` to interrupt the current session.
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.
 	The patchset is published by the current user who triggered the action.
 - Click `Reverse Patchset` to restore the previous patchset content as a new patchset on the same change.
+
+### Chat Session Stop Flow
+
+- Each chat request includes a generated session identifier (`session_id`) in the request to `codex.serve` `POST /run`.
+- `Stop Chat` sends a plugin REST request to `codex-chat-stop`, which forwards to `codex.serve` `POST /sessions/{session_id}/stop`.
+- If the target session is already finished, `codex.serve` may return `404` and the panel shows the failure status.
 
 `gerritBotUser` is used as a message prefix for Gerrit review messages posted by patchset flow;
 the review is posted by the current user who triggered the action.

@@ -42,6 +42,8 @@ Gerrit.install(plugin => {
       this.filteredMentionFiles = [];
       this.activeMentionIndex = -1;
       this.currentMentionRange = null;
+      this.isBusyState = false;
+      this.activeSessionId = null;
     }
 
     connectedCallback() {
@@ -166,6 +168,11 @@ Gerrit.install(plugin => {
       reverseButton.className = 'codex-button outline';
       reverseButton.textContent = 'Reverse Patchset';
 
+      const stopButton = document.createElement('button');
+      stopButton.className = 'codex-button outline';
+      stopButton.textContent = 'Stop Chat';
+      stopButton.disabled = true;
+
       const status = document.createElement('div');
       status.className = 'codex-status';
 
@@ -175,6 +182,7 @@ Gerrit.install(plugin => {
 
       actions.appendChild(applyButton);
       actions.appendChild(reverseButton);
+      actions.appendChild(stopButton);
       footer.appendChild(selectors);
       footer.appendChild(actions);
 
@@ -195,6 +203,7 @@ Gerrit.install(plugin => {
 
       applyButton.addEventListener('click', () => this.submitPatchset());
       reverseButton.addEventListener('click', () => this.submitReversePatchset());
+      stopButton.addEventListener('click', () => this.stopChat());
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
@@ -214,6 +223,7 @@ Gerrit.install(plugin => {
       this.status = status;
       this.applyButton = applyButton;
       this.reverseButton = reverseButton;
+      this.stopButton = stopButton;
       this.headerVersion = headerVersion;
 
       this.loadConfig();
@@ -567,6 +577,11 @@ Gerrit.install(plugin => {
     }
 
     async submit(mode, postAsReview, applyPatchset) {
+      if (this.isBusyState) {
+        this.setStatus('A request is already running.');
+        return;
+      }
+
       const prompt = (this.input && this.input.value || '').trim();
       if (!prompt) {
         this.setStatus('Enter a prompt first.');
@@ -589,10 +604,12 @@ Gerrit.install(plugin => {
       const cli = this.cliSelect && this.cliSelect.value ? this.cliSelect.value : 'codex';
       const model = this.modelSelect && this.modelSelect.value ? this.modelSelect.value : null;
       const contextFiles = this.extractContextFiles(prompt);
+      const sessionId = this.createSessionId();
+      this.activeSessionId = sessionId;
 
       try {
         const path = `/changes/${changeId}/revisions/current/codex-chat`;
-        log('Submitting chat request.', { mode, postAsReview, applyPatchset, cli, model, contextFilesCount: contextFiles.length, path });
+        log('Submitting chat request.', { mode, postAsReview, applyPatchset, cli, model, sessionId, contextFilesCount: contextFiles.length, path });
         const response = await plugin.restApi().post(path, {
           prompt,
           mode,
@@ -600,6 +617,7 @@ Gerrit.install(plugin => {
           applyPatchset,
           cli,
           model,
+          sessionId,
           contextFiles
         });
         log('Chat REST response received.', response);
@@ -615,17 +633,56 @@ Gerrit.install(plugin => {
         this.output.textContent = '';
         this.setStatus(`Request failed: ${error && error.message ? error.message : error}`);
       } finally {
+        this.activeSessionId = null;
         this.setBusy(false);
       }
     }
 
+    async stopChat() {
+      if (!this.isBusyState || !this.activeSessionId) {
+        this.setStatus('No active chat session to stop.');
+        return;
+      }
+
+      const changeId = this.getChangeId();
+      if (!changeId) {
+        this.setStatus('Unable to detect change id.');
+        return;
+      }
+
+      const path = `/changes/${changeId}/revisions/current/codex-chat-stop`;
+      const sessionId = this.activeSessionId;
+      this.setStatus('Stopping chat...');
+
+      try {
+        log('Submitting chat stop request.', { path, sessionId });
+        await plugin.restApi().post(path, { sessionId });
+        this.setStatus('Stop request sent. Waiting for session to close...');
+      } catch (stopError) {
+        error('Chat stop request failed.', stopError);
+        this.setStatus(`Stop failed: ${stopError && stopError.message ? stopError.message : stopError}`);
+      }
+    }
+
     setBusy(isBusy) {
+      this.isBusyState = isBusy;
       if (this.applyButton) {
         this.applyButton.disabled = isBusy;
       }
       if (this.reverseButton) {
         this.reverseButton.disabled = isBusy;
       }
+      if (this.stopButton) {
+        this.stopButton.disabled = !isBusy;
+      }
+    }
+
+    createSessionId() {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+      }
+      const randomPart = Math.random().toString(36).slice(2);
+      return `gerrit-${Date.now()}-${randomPart}`;
     }
 
     handleInputChanged() {

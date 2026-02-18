@@ -76,7 +76,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     CodexChatInput normalized = normalizeInput(input, files);
 
     String prompt = promptBuilder.buildPrompt(changeInfo, files, normalized);
-    String reply = cliClient.run(prompt, normalized.model, normalized.cli);
+    String reply = cliClient.run(prompt, normalized.model, normalized.cli, normalized.sessionId);
     String responseReply = reply;
     String reviewMessage = reply;
 
@@ -117,8 +117,17 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     normalized.applyPatchset = input.applyPatchset;
     normalized.cli = config.normalizeCliOrDefault(input.cli);
     normalized.model = normalizeModel(input.model);
+    normalized.sessionId = normalizeSessionId(input.sessionId);
     normalized.contextFiles = normalizeContextFiles(input.contextFiles, files);
     return normalized;
+  }
+
+  private static String normalizeSessionId(String sessionId) {
+    if (sessionId == null) {
+      return null;
+    }
+    String normalized = sessionId.trim();
+    return normalized.isEmpty() ? null : normalized;
   }
 
   private static List<String> normalizeContextFiles(
