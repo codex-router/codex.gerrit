@@ -13,6 +13,8 @@ to supported AI agents for interactive chat.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - `Codespaces` includes `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
 - Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
+- When Codex response includes a unified diff, a popup dialog shows changed files and patch content.
+- Popup dialog supports per-file `Keep` or `Undo` decision similar to Copilot-style review flow.
 - Stop Chat interrupts an active chat request from the panel.
 - Supports multiple AI agents exposed by `codex.serve`.
 - Loads available models from `codex.serve` via `GET /models`.
@@ -83,6 +85,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Shift+Enter` for a newline).
 - Replies are shown in the UI using the selected agent/model.
+- If a reply contains file diffs, review them in the popup and choose `Keep` or `Undo` for each file.
 - While a chat request is running, click `Stop Chat` to interrupt the current session.
 ### Chat Session Stop Flow
 

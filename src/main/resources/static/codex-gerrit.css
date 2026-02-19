@@ -318,3 +318,157 @@
   border-top: 1px solid #e4e4e4;
   margin: 10px 0;
 }
+
+.codex-small-button {
+  height: 28px;
+  min-width: 68px;
+  padding: 0 10px;
+}
+
+.codex-small-button.active {
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.14);
+}
+
+.codex-dialog-close {
+  height: 28px;
+}
+
+.codex-change-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.42);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.codex-change-dialog-overlay.hidden {
+  display: none;
+}
+
+.codex-change-dialog {
+  width: min(1020px, 94vw);
+  max-height: 82vh;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #d9d9d9;
+  display: flex;
+  flex-direction: column;
+}
+
+.codex-change-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #ececec;
+}
+
+.codex-change-dialog-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.codex-change-dialog-body {
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.codex-change-empty {
+  font-size: 13px;
+  color: #666;
+  padding: 10px;
+}
+
+.codex-change-item {
+  border: 1px solid #dddddd;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.codex-change-item.kept {
+  border-color: #b7d3b8;
+}
+
+.codex-change-item.undone {
+  border-color: #e0b7b7;
+}
+
+.codex-change-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 0;
+}
+
+.codex-change-file {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f1f1f;
+  word-break: break-all;
+}
+
+.codex-change-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #d0d0d0;
+  color: #666;
+}
+
+.codex-change-badge.kept {
+  border-color: #9fc6a1;
+  color: #2f6833;
+  background: #eef8ee;
+}
+
+.codex-change-badge.undone {
+  border-color: #d5aaaa;
+  color: #8a3030;
+  background: #fff0f0;
+}
+
+.codex-change-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.codex-change-diff {
+  margin: 0;
+  border-top: 1px solid #eeeeee;
+  background: #fafafa;
+  border-radius: 0 0 8px 8px;
+  overflow: auto;
+  font-family: "IBM Plex Mono", Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.codex-diff-line {
+  padding: 1px 10px;
+  white-space: pre;
+}
+
+.codex-diff-line.add {
+  background: #edf8ef;
+  color: #1f5f2a;
+}
+
+.codex-diff-line.remove {
+  background: #ffefef;
+  color: #812b2b;
+}
+
+.codex-diff-line.hunk {
+  background: #eef2ff;
+  color: #33408b;
+}

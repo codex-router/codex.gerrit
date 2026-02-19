@@ -47,6 +47,8 @@ Gerrit.install(plugin => {
       this.activeSessionId = null;
       this.promptHistory = [];
       this.promptHistoryIndex = -1;
+      this.pendingFileChanges = [];
+      this.fileChangeSequence = 0;
     }
 
     connectedCallback() {
@@ -176,6 +178,11 @@ Gerrit.install(plugin => {
       stopButton.textContent = 'Stop';
       stopButton.disabled = true;
 
+      const reviewChangesButton = document.createElement('button');
+      reviewChangesButton.className = 'codex-button outline';
+      reviewChangesButton.textContent = 'Review Changes';
+      reviewChangesButton.disabled = true;
+
       const status = document.createElement('div');
       status.className = 'codex-status';
 
@@ -184,8 +191,40 @@ Gerrit.install(plugin => {
       output.setAttribute('role', 'log');
       output.setAttribute('aria-live', 'polite');
 
+      const changeDialogOverlay = document.createElement('div');
+      changeDialogOverlay.className = 'codex-change-dialog-overlay hidden';
+
+      const changeDialog = document.createElement('div');
+      changeDialog.className = 'codex-change-dialog';
+      changeDialog.setAttribute('role', 'dialog');
+      changeDialog.setAttribute('aria-modal', 'true');
+      changeDialog.addEventListener('click', event => event.stopPropagation());
+
+      const changeDialogHeader = document.createElement('div');
+      changeDialogHeader.className = 'codex-change-dialog-header';
+
+      const changeDialogTitle = document.createElement('div');
+      changeDialogTitle.className = 'codex-change-dialog-title';
+      changeDialogTitle.textContent = 'Codex File Changes';
+
+      const changeDialogClose = document.createElement('button');
+      changeDialogClose.type = 'button';
+      changeDialogClose.className = 'codex-button outline codex-dialog-close';
+      changeDialogClose.textContent = 'Close';
+
+      changeDialogHeader.appendChild(changeDialogTitle);
+      changeDialogHeader.appendChild(changeDialogClose);
+
+      const changeDialogBody = document.createElement('div');
+      changeDialogBody.className = 'codex-change-dialog-body';
+
+      changeDialog.appendChild(changeDialogHeader);
+      changeDialog.appendChild(changeDialogBody);
+      changeDialogOverlay.appendChild(changeDialog);
+
       inputRow.appendChild(input);
       inputRow.appendChild(stopButton);
+      inputRow.appendChild(reviewChangesButton);
       inputRow.appendChild(sendButton);
 
       footer.appendChild(selectors);
@@ -197,6 +236,7 @@ Gerrit.install(plugin => {
       wrapper.appendChild(inputPanel);
       wrapper.appendChild(mentionDropdown);
       wrapper.appendChild(status);
+      wrapper.appendChild(changeDialogOverlay);
 
       const style = document.createElement('link');
       style.rel = 'stylesheet';
@@ -207,6 +247,7 @@ Gerrit.install(plugin => {
       log('Panel DOM mounted. Loading models...');
 
       stopButton.addEventListener('click', () => this.stopChat());
+      reviewChangesButton.addEventListener('click', () => this.openFileChangesDialog());
       sendButton.addEventListener('click', () => this.submitChat());
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
@@ -215,6 +256,14 @@ Gerrit.install(plugin => {
       document.addEventListener('click', event => {
         if (!this.shadowRoot || !this.shadowRoot.contains(event.target)) {
           this.hideMentionDropdown();
+        }
+      });
+      changeDialogClose.addEventListener('click', () => this.closeFileChangesDialog());
+      changeDialogOverlay.addEventListener('click', () => this.closeFileChangesDialog());
+
+      this.shadowRoot.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && this.isFileChangesDialogVisible()) {
+          this.closeFileChangesDialog();
         }
       });
 
@@ -226,8 +275,11 @@ Gerrit.install(plugin => {
       this.output = output;
       this.status = status;
       this.stopButton = stopButton;
+      this.reviewChangesButton = reviewChangesButton;
       this.sendButton = sendButton;
       this.headerVersion = headerVersion;
+      this.changeDialogOverlay = changeDialogOverlay;
+      this.changeDialogBody = changeDialogBody;
 
       this.showWelcomeMessageIfFirstLoad();
       this.loadConfig();
@@ -620,7 +672,13 @@ Gerrit.install(plugin => {
         log('Chat REST response received.', response);
         if (response && response.reply) {
           this.appendMessage('assistant', response.reply);
-          this.setStatus('Done.');
+          const fileChanges = this.extractFileChangesFromReply(response.reply);
+          if (fileChanges.length > 0) {
+            this.showFileChangesDialog(fileChanges);
+            this.setStatus(`Detected ${fileChanges.length} changed file(s). Choose Keep or Undo in Review Changes.`);
+          } else {
+            this.setStatus('Done.');
+          }
         } else {
           this.appendMessage('assistant', 'No reply received.');
           this.setStatus('No reply received.');
@@ -703,6 +761,309 @@ Gerrit.install(plugin => {
       if (this.sendButton) {
         this.sendButton.disabled = isBusy;
       }
+      if (this.reviewChangesButton) {
+        this.reviewChangesButton.disabled = isBusy || this.pendingFileChanges.length === 0;
+      }
+    }
+
+    extractFileChangesFromReply(reply) {
+      const blocks = this.extractDiffBlocks(reply || '');
+      if (blocks.length === 0) {
+        return [];
+      }
+
+      const merged = new Map();
+      blocks.forEach(block => {
+        this.parseDiffBlock(block).forEach(change => {
+          if (!change.filePath || !change.diffText) {
+            return;
+          }
+          const existing = merged.get(change.filePath);
+          if (!existing) {
+            merged.set(change.filePath, change.diffText.trim());
+            return;
+          }
+          merged.set(change.filePath, `${existing}\n\n${change.diffText.trim()}`.trim());
+        });
+      });
+
+      return Array.from(merged.entries()).map(([filePath, diffText]) => {
+        this.fileChangeSequence += 1;
+        return {
+          id: `change-${this.fileChangeSequence}`,
+          filePath,
+          diffText,
+          decision: 'pending'
+        };
+      });
+    }
+
+    extractDiffBlocks(text) {
+      const normalizedText = (text || '').replace(/\r\n?/g, '\n');
+      if (!normalizedText.trim()) {
+        return [];
+      }
+
+      const blocks = [];
+      const fencedBlockRegex = /```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g;
+      let match;
+      while ((match = fencedBlockRegex.exec(normalizedText)) !== null) {
+        const language = (match[1] || '').trim().toLowerCase();
+        const content = (match[2] || '').trim();
+        if (!content) {
+          continue;
+        }
+        const looksLikeDiff = /^(diff --git\s+|---\s+|\+\+\+\s+|@@\s)/m.test(content);
+        if (language === 'diff' || language === 'patch' || looksLikeDiff) {
+          blocks.push(content);
+        }
+      }
+
+      if (blocks.length > 0) {
+        return blocks;
+      }
+
+      if (/^(diff --git\s+|---\s+|\+\+\+\s+|@@\s)/m.test(normalizedText)) {
+        return [normalizedText];
+      }
+
+      return [];
+    }
+
+    parseDiffBlock(block) {
+      const lines = (block || '').split('\n');
+      const changes = [];
+      let currentPath = '';
+      let currentLines = [];
+
+      const pushCurrent = () => {
+        const diffText = currentLines.join('\n').trim();
+        const hasDiffLines = currentLines.some(line => {
+          if (!line || line.length === 0) {
+            return false;
+          }
+          if (line.startsWith('+++ ') || line.startsWith('--- ') || line.startsWith('@@')) {
+            return true;
+          }
+          if (line.startsWith('+') && !line.startsWith('+++')) {
+            return true;
+          }
+          if (line.startsWith('-') && !line.startsWith('---')) {
+            return true;
+          }
+          return false;
+        });
+        if (currentPath && diffText && hasDiffLines) {
+          changes.push({ filePath: currentPath, diffText });
+        }
+      };
+
+      lines.forEach(line => {
+        const diffHeaderMatch = line.match(/^diff --git\s+a\/(.+?)\s+b\/(.+)$/);
+        if (diffHeaderMatch) {
+          pushCurrent();
+          currentPath = this.normalizePatchPath(diffHeaderMatch[2]);
+          currentLines = [line];
+          return;
+        }
+
+        const plusPlusPlusMatch = line.match(/^\+\+\+\s+(.+)$/);
+        if (plusPlusPlusMatch) {
+          const path = this.extractPatchMarkerPath(plusPlusPlusMatch[1]);
+          if (path) {
+            currentPath = path;
+          }
+          currentLines.push(line);
+          return;
+        }
+
+        const minusMinusMinusMatch = line.match(/^---\s+(.+)$/);
+        if (minusMinusMinusMatch) {
+          if (currentPath && currentLines.some(existingLine => existingLine.startsWith('@@'))) {
+            pushCurrent();
+            currentPath = '';
+            currentLines = [];
+          }
+          const oldPath = this.extractPatchMarkerPath(minusMinusMinusMatch[1]);
+          if (!currentPath && oldPath) {
+            currentPath = oldPath;
+          }
+          currentLines.push(line);
+          return;
+        }
+
+        currentLines.push(line);
+      });
+
+      pushCurrent();
+      return changes;
+    }
+
+    extractPatchMarkerPath(value) {
+      if (!value) {
+        return '';
+      }
+      const marker = value.trim().split(/\s+/)[0];
+      if (!marker || marker === '/dev/null') {
+        return '';
+      }
+      return this.normalizePatchPath(marker);
+    }
+
+    normalizePatchPath(value) {
+      if (!value) {
+        return '';
+      }
+      let path = String(value).trim();
+      if (path.startsWith('a/') || path.startsWith('b/')) {
+        path = path.substring(2);
+      }
+      return path;
+    }
+
+    showFileChangesDialog(fileChanges) {
+      this.pendingFileChanges = fileChanges.slice();
+      this.renderFileChangesDialog();
+      this.openFileChangesDialog();
+      if (this.reviewChangesButton) {
+        this.reviewChangesButton.disabled = false;
+      }
+    }
+
+    isFileChangesDialogVisible() {
+      return !!(this.changeDialogOverlay && !this.changeDialogOverlay.classList.contains('hidden'));
+    }
+
+    openFileChangesDialog() {
+      if (!this.changeDialogOverlay || !this.pendingFileChanges || this.pendingFileChanges.length === 0) {
+        return;
+      }
+      this.renderFileChangesDialog();
+      this.changeDialogOverlay.classList.remove('hidden');
+    }
+
+    closeFileChangesDialog() {
+      if (this.changeDialogOverlay) {
+        this.changeDialogOverlay.classList.add('hidden');
+      }
+    }
+
+    updateFileChangeDecision(changeId, decision) {
+      this.pendingFileChanges = this.pendingFileChanges.map(change => {
+        if (change.id !== changeId) {
+          return change;
+        }
+        return {
+          ...change,
+          decision
+        };
+      });
+      this.renderFileChangesDialog();
+      const summary = this.getFileChangeDecisionSummary();
+      this.setStatus(`Changes: ${summary.kept} kept, ${summary.undone} undone, ${summary.pending} pending.`);
+    }
+
+    getFileChangeDecisionSummary() {
+      return this.pendingFileChanges.reduce(
+          (accumulator, change) => {
+            if (change.decision === 'kept') {
+              accumulator.kept += 1;
+            } else if (change.decision === 'undone') {
+              accumulator.undone += 1;
+            } else {
+              accumulator.pending += 1;
+            }
+            return accumulator;
+          },
+          { kept: 0, undone: 0, pending: 0 });
+    }
+
+    renderFileChangesDialog() {
+      if (!this.changeDialogBody) {
+        return;
+      }
+
+      this.changeDialogBody.innerHTML = '';
+
+      if (!this.pendingFileChanges || this.pendingFileChanges.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'codex-change-empty';
+        empty.textContent = 'No file changes detected in the latest Codex response.';
+        this.changeDialogBody.appendChild(empty);
+        return;
+      }
+
+      this.pendingFileChanges.forEach(change => {
+        const item = document.createElement('div');
+        item.className = `codex-change-item ${change.decision}`;
+
+        const header = document.createElement('div');
+        header.className = 'codex-change-item-header';
+
+        const filePath = document.createElement('div');
+        filePath.className = 'codex-change-file';
+        filePath.textContent = change.filePath;
+
+        const decision = document.createElement('span');
+        decision.className = `codex-change-badge ${change.decision}`;
+        if (change.decision === 'kept') {
+          decision.textContent = 'Kept';
+        } else if (change.decision === 'undone') {
+          decision.textContent = 'Undone';
+        } else {
+          decision.textContent = 'Pending';
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'codex-change-actions';
+
+        const keepButton = document.createElement('button');
+        keepButton.type = 'button';
+        keepButton.className = `codex-button codex-small-button ${change.decision === 'kept' ? 'active' : ''}`;
+        keepButton.textContent = 'Keep';
+        keepButton.addEventListener('click', () => this.updateFileChangeDecision(change.id, 'kept'));
+
+        const undoButton = document.createElement('button');
+        undoButton.type = 'button';
+        undoButton.className = `codex-button outline codex-small-button ${change.decision === 'undone' ? 'active' : ''}`;
+        undoButton.textContent = 'Undo';
+        undoButton.addEventListener('click', () => this.updateFileChangeDecision(change.id, 'undone'));
+
+        actions.appendChild(keepButton);
+        actions.appendChild(undoButton);
+
+        header.appendChild(filePath);
+        header.appendChild(decision);
+
+        const diff = document.createElement('pre');
+        diff.className = 'codex-change-diff';
+        diff.innerHTML = this.renderDiffText(change.diffText);
+
+        item.appendChild(header);
+        item.appendChild(actions);
+        item.appendChild(diff);
+
+        this.changeDialogBody.appendChild(item);
+      });
+    }
+
+    renderDiffText(diffText) {
+      return (diffText || '')
+          .split('\n')
+          .map(line => {
+            const escaped = this.escapeHtml(line);
+            if (line.startsWith('+') && !line.startsWith('+++')) {
+              return `<div class="codex-diff-line add">${escaped}</div>`;
+            }
+            if (line.startsWith('-') && !line.startsWith('---')) {
+              return `<div class="codex-diff-line remove">${escaped}</div>`;
+            }
+            if (line.startsWith('@@')) {
+              return `<div class="codex-diff-line hunk">${escaped}</div>`;
+            }
+            return `<div class="codex-diff-line">${escaped}</div>`;
+          })
+          .join('');
     }
 
     appendMessage(role, text) {
