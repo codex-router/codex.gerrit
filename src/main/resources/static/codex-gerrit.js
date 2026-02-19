@@ -147,10 +147,20 @@ Gerrit.install(plugin => {
       selectors.appendChild(modelContainer);
       selectors.appendChild(codespacesContainer);
 
-      const input = document.createElement('input');
-      input.type = 'text';
+      const inputPanel = document.createElement('div');
+      inputPanel.className = 'codex-input-panel';
+
+      const inputRow = document.createElement('div');
+      inputRow.className = 'codex-input-row';
+
+      const input = document.createElement('textarea');
       input.className = 'codex-input';
-      input.placeholder = 'Use Agent and Model to configure your session. Use Codespaces to open patchset files, type @ to reference files, chat here to draft changes, click Apply Patchset to generate/apply a patchset, or click Reverse Patchset to restore the previous patchset state.';
+      input.rows = 1;
+      input.placeholder = 'Ask Codex about this change. Type @ to reference patchset files.';
+
+      const sendButton = document.createElement('button');
+      sendButton.className = 'codex-button';
+      sendButton.textContent = 'Send';
 
       const mentionDropdown = document.createElement('div');
       mentionDropdown.className = 'codex-mention-dropdown hidden';
@@ -177,21 +187,26 @@ Gerrit.install(plugin => {
       const status = document.createElement('div');
       status.className = 'codex-status';
 
-      const output = document.createElement('pre');
+      const output = document.createElement('div');
       output.className = 'codex-output';
-      output.textContent = '';
+      output.setAttribute('role', 'log');
+      output.setAttribute('aria-live', 'polite');
+
+      inputRow.appendChild(input);
+      inputRow.appendChild(sendButton);
 
       actions.appendChild(applyButton);
       actions.appendChild(reverseButton);
       actions.appendChild(stopButton);
       footer.appendChild(selectors);
       footer.appendChild(actions);
+      inputPanel.appendChild(inputRow);
+      inputPanel.appendChild(footer);
 
       wrapper.appendChild(header);
       wrapper.appendChild(output);
-      wrapper.appendChild(input);
+      wrapper.appendChild(inputPanel);
       wrapper.appendChild(mentionDropdown);
-      wrapper.appendChild(footer);
       wrapper.appendChild(status);
 
       const style = document.createElement('link');
@@ -205,6 +220,7 @@ Gerrit.install(plugin => {
       applyButton.addEventListener('click', () => this.submitPatchset());
       reverseButton.addEventListener('click', () => this.submitReversePatchset());
       stopButton.addEventListener('click', () => this.stopChat());
+      sendButton.addEventListener('click', () => this.submitChat());
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
@@ -225,6 +241,7 @@ Gerrit.install(plugin => {
       this.applyButton = applyButton;
       this.reverseButton = reverseButton;
       this.stopButton = stopButton;
+      this.sendButton = sendButton;
       this.headerVersion = headerVersion;
 
       this.loadConfig();
@@ -332,15 +349,14 @@ Gerrit.install(plugin => {
         const response = await plugin.restApi().post(path, {});
         log('Reverse patchset REST response received.', response);
         if (response && response.reply) {
-          this.output.textContent = response.reply;
+          this.appendMessage('assistant', response.reply);
           this.setStatus('Done.');
         } else {
-          this.output.textContent = '';
           this.setStatus('No reply received.');
         }
       } catch (err) {
         logError('Reverse patchset request failed.', err);
-        this.output.textContent = '';
+        this.appendMessage('assistant', `Request failed: ${err && err.message ? err.message : err}`);
         this.setStatus(`Request failed: ${err && err.message ? err.message : err}`);
       } finally {
         this.setBusy(false);
@@ -605,6 +621,9 @@ Gerrit.install(plugin => {
 
       this.setBusy(true);
       this.setStatus(`Running ${mode}...`);
+      this.appendMessage('user', prompt);
+      this.input.value = '';
+      this.hideMentionDropdown();
 
       const agent = this.agentSelect && this.agentSelect.value ? this.agentSelect.value : 'codex';
       const model = this.modelSelect && this.modelSelect.value ? this.modelSelect.value : null;
@@ -627,15 +646,15 @@ Gerrit.install(plugin => {
         });
         log('Chat REST response received.', response);
         if (response && response.reply) {
-          this.output.textContent = response.reply;
+          this.appendMessage('assistant', response.reply);
           this.setStatus('Done.');
         } else {
-          this.output.textContent = '';
+          this.appendMessage('assistant', 'No reply received.');
           this.setStatus('No reply received.');
         }
       } catch (err) {
         logError('Chat request failed.', err);
-        this.output.textContent = '';
+        this.appendMessage('assistant', `Request failed: ${this.getErrorMessage(err)}`);
         this.setStatus(`Request failed: ${this.getErrorMessage(err)}`);
       } finally {
         this.activeSessionId = null;
@@ -714,6 +733,21 @@ Gerrit.install(plugin => {
       if (this.stopButton) {
         this.stopButton.disabled = !isBusy;
       }
+      if (this.sendButton) {
+        this.sendButton.disabled = isBusy;
+      }
+    }
+
+    appendMessage(role, text) {
+      if (!this.output) {
+        return;
+      }
+      const normalizedRole = role === 'user' ? 'user' : 'assistant';
+      const message = document.createElement('div');
+      message.className = `codex-message ${normalizedRole}`;
+      message.textContent = text || '';
+      this.output.appendChild(message);
+      this.output.scrollTop = this.output.scrollHeight;
     }
 
     createSessionId() {
@@ -775,7 +809,7 @@ Gerrit.install(plugin => {
         }
       }
 
-      if (event.key === 'Enter' && !event.isComposing) {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
         event.preventDefault();
         this.submitChat();
       }

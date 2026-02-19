@@ -5,8 +5,8 @@
 }
 
 .codex-chat {
-  --codex-input-height: 36px;
-  --codex-output-height: 240px;
+  --codex-input-height: 84px;
+  --codex-output-height: 260px;
   position: relative;
   border-top: 1px solid #d6d6d6;
   margin-top: 16px;
@@ -86,17 +86,32 @@
   gap: 8px;
 }
 
-.codex-input {
-  width: 100%;
-  height: var(--codex-input-height);
-  resize: none;
+.codex-input-panel {
   border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  padding: 0 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.codex-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.codex-input {
+  flex: 1;
+  min-height: var(--codex-input-height);
+  max-height: 160px;
+  resize: vertical;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 10px 12px;
   font-size: 13px;
-  line-height: 34px;
+  line-height: 1.45;
   background: #ffffff;
   box-sizing: border-box;
+  font-family: inherit;
 }
 
 .codex-actions {
@@ -178,7 +193,7 @@
 .codex-output {
   margin-bottom: 12px;
   width: 100%;
-  background: #f0f0f0;
+  background: #f7f7f7;
   color: #1f1f1f;
   border: 1px solid #d9d9d9;
   min-height: var(--codex-output-height);
@@ -189,4 +204,27 @@
   max-height: 320px;
   overflow: auto;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.codex-message {
+  max-width: 84%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #d9d9d9;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.codex-message.assistant {
+  align-self: flex-start;
+  background: #ffffff;
+}
+
+.codex-message.user {
+  align-self: flex-end;
+  background: #e9f2ff;
 }
