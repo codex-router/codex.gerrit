@@ -175,7 +175,7 @@ Gerrit.install(plugin => {
 
       const reviewChangesButton = document.createElement('button');
       reviewChangesButton.className = 'codex-button outline';
-      reviewChangesButton.textContent = 'Review Changes';
+      reviewChangesButton.textContent = 'Review';
       reviewChangesButton.disabled = true;
 
       const status = document.createElement('div');
@@ -651,7 +651,7 @@ Gerrit.install(plugin => {
           const fileChanges = this.extractFileChangesFromReply(response.reply);
           if (fileChanges.length > 0) {
             this.showFileChangesDialog(fileChanges);
-            this.setStatus(`Detected ${fileChanges.length} changed file(s). Choose Keep or Undo in Review Changes.`);
+            this.setStatus(`Detected ${fileChanges.length} changed file(s). Choose Keep or Undo in Review.`);
           } else {
             this.setStatus('Done.');
           }
