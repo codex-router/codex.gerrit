@@ -14,6 +14,9 @@
 
 package com.codex.gerrit.rest;
 
+import com.google.gson.annotations.SerializedName;
+
 public class CodexChatStopInput {
+  @SerializedName(value = "session_id", alternate = {"sessionId"})
   public String sessionId;
 }

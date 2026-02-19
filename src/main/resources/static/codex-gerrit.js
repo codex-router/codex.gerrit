@@ -660,6 +660,7 @@ Gerrit.install(plugin => {
           agent,
           model,
           sessionId,
+          session_id: sessionId,
           contextFiles
         });
         log('Chat REST response received.', response);
@@ -709,7 +710,7 @@ Gerrit.install(plugin => {
 
       try {
         log('Submitting chat stop request.', { path, sessionId });
-        await plugin.restApi().post(path, { sessionId });
+        await plugin.restApi().post(path, { sessionId, session_id: sessionId });
         this.setStatus('Stop request sent. Waiting for session to close...');
       } catch (stopError) {
         logError('Chat stop request failed.', stopError);

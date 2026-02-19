@@ -14,6 +14,7 @@
 
 package com.codex.gerrit.rest;
 
+import com.google.gson.annotations.SerializedName;
 import java.util.List;
 
 public class CodexChatInput {
@@ -23,6 +24,7 @@ public class CodexChatInput {
   public String agent;
   public String cli;
   public String model;
+  @SerializedName(value = "session_id", alternate = {"sessionId"})
   public String sessionId;
   public List<String> contextFiles;
 }
