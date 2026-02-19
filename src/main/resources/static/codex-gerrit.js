@@ -181,7 +181,7 @@ Gerrit.install(plugin => {
 
       const stopButton = document.createElement('button');
       stopButton.className = 'codex-button outline';
-      stopButton.textContent = 'Stop Chat';
+      stopButton.textContent = 'Stop';
       stopButton.disabled = true;
 
       const status = document.createElement('div');
@@ -193,11 +193,11 @@ Gerrit.install(plugin => {
       output.setAttribute('aria-live', 'polite');
 
       inputRow.appendChild(input);
+      inputRow.appendChild(stopButton);
       inputRow.appendChild(sendButton);
 
       actions.appendChild(applyButton);
       actions.appendChild(reverseButton);
-      actions.appendChild(stopButton);
       footer.appendChild(selectors);
       footer.appendChild(actions);
       inputPanel.appendChild(inputRow);
