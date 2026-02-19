@@ -749,9 +749,189 @@ Gerrit.install(plugin => {
       const normalizedRole = role === 'user' ? 'user' : 'assistant';
       const message = document.createElement('div');
       message.className = `codex-message ${normalizedRole}`;
-      message.textContent = text || '';
+      if (normalizedRole === 'assistant') {
+        message.classList.add('markdown-preview');
+        message.innerHTML = this.renderMarkdown(text || '');
+      } else {
+        message.textContent = text || '';
+      }
       this.output.appendChild(message);
       this.output.scrollTop = this.output.scrollHeight;
+    }
+
+    renderMarkdown(text) {
+      const normalizedText = (text || '').replace(/\r\n?/g, '\n').trim();
+      if (!normalizedText) {
+        return '';
+      }
+
+      const lines = normalizedText.split('\n');
+      const html = [];
+      const paragraphLines = [];
+      const codeLines = [];
+      let inCodeBlock = false;
+      let codeBlockLanguage = '';
+      let inUnorderedList = false;
+      let inOrderedList = false;
+
+      const closeUnorderedList = () => {
+        if (inUnorderedList) {
+          html.push('</ul>');
+          inUnorderedList = false;
+        }
+      };
+
+      const closeOrderedList = () => {
+        if (inOrderedList) {
+          html.push('</ol>');
+          inOrderedList = false;
+        }
+      };
+
+      const closeLists = () => {
+        closeUnorderedList();
+        closeOrderedList();
+      };
+
+      const flushParagraph = () => {
+        if (paragraphLines.length === 0) {
+          return;
+        }
+        const paragraphText = paragraphLines.join(' ');
+        html.push(`<p>${this.renderMarkdownInline(paragraphText)}</p>`);
+        paragraphLines.length = 0;
+      };
+
+      const flushCodeBlock = () => {
+        if (!inCodeBlock) {
+          return;
+        }
+        const languageClass = codeBlockLanguage ? ` class="language-${codeBlockLanguage}"` : '';
+        const codeContent = this.escapeHtml(codeLines.join('\n'));
+        html.push(`<pre><code${languageClass}>${codeContent}</code></pre>`);
+        codeLines.length = 0;
+        inCodeBlock = false;
+        codeBlockLanguage = '';
+      };
+
+      lines.forEach(line => {
+        if (inCodeBlock) {
+          if (/^```\s*$/.test(line)) {
+            flushCodeBlock();
+          } else {
+            codeLines.push(line);
+          }
+          return;
+        }
+
+        const codeFenceMatch = line.match(/^```\s*([a-zA-Z0-9_+-]+)?\s*$/);
+        if (codeFenceMatch) {
+          flushParagraph();
+          closeLists();
+          inCodeBlock = true;
+          codeBlockLanguage = codeFenceMatch[1] || '';
+          return;
+        }
+
+        if (/^\s*$/.test(line)) {
+          flushParagraph();
+          closeLists();
+          return;
+        }
+
+        const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+        if (headingMatch) {
+          flushParagraph();
+          closeLists();
+          const level = headingMatch[1].length;
+          html.push(`<h${level}>${this.renderMarkdownInline(headingMatch[2].trim())}</h${level}>`);
+          return;
+        }
+
+        if (/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
+          flushParagraph();
+          closeLists();
+          html.push('<hr>');
+          return;
+        }
+
+        const blockquoteMatch = line.match(/^>\s?(.*)$/);
+        if (blockquoteMatch) {
+          flushParagraph();
+          closeLists();
+          html.push(`<blockquote>${this.renderMarkdownInline(blockquoteMatch[1].trim())}</blockquote>`);
+          return;
+        }
+
+        const unorderedListMatch = line.match(/^\s*[-*+]\s+(.+)$/);
+        if (unorderedListMatch) {
+          flushParagraph();
+          closeOrderedList();
+          if (!inUnorderedList) {
+            html.push('<ul>');
+            inUnorderedList = true;
+          }
+          html.push(`<li>${this.renderMarkdownInline(unorderedListMatch[1].trim())}</li>`);
+          return;
+        }
+
+        const orderedListMatch = line.match(/^\s*\d+\.\s+(.+)$/);
+        if (orderedListMatch) {
+          flushParagraph();
+          closeUnorderedList();
+          if (!inOrderedList) {
+            html.push('<ol>');
+            inOrderedList = true;
+          }
+          html.push(`<li>${this.renderMarkdownInline(orderedListMatch[1].trim())}</li>`);
+          return;
+        }
+
+        closeLists();
+        paragraphLines.push(line.trim());
+      });
+
+      flushParagraph();
+      closeLists();
+      flushCodeBlock();
+
+      return html.join('');
+    }
+
+    renderMarkdownInline(value) {
+      let text = this.escapeHtml(value || '');
+      const codeTokens = [];
+
+      text = text.replace(/`([^`\n]+)`/g, (_, codeContent) => {
+        const token = `\u0000${codeTokens.length}\u0000`;
+        codeTokens.push(`<code>${codeContent}</code>`);
+        return token;
+      });
+
+      text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, href) => {
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+      });
+      text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+      text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
+      text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+
+      text = text.replace(/\u0000(\d+)\u0000/g, (_, tokenIndex) => {
+        const index = Number(tokenIndex);
+        return Number.isInteger(index) && codeTokens[index] ? codeTokens[index] : '';
+      });
+
+      return text;
+    }
+
+    escapeHtml(value) {
+      return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
     }
 
     createSessionId() {
