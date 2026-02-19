@@ -25,6 +25,7 @@ Gerrit.install(plugin => {
   ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
   const browserRepoStorageKey = `${pluginName}-browser-repo-url`;
+  const welcomeShownStorageKey = `${pluginName}-welcome-shown`;
   const defaultBrowserRepoUrl = 'https://github.com/codesandbox/codesandbox-client';
   const log = (...args) => console.log(logPrefix, ...args);
   const warn = (...args) => console.warn(logPrefix, ...args);
@@ -246,7 +247,32 @@ Gerrit.install(plugin => {
       this.sendButton = sendButton;
       this.headerVersion = headerVersion;
 
+      this.showWelcomeMessageIfFirstLoad();
       this.loadConfig();
+    }
+
+    showWelcomeMessageIfFirstLoad() {
+      let hasShownWelcome = false;
+      try {
+        hasShownWelcome = window.localStorage.getItem(welcomeShownStorageKey) === 'true';
+      } catch (storageError) {
+        warn('localStorage read failed for welcome message flag.', storageError);
+      }
+
+      if (hasShownWelcome) {
+        return;
+      }
+
+      this.appendMessage(
+          'assistant',
+          '👋 Welcome to Codex Chat in Gerrit. Loading configuration, agents, and models...');
+      this.setStatus('Loading Codex Chat...');
+
+      try {
+        window.localStorage.setItem(welcomeShownStorageKey, 'true');
+      } catch (storageError) {
+        warn('localStorage write failed for welcome message flag.', storageError);
+      }
     }
 
     async loadConfig() {
