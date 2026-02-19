@@ -15,7 +15,7 @@
 package com.codex.gerrit.rest;
 
 import com.codex.gerrit.config.CodexGerritConfig;
-import com.codex.gerrit.service.CodexCliClient;
+import com.codex.gerrit.service.CodexAgentClient;
 import com.codex.gerrit.service.CodexPromptBuilder;
 import com.codex.gerrit.service.CodexPatchsetApplier;
 import com.codex.gerrit.service.CodexReviewPoster;
@@ -44,7 +44,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
 
   private final CodexGerritConfig config;
   private final GerritApi gerritApi;
-  private final CodexCliClient cliClient;
+  private final CodexAgentClient agentClient;
   private final CodexPromptBuilder promptBuilder;
   private final CodexReviewPoster reviewPoster;
   private final CodexPatchsetApplier patchsetApplier;
@@ -53,13 +53,13 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
   CodexChatRest(
       CodexGerritConfig config,
       GerritApi gerritApi,
-      CodexCliClient cliClient,
+      CodexAgentClient agentClient,
       CodexPromptBuilder promptBuilder,
       CodexReviewPoster reviewPoster,
       CodexPatchsetApplier patchsetApplier) {
     this.config = config;
     this.gerritApi = gerritApi;
-    this.cliClient = cliClient;
+    this.agentClient = agentClient;
     this.promptBuilder = promptBuilder;
     this.reviewPoster = reviewPoster;
     this.patchsetApplier = patchsetApplier;
@@ -76,7 +76,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     CodexChatInput normalized = normalizeInput(input, files);
 
     String prompt = promptBuilder.buildPrompt(changeInfo, files, normalized);
-    String reply = cliClient.run(prompt, normalized.model, normalized.cli, normalized.sessionId);
+    String reply = agentClient.run(prompt, normalized.model, normalized.agent, normalized.sessionId);
     String responseReply = reply;
     String reviewMessage = reply;
 
@@ -115,7 +115,8 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     normalized.mode = normalizeMode(input.mode, input.applyPatchset);
     normalized.postAsReview = input.postAsReview;
     normalized.applyPatchset = input.applyPatchset;
-    normalized.cli = config.normalizeCliOrDefault(input.cli);
+    String requestedAgent = input.agent != null ? input.agent : input.cli;
+    normalized.agent = config.normalizeAgentOrDefault(requestedAgent);
     normalized.model = normalizeModel(input.model);
     normalized.sessionId = normalizeSessionId(input.sessionId);
     normalized.contextFiles = normalizeContextFiles(input.contextFiles, files);

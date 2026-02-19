@@ -14,7 +14,7 @@
 
 package com.codex.gerrit.rest;
 
-import com.codex.gerrit.service.CodexCliClient;
+import com.codex.gerrit.service.CodexAgentClient;
 import com.google.gerrit.extensions.restapi.BadRequestException;
 import com.google.gerrit.extensions.restapi.Response;
 import com.google.gerrit.extensions.restapi.RestApiException;
@@ -25,11 +25,11 @@ import com.google.inject.Singleton;
 
 @Singleton
 public class CodexChatStopRest implements RestModifyView<RevisionResource, CodexChatStopInput> {
-  private final CodexCliClient cliClient;
+  private final CodexAgentClient agentClient;
 
   @Inject
-  CodexChatStopRest(CodexCliClient cliClient) {
-    this.cliClient = cliClient;
+  CodexChatStopRest(CodexAgentClient agentClient) {
+    this.agentClient = agentClient;
   }
 
   @Override
@@ -42,7 +42,7 @@ public class CodexChatStopRest implements RestModifyView<RevisionResource, Codex
       throw new BadRequestException("sessionId is required");
     }
 
-    cliClient.stopSession(sessionId);
+    agentClient.stopSession(sessionId);
     return Response.ok(new CodexChatStopResponse(sessionId, "stopped"));
   }
 }

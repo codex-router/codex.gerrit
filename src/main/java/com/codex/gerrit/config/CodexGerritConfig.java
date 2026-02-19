@@ -23,11 +23,11 @@ import com.google.inject.Singleton;
 @Singleton
 public class CodexGerritConfig {
   private static final int DEFAULT_MAX_FILES = 200;
-  private static final String DEFAULT_CLI = "codex";
+  private static final String DEFAULT_AGENT = "codex";
   private static final String DEFAULT_BASH_PATH = "/bin/bash";
 
   private final String gerritBotUser;
-  private final String defaultCli;
+  private final String defaultAgent;
   private final int maxFiles;
   private final String bashPath;
   private final String codexServeUrl;
@@ -36,7 +36,7 @@ public class CodexGerritConfig {
   CodexGerritConfig(PluginConfigFactory configFactory, @PluginName String pluginName) {
     PluginConfig config = configFactory.getFromGerritConfig(pluginName);
     this.gerritBotUser = trimToEmpty(config.getString("gerritBotUser"));
-    this.defaultCli = normalizeCli(config.getString("defaultCli"));
+    this.defaultAgent = normalizeAgent(config.getString("defaultAgent"));
     this.maxFiles = config.getInt("maxFiles", DEFAULT_MAX_FILES);
     this.bashPath = trimToDefault(config.getString("bashPath"), DEFAULT_BASH_PATH);
     this.codexServeUrl = trimToEmpty(config.getString("codexServeUrl"));
@@ -54,25 +54,25 @@ public class CodexGerritConfig {
     return bashPath;
   }
 
-  public String getDefaultCli() {
-    return defaultCli;
+  public String getDefaultAgent() {
+    return defaultAgent;
   }
 
-  public String normalizeCliOrDefault(String cli) {
-    return normalizeCli(cli);
+  public String normalizeAgentOrDefault(String agent) {
+    return normalizeAgent(agent);
   }
 
   public String getCodexServeUrl() {
     return codexServeUrl;
   }
 
-  private String normalizeCli(String rawCli) {
-    if (rawCli == null) {
-      return DEFAULT_CLI;
+  private String normalizeAgent(String rawAgent) {
+    if (rawAgent == null) {
+      return DEFAULT_AGENT;
     }
-    String normalized = rawCli.trim().toLowerCase();
+    String normalized = rawAgent.trim().toLowerCase();
     if (normalized.isEmpty()) {
-      return DEFAULT_CLI;
+      return DEFAULT_AGENT;
     }
     return normalized;
   }

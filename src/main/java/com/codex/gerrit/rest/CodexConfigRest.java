@@ -15,7 +15,7 @@
 package com.codex.gerrit.rest;
 
 import com.codex.gerrit.config.CodexGerritConfig;
-import com.codex.gerrit.service.CodexCliClient;
+import com.codex.gerrit.service.CodexAgentClient;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.changes.ChangeApi;
 import com.google.gerrit.extensions.common.FileInfo;
@@ -38,13 +38,13 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
 
   private final CodexGerritConfig config;
   private final GerritApi gerritApi;
-  private final CodexCliClient cliClient;
+  private final CodexAgentClient agentClient;
 
   @Inject
-  CodexConfigRest(CodexGerritConfig config, GerritApi gerritApi, CodexCliClient cliClient) {
+  CodexConfigRest(CodexGerritConfig config, GerritApi gerritApi, CodexAgentClient agentClient) {
     this.config = config;
     this.gerritApi = gerritApi;
-    this.cliClient = cliClient;
+    this.agentClient = agentClient;
   }
 
   @Override
@@ -55,27 +55,27 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
 
     List<String> models;
     try {
-      models = cliClient.getModels();
+      models = agentClient.getModels();
     } catch (RestApiException e) {
       logger.warn("Failed to fetch models from codex.serve", e);
       models = Collections.emptyList();
     }
 
-    List<String> clis;
+    List<String> agents;
     try {
-      clis = cliClient.getClis();
+      agents = agentClient.getAgents();
     } catch (RestApiException e) {
-      logger.warn("Failed to fetch clis from codex.serve", e);
-      clis = Collections.emptyList();
+      logger.warn("Failed to fetch agents from codex.serve", e);
+      agents = Collections.emptyList();
     }
 
-    clis = ensureDefaultCliPresent(clis, config.getDefaultCli());
+    agents = ensureDefaultAgentPresent(agents, config.getDefaultAgent());
 
     return Response.ok(
         new CodexConfigResponse(
             models,
-            clis,
-            config.getDefaultCli(),
+            agents,
+            config.getDefaultAgent(),
             getPluginVersion(),
             normalizeFiles(files)));
   }
@@ -92,19 +92,19 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
     return result;
   }
 
-  private static List<String> ensureDefaultCliPresent(List<String> clis, String defaultCli) {
-    String normalizedDefault = defaultCli == null ? "" : defaultCli.trim().toLowerCase();
+  private static List<String> ensureDefaultAgentPresent(List<String> agents, String defaultAgent) {
+    String normalizedDefault = defaultAgent == null ? "" : defaultAgent.trim().toLowerCase();
     if (normalizedDefault.isEmpty()) {
       normalizedDefault = "codex";
     }
 
     List<String> result = new ArrayList<>();
-    if (clis != null) {
-      for (String cli : clis) {
-        if (cli == null) {
+    if (agents != null) {
+      for (String agent : agents) {
+        if (agent == null) {
           continue;
         }
-        String trimmed = cli.trim();
+        String trimmed = agent.trim();
         if (!trimmed.isEmpty()) {
           result.add(trimmed);
         }
@@ -124,20 +124,20 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
 
   public static class CodexConfigResponse {
     public List<String> models;
-    public List<String> clis;
-    public String defaultCli;
+    public List<String> agents;
+    public String defaultAgent;
     public String pluginVersion;
     public List<String> patchsetFiles;
 
     public CodexConfigResponse(
         List<String> models,
-        List<String> clis,
-        String defaultCli,
+        List<String> agents,
+        String defaultAgent,
         String pluginVersion,
         List<String> patchsetFiles) {
       this.models = models;
-      this.clis = clis;
-      this.defaultCli = defaultCli;
+      this.agents = agents;
+      this.defaultAgent = defaultAgent;
       this.pluginVersion = pluginVersion;
       this.patchsetFiles = patchsetFiles;
     }

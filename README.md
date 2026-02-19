@@ -1,22 +1,22 @@
 # codex.gerrit
 
 Codex Gerrit plugin that adds a chat panel to the bottom of a change view. It can send prompts
-to supported AI CLIs for interactive chat and can generate/apply a patchset to the current change.
+to supported AI agents for interactive chat and can generate/apply a patchset to the current change.
 
 ## Features
 
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
-- Selector row includes `CLI`, `Model`, and `Codespaces` controls.
-- CLI selector is populated from `codex.serve` `GET /clis`.
-- If `GET /clis` is unavailable, the selector falls back to `defaultCli` (or `codex`).
+- Selector row includes `Agent`, `Model`, and `Codespaces` controls.
+- Agent selector is populated from `codex.serve` `GET /agents`.
+- If `GET /agents` is unavailable, the selector falls back to `defaultAgent` (or `codex`).
 - Model selector shows models returned by `codex.serve` `GET /models`.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - `Codespaces` includes `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
-- Chat mode is the default input mode and returns a reply in the UI using the selected CLI and model.
+- Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
 - Stop Chat interrupts an active chat request from the panel.
 - Apply Patchset updates files and publishes a new patchset on the change.
 - Reverse Patchset restores the previous patchset state and publishes it as a new patchset on the same change.
-- Supports multiple AI CLIs exposed by `codex.serve`.
+- Supports multiple AI agents exposed by `codex.serve`.
 - Loads available models from `codex.serve` via `GET /models`.
 
 ## Build
@@ -35,12 +35,12 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 
 ```
 [plugin "codex-gerrit"]
-	# Required: URL for codex.serve to run CLIs remotely.
+	# Required: URL for codex.serve to run agents remotely.
 	codexServeUrl = http://localhost:8000
 
-	# Optional: default CLI for the panel when no explicit CLI is selected.
-	# Recommended to match a CLI returned by codex.serve GET /clis.
-	defaultCli = codex
+	# Optional: default agent for the panel when no explicit agent is selected.
+	# Recommended to match an agent returned by codex.serve GET /agents.
+	defaultAgent = codex
 
 	# Optional: Gerrit bot username used as a message prefix.
 	gerritBotUser = codex-bot
@@ -51,7 +51,7 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 
 ### Remote Execution (codex.serve)
 
-`codex.gerrit` executes all CLIs via `codex.serve` using `POST /run`.
+`codex.gerrit` executes all agents via `codex.serve` using `POST /run`.
 
 ```
 [plugin "codex-gerrit"]
@@ -59,12 +59,12 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 ```
 
 When enabled:
-- All CLI requests are sent to the configured URL via HTTP POST.
+- All agent requests are sent to the configured URL via HTTP POST.
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
-- The plugin sends `cli`, `stdin`, `sessionId`, and `args` (`--model` when a specific model is selected).
+- The plugin sends `agent`, `stdin`, `sessionId`, and `args` (`--model` when a specific model is selected).
 - During an active chat request, the plugin can stop that session via `POST /sessions/{sessionId}/stop`.
-- The plugin fetches CLI options from `codex.serve` using `GET /clis`.
-- If `GET /clis` fails, the UI falls back to `defaultCli` (or `codex`).
+- The plugin fetches agent options from `codex.serve` using `GET /agents`.
+- If `GET /agents` fails, the UI falls back to `defaultAgent` (or `codex`).
 - The plugin fetches model options from `codex.serve` using `GET /models`.
 
 ### LiteLLM Configuration
@@ -79,12 +79,12 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 ## Usage
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
-- Use the selector row to choose `CLI` (options are loaded from `codex.serve` `GET /clis`; if unavailable, falls back to `defaultCli` or `codex`).
+- Use the selector row to choose `Agent` (options are loaded from `codex.serve` `GET /agents`; if unavailable, falls back to `defaultAgent` or `codex`).
 - `Model` shows models loaded from `codex.serve`; optionally choose a specific model.
 - Use `Codespaces` → `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, or `Open in VS Code` to open all patchset files.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
-- Enter a prompt and press `Enter` to send in default chat mode to the CLI selected in `CLI` (or use `Shift+Enter` for a newline).
-- Replies are shown in the UI using the selected CLI/model.
+- Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Shift+Enter` for a newline).
+- Replies are shown in the UI using the selected agent/model.
 - While a chat request is running, click `Stop Chat` to interrupt the current session.
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.
 	The patchset is published by the current user who triggered the action.

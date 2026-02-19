@@ -16,7 +16,7 @@ Gerrit.install(plugin => {
   const pluginName = plugin.getPluginName();
   const elementName = 'codex-chat-panel';
   const logPrefix = '[codex-gerrit]';
-  const fallbackClis = ['codex'];
+  const fallbackAgents = ['codex'];
   const codespacesActions = [
     { value: 'open-android-studio', label: 'Open in Android Studio' },
     { value: 'open-browser', label: 'Open in Browser' },
@@ -78,25 +78,25 @@ Gerrit.install(plugin => {
       const selectors = document.createElement('div');
       selectors.className = 'codex-selectors';
 
-      const cliContainer = document.createElement('div');
-      cliContainer.className = 'codex-selector-container';
+      const agentContainer = document.createElement('div');
+      agentContainer.className = 'codex-selector-container';
 
-      const cliLabel = document.createElement('label');
-      cliLabel.className = 'codex-selector-label';
-      cliLabel.textContent = 'CLI:';
+      const agentLabel = document.createElement('label');
+      agentLabel.className = 'codex-selector-label';
+      agentLabel.textContent = 'Agent:';
 
-      const cliSelect = document.createElement('select');
-      cliSelect.className = 'codex-selector-select';
+      const agentSelect = document.createElement('select');
+      agentSelect.className = 'codex-selector-select';
 
-      fallbackClis.forEach(cli => {
+      fallbackAgents.forEach(agent => {
         const option = document.createElement('option');
-        option.value = cli;
-        option.textContent = cli;
-        cliSelect.appendChild(option);
+        option.value = agent;
+        option.textContent = agent;
+        agentSelect.appendChild(option);
       });
 
-      cliContainer.appendChild(cliLabel);
-      cliContainer.appendChild(cliSelect);
+      agentContainer.appendChild(agentLabel);
+      agentContainer.appendChild(agentSelect);
 
       const modelContainer = document.createElement('div');
       modelContainer.className = 'codex-selector-container';
@@ -143,13 +143,13 @@ Gerrit.install(plugin => {
       codespacesContainer.appendChild(codespacesLabel);
       codespacesContainer.appendChild(codespacesSelect);
 
-      selectors.appendChild(cliContainer);
+      selectors.appendChild(agentContainer);
       selectors.appendChild(modelContainer);
       selectors.appendChild(codespacesContainer);
 
       const input = document.createElement('textarea');
       input.className = 'codex-input';
-      input.placeholder = 'Use CLI and Model to configure your session. Use Codespaces to open patchset files, type @ to reference files, chat here to draft changes, click Apply Patchset to generate/apply a patchset, or click Reverse Patchset to restore the previous patchset state.';
+      input.placeholder = 'Use Agent and Model to configure your session. Use Codespaces to open patchset files, type @ to reference files, chat here to draft changes, click Apply Patchset to generate/apply a patchset, or click Reverse Patchset to restore the previous patchset state.';
 
       const mentionDropdown = document.createElement('div');
       mentionDropdown.className = 'codex-mention-dropdown hidden';
@@ -215,7 +215,7 @@ Gerrit.install(plugin => {
       });
 
       this.input = input;
-      this.cliSelect = cliSelect;
+      this.agentSelect = agentSelect;
       this.modelSelect = modelSelect;
       this.codespacesSelect = codespacesSelect;
       this.mentionDropdown = mentionDropdown;
@@ -246,34 +246,36 @@ Gerrit.install(plugin => {
         log('Panel config REST response received.', response);
 
         const pluginVersion = response ? response.pluginVersion || response.plugin_version : null;
-        const defaultCli = response ? response.defaultCli || response.default_cli : null;
+        const defaultAgent = response
+          ? response.defaultAgent || response.default_agent
+          : null;
         const patchsetFiles = response ? response.patchsetFiles || response.patchset_files : null;
 
         if (pluginVersion) {
           this.headerVersion.textContent = pluginVersion;
         }
 
-        const apiClis = response && response.clis && response.clis.length > 0 ? response.clis : [];
-        const clis = apiClis.length > 0 ? apiClis : fallbackClis;
-        if (clis.length > 0) {
-          this.cliSelect.innerHTML = '';
-          clis.forEach(cli => {
+        const apiAgents = response && response.agents && response.agents.length > 0 ? response.agents : [];
+        const agents = apiAgents.length > 0 ? apiAgents : fallbackAgents;
+        if (agents.length > 0) {
+          this.agentSelect.innerHTML = '';
+          agents.forEach(agent => {
             const option = document.createElement('option');
-            option.value = cli;
-            option.textContent = cli;
-            this.cliSelect.appendChild(option);
+            option.value = agent;
+            option.textContent = agent;
+            this.agentSelect.appendChild(option);
           });
-          if (defaultCli && clis.includes(defaultCli)) {
-            this.cliSelect.value = defaultCli;
+          if (defaultAgent && agents.includes(defaultAgent)) {
+            this.agentSelect.value = defaultAgent;
           } else {
-            this.cliSelect.value = clis[0];
+            this.agentSelect.value = agents[0];
           }
-          log('CLI options populated.', {
-            count: clis.length,
-            defaultCli
+          log('Agent options populated.', {
+            count: agents.length,
+            defaultAgent
           });
         } else {
-          log('No CLI list returned; using codex default option.');
+          log('No agent list returned; using codex default option.');
         }
 
         if (response && response.models && response.models.length > 0) {
@@ -603,7 +605,7 @@ Gerrit.install(plugin => {
       this.setBusy(true);
       this.setStatus(`Running ${mode}...`);
 
-      const cli = this.cliSelect && this.cliSelect.value ? this.cliSelect.value : 'codex';
+      const agent = this.agentSelect && this.agentSelect.value ? this.agentSelect.value : 'codex';
       const model = this.modelSelect && this.modelSelect.value ? this.modelSelect.value : null;
       const contextFiles = this.extractContextFiles(prompt);
       const sessionId = this.createSessionId();
@@ -611,13 +613,13 @@ Gerrit.install(plugin => {
 
       try {
         const path = `/changes/${changeId}/revisions/current/codex-chat`;
-        log('Submitting chat request.', { mode, postAsReview, applyPatchset, cli, model, sessionId, contextFilesCount: contextFiles.length, path });
+        log('Submitting chat request.', { mode, postAsReview, applyPatchset, agent, model, sessionId, contextFilesCount: contextFiles.length, path });
         const response = await plugin.restApi().post(path, {
           prompt,
           mode,
           postAsReview,
           applyPatchset,
-          cli,
+          agent,
           model,
           sessionId,
           contextFiles
