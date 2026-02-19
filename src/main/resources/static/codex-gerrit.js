@@ -582,6 +582,11 @@ Gerrit.install(plugin => {
         return;
       }
 
+      if (!(await this.ensureAuthenticated())) {
+        this.setStatus('Sign in to Gerrit before using Codex Chat.');
+        return;
+      }
+
       const prompt = (this.input && this.input.value || '').trim();
       if (!prompt) {
         this.setStatus('Enter a prompt first.');
@@ -631,7 +636,7 @@ Gerrit.install(plugin => {
       } catch (err) {
         logError('Chat request failed.', err);
         this.output.textContent = '';
-        this.setStatus(`Request failed: ${err && err.message ? err.message : err}`);
+        this.setStatus(`Request failed: ${this.getErrorMessage(err)}`);
       } finally {
         this.activeSessionId = null;
         this.setBusy(false);
@@ -654,14 +659,48 @@ Gerrit.install(plugin => {
       const sessionId = this.activeSessionId;
       this.setStatus('Stopping chat...');
 
+      if (!(await this.ensureAuthenticated())) {
+        this.setStatus('Sign in to Gerrit before stopping chat.');
+        return;
+      }
+
       try {
         log('Submitting chat stop request.', { path, sessionId });
         await plugin.restApi().post(path, { sessionId });
         this.setStatus('Stop request sent. Waiting for session to close...');
       } catch (stopError) {
         logError('Chat stop request failed.', stopError);
-        this.setStatus(`Stop failed: ${stopError && stopError.message ? stopError.message : stopError}`);
+        this.setStatus(`Stop failed: ${this.getErrorMessage(stopError)}`);
       }
+    }
+
+    async ensureAuthenticated() {
+      try {
+        const account = await plugin.restApi().get('/accounts/self/detail');
+        return !!(account && account._account_id);
+      } catch (authError) {
+        warn('Authentication check failed.', authError);
+        return false;
+      }
+    }
+
+    getErrorMessage(err) {
+      if (!err) {
+        return 'Unknown error';
+      }
+      if (typeof err === 'string') {
+        return err;
+      }
+      if (err.message && String(err.message).trim()) {
+        return String(err.message);
+      }
+      if (typeof err.status === 'number') {
+        if (err.status === 403) {
+          return 'Forbidden (403). Please sign in and ensure you have change access.';
+        }
+        return `HTTP ${err.status}`;
+      }
+      return String(err);
     }
 
     setBusy(isBusy) {
