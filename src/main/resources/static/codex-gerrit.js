@@ -161,11 +161,7 @@ Gerrit.install(plugin => {
       const input = document.createElement('textarea');
       input.className = 'codex-input';
       input.rows = 1;
-      input.placeholder = 'Ask Codex about this change. Type @ to reference patchset files.';
-
-      const sendButton = document.createElement('button');
-      sendButton.className = 'codex-button';
-      sendButton.textContent = 'Send';
+      input.placeholder = 'Ask Codex about this change. Type @ to reference patchset files. Enter to send · Ctrl+Enter for newline.';
 
       const mentionDropdown = document.createElement('div');
       mentionDropdown.className = 'codex-mention-dropdown hidden';
@@ -225,7 +221,6 @@ Gerrit.install(plugin => {
       inputRow.appendChild(input);
       inputRow.appendChild(stopButton);
       inputRow.appendChild(reviewChangesButton);
-      inputRow.appendChild(sendButton);
 
       footer.appendChild(selectors);
       inputPanel.appendChild(inputRow);
@@ -248,7 +243,6 @@ Gerrit.install(plugin => {
 
       stopButton.addEventListener('click', () => this.stopChat());
       reviewChangesButton.addEventListener('click', () => this.openFileChangesDialog());
-      sendButton.addEventListener('click', () => this.submitChat());
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
@@ -276,7 +270,6 @@ Gerrit.install(plugin => {
       this.status = status;
       this.stopButton = stopButton;
       this.reviewChangesButton = reviewChangesButton;
-      this.sendButton = sendButton;
       this.headerVersion = headerVersion;
       this.changeDialogOverlay = changeDialogOverlay;
       this.changeDialogBody = changeDialogBody;
@@ -757,9 +750,6 @@ Gerrit.install(plugin => {
       this.isBusyState = isBusy;
       if (this.stopButton) {
         this.stopButton.disabled = !isBusy;
-      }
-      if (this.sendButton) {
-        this.sendButton.disabled = isBusy;
       }
       if (this.reviewChangesButton) {
         this.reviewChangesButton.disabled = isBusy || this.pendingFileChanges.length === 0;
@@ -1323,7 +1313,22 @@ Gerrit.install(plugin => {
         return;
       }
 
-      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+      if (event.key === 'Enter' && event.ctrlKey && !event.altKey && !event.metaKey && !event.isComposing) {
+        event.preventDefault();
+        if (!this.input) {
+          return;
+        }
+        const value = this.input.value || '';
+        const selectionStart = this.input.selectionStart;
+        const selectionEnd = this.input.selectionEnd;
+        this.input.value = `${value.substring(0, selectionStart)}\n${value.substring(selectionEnd)}`;
+        const nextPosition = selectionStart + 1;
+        this.input.setSelectionRange(nextPosition, nextPosition);
+        this.handleInputChanged();
+        return;
+      }
+
+      if (event.key === 'Enter' && !event.ctrlKey && !event.altKey && !event.metaKey && !event.isComposing) {
         event.preventDefault();
         this.submitChat();
       }
