@@ -9,7 +9,7 @@ to supported AI CLIs for interactive chat and can generate/apply a patchset to t
 - Selector row includes `CLI`, `Model`, and `Codespaces` controls.
 - CLI selector is populated from `codex.serve` `GET /clis`.
 - If `GET /clis` is unavailable, the selector falls back to `defaultCli` (or `codex`).
-- Model selector defaults to `Auto`, plus models returned by `codex.serve` `GET /models`.
+- Model selector shows models returned by `codex.serve` `GET /models`.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - `Codespaces` includes `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
 - Chat mode is the default input mode and returns a reply in the UI using the selected CLI and model.
@@ -74,18 +74,17 @@ Configure LiteLLM on `codex.serve` runtime environment (for example with `LITELL
 In Docker mode, `codex.serve` passes these values to the execution container by default.
 The model dropdown is populated from `codex.serve` `GET /models`.
 
-- Selecting `Auto` (default) does not send `--model`, allowing `codex.serve` and the CLI to pick a model automatically.
 - Selecting a specific model sends that value via the `--model` parameter.
 
 ## Usage
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Use the selector row to choose `CLI` (options are loaded from `codex.serve` `GET /clis`; if unavailable, falls back to `defaultCli` or `codex`).
-- `Model` defaults to `Auto` for automatic model selection; optionally choose a specific model.
+- `Model` shows models loaded from `codex.serve`; optionally choose a specific model.
 - Use `Codespaces` → `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, or `Open in VS Code` to open all patchset files.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and press `Enter` to send in default chat mode to the CLI selected in `CLI` (or use `Shift+Enter` for a newline).
-- Replies are shown in the UI using the selected CLI/model (or auto-selected model when `Auto` is chosen).
+- Replies are shown in the UI using the selected CLI/model.
 - While a chat request is running, click `Stop Chat` to interrupt the current session.
 - Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.
 	The patchset is published by the current user who triggered the action.

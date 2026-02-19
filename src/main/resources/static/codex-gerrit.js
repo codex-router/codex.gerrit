@@ -110,7 +110,7 @@ Gerrit.install(plugin => {
 
       const defaultOption = document.createElement('option');
       defaultOption.value = '';
-      defaultOption.textContent = 'Auto';
+      defaultOption.textContent = 'Select';
       defaultOption.selected = true;
       modelSelect.appendChild(defaultOption);
 
@@ -278,9 +278,6 @@ Gerrit.install(plugin => {
 
         if (response && response.models && response.models.length > 0) {
           response.models.forEach(model => {
-            if (!model || model.trim().toLowerCase() === 'auto') {
-              return;
-            }
             const option = document.createElement('option');
             option.value = model;
             option.textContent = model;
@@ -289,7 +286,7 @@ Gerrit.install(plugin => {
           this.modelSelect.value = '';
           log('Models populated.', { count: response.models.length });
         } else {
-          log('No models returned; keeping Auto only.');
+          log('No models returned.');
         }
 
         if (patchsetFiles && patchsetFiles.length > 0) {

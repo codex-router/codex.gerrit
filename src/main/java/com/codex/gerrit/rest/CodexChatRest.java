@@ -192,7 +192,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       return null;
     }
     String lower = normalized.toLowerCase();
-    if ("auto".equals(lower) || "default".equals(lower)) {
+    if ("default".equals(lower)) {
       return null;
     }
     return normalized;
