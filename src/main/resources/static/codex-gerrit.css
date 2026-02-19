@@ -5,7 +5,7 @@
 }
 
 .codex-chat {
-  --codex-input-height: 84px;
+  --codex-input-height: 34px;
   --codex-output-height: 260px;
   position: relative;
   border-top: 1px solid #d6d6d6;
@@ -101,9 +101,10 @@
 
 .codex-input {
   flex: 1;
+  height: var(--codex-input-height);
   min-height: var(--codex-input-height);
-  max-height: 160px;
-  resize: vertical;
+  max-height: var(--codex-input-height);
+  resize: none;
   border: 1px solid #d9d9d9;
   border-radius: 8px;
   padding: 10px 12px;
@@ -162,11 +163,13 @@
   border: none;
   background: #b65a2a;
   color: #fff;
-  padding: 8px 14px;
+  height: var(--codex-input-height);
+  padding: 0 14px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .codex-button.secondary {
