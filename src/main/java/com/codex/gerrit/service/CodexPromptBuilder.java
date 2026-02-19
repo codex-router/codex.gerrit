@@ -65,14 +65,7 @@ public class CodexPromptBuilder {
     }
 
     builder.append("\nUser prompt:\n").append(input.prompt).append("\n");
-    if ("patchset".equals(input.mode)) {
-      builder.append("\nOutput only in this exact format:\n");
-      builder.append("BEGIN_SUMMARY\n<short summary>\nEND_SUMMARY\n");
-      builder.append("BEGIN_COMMIT_MESSAGE\n<commit message>\nEND_COMMIT_MESSAGE\n");
-      builder.append("BEGIN_FILE path/to/file\n<full file content>\nEND_FILE\n");
-      builder.append("DELETE_FILE path/to/file\n");
-      builder.append("\nDo not include extra commentary outside the markers.\n");
-    } else if ("chat".equals(input.mode)) {
+    if ("chat".equals(input.mode)) {
       builder.append("\nAnswer as a coding assistant for this Gerrit change. Be concise and actionable.\n");
     } else if ("generate".equals(input.mode)) {
       builder.append("\nOutput a unified diff if you propose code changes.\n");

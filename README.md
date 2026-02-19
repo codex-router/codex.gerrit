@@ -1,7 +1,7 @@
 # codex.gerrit
 
 Codex Gerrit plugin that adds a chat panel to the bottom of a change view. It can send prompts
-to supported AI agents for interactive chat and can generate/apply a patchset to the current change.
+to supported AI agents for interactive chat.
 
 ## Features
 
@@ -14,8 +14,6 @@ to supported AI agents for interactive chat and can generate/apply a patchset to
 - `Codespaces` includes `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
 - Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
 - Stop Chat interrupts an active chat request from the panel.
-- Apply Patchset updates files and publishes a new patchset on the change.
-- Reverse Patchset restores the previous patchset state and publishes it as a new patchset on the same change.
 - Supports multiple AI agents exposed by `codex.serve`.
 - Loads available models from `codex.serve` via `GET /models`.
 
@@ -86,18 +84,13 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Shift+Enter` for a newline).
 - Replies are shown in the UI using the selected agent/model.
 - While a chat request is running, click `Stop Chat` to interrupt the current session.
-- Enter a prompt and click `Apply Patchset` to update files and publish a new patchset on the change.
-	The patchset is published by the current user who triggered the action.
-- Click `Reverse Patchset` to restore the previous patchset content as a new patchset on the same change.
-
 ### Chat Session Stop Flow
 
 - Each chat request includes a generated session identifier (`sessionId`) in the request to `codex.serve` `POST /run`.
 - `Stop Chat` sends a plugin REST request to `codex-chat-stop`, which forwards to `codex.serve` `POST /sessions/{sessionId}/stop`.
 - If the target session is already finished, `codex.serve` may return `404` and the panel shows the failure status.
 
-`gerritBotUser` is used as a message prefix for Gerrit review messages posted by patchset flow;
-the review is posted by the current user who triggered the action.
+`gerritBotUser` is used as a message prefix for Gerrit review messages.
 
 When using `Open in Browser` for the first time, the panel prompts for your GitHub repository URL
 (default: `https://github.com/codesandbox/codesandbox-client`) and stores it in browser local storage for future opens.
@@ -142,26 +135,6 @@ path and stores it in browser local storage for future opens. All actions open a
 - The root path is saved in browser local storage and reused for later opens.
 - If your browser asks for permission to open VS Code links, allow it.
 - If files do not open, check that VS Code URL handling is enabled on your machine and that the saved root path matches your local checkout.
-
-### Patchset Output Format
-
-When using `Apply Patchset`, Codex must return updates using the following markers only:
-
-```
-BEGIN_SUMMARY
-Short summary of the changes.
-END_SUMMARY
-BEGIN_COMMIT_MESSAGE
-Optional commit message.
-END_COMMIT_MESSAGE
-BEGIN_FILE path/to/file
-<full file content>
-END_FILE
-DELETE_FILE path/to/old_file
-```
-
-If no `BEGIN_SUMMARY` or `BEGIN_COMMIT_MESSAGE` block is provided, the plugin will apply the
-files and publish the edit using the existing commit message.
 
 ## Reference
 

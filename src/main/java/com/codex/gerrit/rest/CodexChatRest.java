@@ -17,7 +17,6 @@ package com.codex.gerrit.rest;
 import com.codex.gerrit.config.CodexGerritConfig;
 import com.codex.gerrit.service.CodexAgentClient;
 import com.codex.gerrit.service.CodexPromptBuilder;
-import com.codex.gerrit.service.CodexPatchsetApplier;
 import com.codex.gerrit.service.CodexReviewPoster;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.changes.ChangeApi;
@@ -47,7 +46,6 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
   private final CodexAgentClient agentClient;
   private final CodexPromptBuilder promptBuilder;
   private final CodexReviewPoster reviewPoster;
-  private final CodexPatchsetApplier patchsetApplier;
 
   @Inject
   CodexChatRest(
@@ -55,14 +53,12 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       GerritApi gerritApi,
       CodexAgentClient agentClient,
       CodexPromptBuilder promptBuilder,
-      CodexReviewPoster reviewPoster,
-      CodexPatchsetApplier patchsetApplier) {
+      CodexReviewPoster reviewPoster) {
     this.config = config;
     this.gerritApi = gerritApi;
     this.agentClient = agentClient;
     this.promptBuilder = promptBuilder;
     this.reviewPoster = reviewPoster;
-    this.patchsetApplier = patchsetApplier;
   }
 
   @Override
@@ -77,28 +73,16 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
 
     String prompt = promptBuilder.buildPrompt(changeInfo, files, normalized);
     String reply = agentClient.run(prompt, normalized.model, normalized.agent, normalized.sessionId);
-    String responseReply = reply;
-    String reviewMessage = reply;
-
-    if (normalized.applyPatchset) {
-      CodexPatchsetApplier.PatchsetApplyResult result =
-          patchsetApplier.apply(changeId, reply);
-      responseReply = result.getSummary();
-      if (responseReply == null || responseReply.isEmpty()) {
-        responseReply = "Patchset applied.";
-      }
-      reviewMessage = result.getReviewMessage();
-    }
 
     if (normalized.postAsReview) {
       try {
-        reviewPoster.postReview(changeId, reviewMessage, normalized.mode);
+        reviewPoster.postReview(changeId, reply, normalized.mode);
       } catch (RestApiException ex) {
         logger.warn("Failed to post review for change {}", changeId, ex);
       }
     }
 
-    return Response.ok(new CodexChatResponse(responseReply, normalized.mode, config.getGerritBotUser()));
+    return Response.ok(new CodexChatResponse(reply, normalized.mode, config.getGerritBotUser()));
   }
 
   private CodexChatInput normalizeInput(CodexChatInput input, Map<String, FileInfo> files)
@@ -112,9 +96,8 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     }
     CodexChatInput normalized = new CodexChatInput();
     normalized.prompt = prompt;
-    normalized.mode = normalizeMode(input.mode, input.applyPatchset);
+    normalized.mode = normalizeMode(input.mode);
     normalized.postAsReview = input.postAsReview;
-    normalized.applyPatchset = input.applyPatchset;
     String requestedAgent = input.agent != null ? input.agent : input.cli;
     normalized.agent = config.normalizeAgentOrDefault(requestedAgent);
     normalized.model = normalizeModel(input.model);
@@ -164,10 +147,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     return normalized;
   }
 
-  private static String normalizeMode(String mode, boolean applyPatchset) {
-    if (applyPatchset) {
-      return "patchset";
-    }
+  private static String normalizeMode(String mode) {
     if (mode == null) {
       return "chat";
     }
@@ -177,8 +157,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     }
     if (!"chat".equals(normalized)
         && !"review".equals(normalized)
-        && !"generate".equals(normalized)
-        && !"patchset".equals(normalized)) {
+        && !"generate".equals(normalized)) {
       return "chat";
     }
     return normalized;

@@ -168,19 +168,8 @@ Gerrit.install(plugin => {
       const mentionDropdown = document.createElement('div');
       mentionDropdown.className = 'codex-mention-dropdown hidden';
 
-      const actions = document.createElement('div');
-      actions.className = 'codex-actions';
-
       const footer = document.createElement('div');
       footer.className = 'codex-footer';
-
-      const applyButton = document.createElement('button');
-      applyButton.className = 'codex-button outline';
-      applyButton.textContent = 'Apply Patchset';
-
-      const reverseButton = document.createElement('button');
-      reverseButton.className = 'codex-button outline';
-      reverseButton.textContent = 'Reverse Patchset';
 
       const stopButton = document.createElement('button');
       stopButton.className = 'codex-button outline';
@@ -199,10 +188,7 @@ Gerrit.install(plugin => {
       inputRow.appendChild(stopButton);
       inputRow.appendChild(sendButton);
 
-      actions.appendChild(applyButton);
-      actions.appendChild(reverseButton);
       footer.appendChild(selectors);
-      footer.appendChild(actions);
       inputPanel.appendChild(inputRow);
       inputPanel.appendChild(footer);
 
@@ -220,8 +206,6 @@ Gerrit.install(plugin => {
       this.shadowRoot.appendChild(wrapper);
       log('Panel DOM mounted. Loading models...');
 
-      applyButton.addEventListener('click', () => this.submitPatchset());
-      reverseButton.addEventListener('click', () => this.submitReversePatchset());
       stopButton.addEventListener('click', () => this.stopChat());
       sendButton.addEventListener('click', () => this.submitChat());
       input.addEventListener('input', () => this.handleInputChanged());
@@ -241,8 +225,6 @@ Gerrit.install(plugin => {
       this.mentionDropdown = mentionDropdown;
       this.output = output;
       this.status = status;
-      this.applyButton = applyButton;
-      this.reverseButton = reverseButton;
       this.stopButton = stopButton;
       this.sendButton = sendButton;
       this.headerVersion = headerVersion;
@@ -350,45 +332,7 @@ Gerrit.install(plugin => {
     }
 
     async submitChat() {
-      await this.submit('chat', false, false);
-    }
-
-    async submitPatchset() {
-      await this.submit('patchset', true, true);
-    }
-
-    async submitReversePatchset() {
-      const changeId = this.getChangeId();
-      if (!changeId) {
-        warn('Reverse patchset blocked: unable to detect change id.', {
-          pathname: window.location.pathname,
-          hash: window.location.hash
-        });
-        this.setStatus('Unable to detect change id.');
-        return;
-      }
-
-      this.setBusy(true);
-      this.setStatus('Reversing latest patchset...');
-
-      try {
-        const path = `/changes/${changeId}/revisions/current/codex-reverse-patchset`;
-        log('Submitting reverse patchset request.', { path });
-        const response = await plugin.restApi().post(path, {});
-        log('Reverse patchset REST response received.', response);
-        if (response && response.reply) {
-          this.appendMessage('assistant', response.reply);
-          this.setStatus('Done.');
-        } else {
-          this.setStatus('No reply received.');
-        }
-      } catch (err) {
-        logError('Reverse patchset request failed.', err);
-        this.appendMessage('assistant', `Request failed: ${err && err.message ? err.message : err}`);
-        this.setStatus(`Request failed: ${err && err.message ? err.message : err}`);
-      } finally {
-        this.setBusy(false);
-      }
+      await this.submit('chat', false);
     }
 
     async handleCodespacesAction() {
@@ -620,7 +564,7 @@ Gerrit.install(plugin => {
       return `jetbrains://android-studio/navigate/reference?project=${encodedProject}&path=${encodedPath}`;
     }
 
-    async submit(mode, postAsReview, applyPatchset) {
+    async submit(mode, postAsReview) {
       if (this.isBusyState) {
         this.setStatus('A request is already running.');
         return;
@@ -663,12 +607,11 @@ Gerrit.install(plugin => {
 
       try {
         const path = `/changes/${changeId}/revisions/current/codex-chat`;
-        log('Submitting chat request.', { mode, postAsReview, applyPatchset, agent, model, sessionId, contextFilesCount: contextFiles.length, path });
+        log('Submitting chat request.', { mode, postAsReview, agent, model, sessionId, contextFilesCount: contextFiles.length, path });
         const response = await plugin.restApi().post(path, {
           prompt,
           mode,
           postAsReview,
-          applyPatchset,
           agent,
           model,
           sessionId,
@@ -754,12 +697,6 @@ Gerrit.install(plugin => {
 
     setBusy(isBusy) {
       this.isBusyState = isBusy;
-      if (this.applyButton) {
-        this.applyButton.disabled = isBusy;
-      }
-      if (this.reverseButton) {
-        this.reverseButton.disabled = isBusy;
-      }
       if (this.stopButton) {
         this.stopButton.disabled = !isBusy;
       }
