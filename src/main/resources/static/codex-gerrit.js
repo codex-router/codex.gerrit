@@ -44,6 +44,8 @@ Gerrit.install(plugin => {
       this.currentMentionRange = null;
       this.isBusyState = false;
       this.activeSessionId = null;
+      this.promptHistory = [];
+      this.promptHistoryIndex = -1;
     }
 
     connectedCallback() {
@@ -621,8 +623,10 @@ Gerrit.install(plugin => {
 
       this.setBusy(true);
       this.setStatus(`Running ${mode}...`);
+      this.pushPromptHistory(prompt);
       this.appendMessage('user', prompt);
       this.input.value = '';
+      this.promptHistoryIndex = -1;
       this.hideMentionDropdown();
 
       const agent = this.agentSelect && this.agentSelect.value ? this.agentSelect.value : 'codex';
@@ -809,10 +813,43 @@ Gerrit.install(plugin => {
         }
       }
 
+      if (event.key === 'PageUp' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        event.preventDefault();
+        this.restorePreviousPrompt();
+        return;
+      }
+
       if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
         event.preventDefault();
         this.submitChat();
       }
+    }
+
+    pushPromptHistory(prompt) {
+      if (!prompt) {
+        return;
+      }
+      this.promptHistory.push(prompt);
+      if (this.promptHistory.length > 50) {
+        this.promptHistory.splice(0, this.promptHistory.length - 50);
+      }
+    }
+
+    restorePreviousPrompt() {
+      if (!this.input || this.promptHistory.length === 0) {
+        this.setStatus('No previous message to restore.');
+        return;
+      }
+      if (this.promptHistoryIndex < this.promptHistory.length - 1) {
+        this.promptHistoryIndex += 1;
+      }
+      const historyIndex = this.promptHistory.length - 1 - this.promptHistoryIndex;
+      const previousPrompt = this.promptHistory[historyIndex] || '';
+      this.input.value = previousPrompt;
+      this.input.focus();
+      this.input.setSelectionRange(previousPrompt.length, previousPrompt.length);
+      this.hideMentionDropdown();
+      this.setStatus(`Restored previous message (${this.promptHistoryIndex + 1}/${this.promptHistory.length}).`);
     }
 
     getMentionAtCursor() {
