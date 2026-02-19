@@ -27,7 +27,6 @@ public class CodexGerritConfig {
   private static final String DEFAULT_BASH_PATH = "/bin/bash";
 
   private final String gerritBotUser;
-  private final String defaultAgent;
   private final int maxFiles;
   private final String bashPath;
   private final String codexServeUrl;
@@ -36,7 +35,6 @@ public class CodexGerritConfig {
   CodexGerritConfig(PluginConfigFactory configFactory, @PluginName String pluginName) {
     PluginConfig config = configFactory.getFromGerritConfig(pluginName);
     this.gerritBotUser = trimToEmpty(config.getString("gerritBotUser"));
-    this.defaultAgent = normalizeAgent(config.getString("defaultAgent"));
     this.maxFiles = config.getInt("maxFiles", DEFAULT_MAX_FILES);
     this.bashPath = trimToDefault(config.getString("bashPath"), DEFAULT_BASH_PATH);
     this.codexServeUrl = trimToEmpty(config.getString("codexServeUrl"));
@@ -52,10 +50,6 @@ public class CodexGerritConfig {
 
   public String getBashPath() {
     return bashPath;
-  }
-
-  public String getDefaultAgent() {
-    return defaultAgent;
   }
 
   public String normalizeAgentOrDefault(String agent) {

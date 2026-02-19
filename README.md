@@ -8,8 +8,10 @@ to supported AI agents for interactive chat.
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
 - Selector row includes `Agent`, `Model`, and `Codespaces` controls.
 - Agent selector is populated from `codex.serve` `GET /agents`.
-- If `GET /agents` is unavailable, the selector falls back to `defaultAgent` (or `codex`).
+- The first item returned by `GET /agents` is selected by default.
+- If `GET /agents` is unavailable, the selector falls back to `codex`.
 - Model selector shows models returned by `codex.serve` `GET /models`.
+- The first item returned by `GET /models` is selected by default.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - `Codespaces` includes `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
 - Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
@@ -38,10 +40,6 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 	# Required: URL for codex.serve to run agents remotely.
 	codexServeUrl = http://localhost:8000
 
-	# Optional: default agent for the panel when no explicit agent is selected.
-	# Recommended to match an agent returned by codex.serve GET /agents.
-	defaultAgent = codex
-
 	# Optional: Gerrit bot username used as a message prefix.
 	gerritBotUser = codex-bot
 
@@ -64,8 +62,10 @@ When enabled:
 - The plugin sends `agent`, `stdin`, `sessionId`, and `args` (`--model` when a specific model is selected).
 - During an active chat request, the plugin can stop that session via `POST /sessions/{sessionId}/stop`.
 - The plugin fetches agent options from `codex.serve` using `GET /agents`.
-- If `GET /agents` fails, the UI falls back to `defaultAgent` (or `codex`).
+- The first item returned by `GET /agents` is selected by default.
+- If `GET /agents` fails, the UI falls back to `codex`.
 - The plugin fetches model options from `codex.serve` using `GET /models`.
+- The first item returned by `GET /models` is selected by default.
 
 ### LiteLLM Configuration
 
@@ -79,8 +79,8 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 ## Usage
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
-- Use the selector row to choose `Agent` (options are loaded from `codex.serve` `GET /agents`; if unavailable, falls back to `defaultAgent` or `codex`).
-- `Model` shows models loaded from `codex.serve`; optionally choose a specific model.
+- Use the selector row to choose `Agent` (options are loaded from `codex.serve` `GET /agents`; the first returned item is selected by default, and if unavailable it falls back to `codex`).
+- `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
 - Use `Codespaces` → `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, or `Open in VS Code` to open all patchset files.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Shift+Enter` for a newline).

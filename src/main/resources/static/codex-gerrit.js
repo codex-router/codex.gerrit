@@ -115,7 +115,6 @@ Gerrit.install(plugin => {
       const defaultOption = document.createElement('option');
       defaultOption.value = '';
       defaultOption.textContent = 'Select';
-      defaultOption.selected = true;
       modelSelect.appendChild(defaultOption);
 
       modelContainer.appendChild(modelLabel);
@@ -301,9 +300,6 @@ Gerrit.install(plugin => {
         log('Panel config REST response received.', response);
 
         const pluginVersion = response ? response.pluginVersion || response.plugin_version : null;
-        const defaultAgent = response
-          ? response.defaultAgent || response.default_agent
-          : null;
         const patchsetFiles = response ? response.patchsetFiles || response.patchset_files : null;
 
         if (pluginVersion) {
@@ -320,14 +316,10 @@ Gerrit.install(plugin => {
             option.textContent = agent;
             this.agentSelect.appendChild(option);
           });
-          if (defaultAgent && agents.includes(defaultAgent)) {
-            this.agentSelect.value = defaultAgent;
-          } else {
-            this.agentSelect.value = agents[0];
-          }
+          this.agentSelect.value = agents[0];
           log('Agent options populated.', {
             count: agents.length,
-            defaultAgent
+            selectedAgent: this.agentSelect.value
           });
         } else {
           log('No agent list returned; using codex default option.');
@@ -340,8 +332,11 @@ Gerrit.install(plugin => {
             option.textContent = model;
             this.modelSelect.appendChild(option);
           });
-          this.modelSelect.value = '';
-          log('Models populated.', { count: response.models.length });
+          this.modelSelect.value = response.models[0];
+          log('Models populated.', {
+            count: response.models.length,
+            selectedModel: this.modelSelect.value
+          });
         } else {
           log('No models returned.');
         }

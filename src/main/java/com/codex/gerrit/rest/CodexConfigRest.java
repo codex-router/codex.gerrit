@@ -69,15 +69,8 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
       agents = Collections.emptyList();
     }
 
-    agents = ensureDefaultAgentPresent(agents, config.getDefaultAgent());
-
     return Response.ok(
-        new CodexConfigResponse(
-            models,
-            agents,
-            config.getDefaultAgent(),
-            getPluginVersion(),
-            normalizeFiles(files)));
+        new CodexConfigResponse(models, agents, getPluginVersion(), normalizeFiles(files)));
   }
 
   private static List<String> normalizeFiles(Map<String, FileInfo> files) {
@@ -92,31 +85,6 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
     return result;
   }
 
-  private static List<String> ensureDefaultAgentPresent(List<String> agents, String defaultAgent) {
-    String normalizedDefault = defaultAgent == null ? "" : defaultAgent.trim().toLowerCase();
-    if (normalizedDefault.isEmpty()) {
-      normalizedDefault = "codex";
-    }
-
-    List<String> result = new ArrayList<>();
-    if (agents != null) {
-      for (String agent : agents) {
-        if (agent == null) {
-          continue;
-        }
-        String trimmed = agent.trim();
-        if (!trimmed.isEmpty()) {
-          result.add(trimmed);
-        }
-      }
-    }
-
-    if (!result.contains(normalizedDefault)) {
-      result.add(0, normalizedDefault);
-    }
-    return result;
-  }
-
   private String getPluginVersion() {
     String implementationVersion = getClass().getPackage().getImplementationVersion();
     return implementationVersion == null ? "" : implementationVersion;
@@ -125,19 +93,16 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
   public static class CodexConfigResponse {
     public List<String> models;
     public List<String> agents;
-    public String defaultAgent;
     public String pluginVersion;
     public List<String> patchsetFiles;
 
     public CodexConfigResponse(
         List<String> models,
         List<String> agents,
-        String defaultAgent,
         String pluginVersion,
         List<String> patchsetFiles) {
       this.models = models;
       this.agents = agents;
-      this.defaultAgent = defaultAgent;
       this.pluginVersion = pluginVersion;
       this.patchsetFiles = patchsetFiles;
     }
