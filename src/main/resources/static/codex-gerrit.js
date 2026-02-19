@@ -147,7 +147,8 @@ Gerrit.install(plugin => {
       selectors.appendChild(modelContainer);
       selectors.appendChild(codespacesContainer);
 
-      const input = document.createElement('textarea');
+      const input = document.createElement('input');
+      input.type = 'text';
       input.className = 'codex-input';
       input.placeholder = 'Use Agent and Model to configure your session. Use Codespaces to open patchset files, type @ to reference files, chat here to draft changes, click Apply Patchset to generate/apply a patchset, or click Reverse Patchset to restore the previous patchset state.';
 
@@ -774,7 +775,7 @@ Gerrit.install(plugin => {
         }
       }
 
-      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+      if (event.key === 'Enter' && !event.isComposing) {
         event.preventDefault();
         this.submitChat();
       }
