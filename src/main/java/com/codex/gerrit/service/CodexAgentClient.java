@@ -37,6 +37,9 @@ import java.util.List;
 @Singleton
 public class CodexAgentClient {
   private static final int MAX_OUTPUT_CHARS = 20000;
+  private static final int CONNECT_TIMEOUT_MS = 10_000;
+  private static final int RUN_READ_TIMEOUT_MS = 300_000;
+  private static final int CONTROL_READ_TIMEOUT_MS = 15_000;
   private static final Gson GSON = new Gson();
 
   private final CodexGerritConfig config;
@@ -118,6 +121,8 @@ public class CodexAgentClient {
     conn.setRequestMethod("POST");
     conn.setRequestProperty("Content-Type", "application/json");
     conn.setDoOutput(true);
+    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+    conn.setReadTimeout(RUN_READ_TIMEOUT_MS);
 
     ArrayList<String> args = new ArrayList<>();
     if (model != null && !model.trim().isEmpty()) {
@@ -203,6 +208,8 @@ public class CodexAgentClient {
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("POST");
     conn.setRequestProperty("Accept", "application/json");
+    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+    conn.setReadTimeout(CONTROL_READ_TIMEOUT_MS);
 
     int responseCode = conn.getResponseCode();
     InputStream is =
@@ -225,6 +232,8 @@ public class CodexAgentClient {
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
     conn.setRequestProperty("Accept", "application/json");
+    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+    conn.setReadTimeout(CONTROL_READ_TIMEOUT_MS);
 
     int responseCode = conn.getResponseCode();
     InputStream is =
@@ -266,6 +275,8 @@ public class CodexAgentClient {
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("GET");
     conn.setRequestProperty("Accept", "application/json");
+    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+    conn.setReadTimeout(CONTROL_READ_TIMEOUT_MS);
 
     int responseCode = conn.getResponseCode();
     InputStream is =
