@@ -35,11 +35,13 @@ public class CodexChatStopRest implements RestModifyView<RevisionResource, Codex
   @Override
   public Response<CodexChatStopResponse> apply(RevisionResource resource, CodexChatStopInput input)
       throws RestApiException {
-    if (input == null || input.sessionId == null || input.sessionId.trim().isEmpty()) {
+    String sessionId =
+        input == null || input.sessionId == null ? null : input.sessionId.trim();
+
+    if (sessionId == null || sessionId.isEmpty()) {
       throw new BadRequestException("sessionId is required");
     }
 
-    String sessionId = input.sessionId.trim();
     cliClient.stopSession(sessionId);
     return Response.ok(new CodexChatStopResponse(sessionId, "stopped"));
   }

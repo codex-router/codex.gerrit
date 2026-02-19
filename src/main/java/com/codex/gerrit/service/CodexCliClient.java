@@ -131,7 +131,7 @@ public class CodexCliClient {
     json.addProperty("stdin", prompt);
     String normalizedSessionId = sessionId == null ? "" : sessionId.trim();
     if (!normalizedSessionId.isEmpty()) {
-      json.addProperty("session_id", normalizedSessionId);
+      json.addProperty("sessionId", normalizedSessionId);
     }
 
     json.add("args", GSON.toJsonTree(args));

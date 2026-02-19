@@ -61,8 +61,8 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 When enabled:
 - All CLI requests are sent to the configured URL via HTTP POST.
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
-- The plugin sends `cli`, `stdin`, `session_id`, and `args` (`--model` when a specific model is selected).
-- During an active chat request, the plugin can stop that session via `POST /sessions/{session_id}/stop`.
+- The plugin sends `cli`, `stdin`, `sessionId`, and `args` (`--model` when a specific model is selected).
+- During an active chat request, the plugin can stop that session via `POST /sessions/{sessionId}/stop`.
 - The plugin fetches CLI options from `codex.serve` using `GET /clis`.
 - If `GET /clis` fails, the UI falls back to `defaultCli` (or `codex`).
 - The plugin fetches model options from `codex.serve` using `GET /models`.
@@ -93,8 +93,8 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 
 ### Chat Session Stop Flow
 
-- Each chat request includes a generated session identifier (`session_id`) in the request to `codex.serve` `POST /run`.
-- `Stop Chat` sends a plugin REST request to `codex-chat-stop`, which forwards to `codex.serve` `POST /sessions/{session_id}/stop`.
+- Each chat request includes a generated session identifier (`sessionId`) in the request to `codex.serve` `POST /run`.
+- `Stop Chat` sends a plugin REST request to `codex-chat-stop`, which forwards to `codex.serve` `POST /sessions/{sessionId}/stop`.
 - If the target session is already finished, `codex.serve` may return `404` and the panel shows the failure status.
 
 `gerritBotUser` is used as a message prefix for Gerrit review messages posted by patchset flow;

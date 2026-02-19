@@ -123,10 +123,14 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
   }
 
   private static String normalizeSessionId(String sessionId) {
-    if (sessionId == null) {
+    return normalizeOptionalText(sessionId);
+  }
+
+  private static String normalizeOptionalText(String value) {
+    if (value == null) {
       return null;
     }
-    String normalized = sessionId.trim();
+    String normalized = value.trim();
     return normalized.isEmpty() ? null : normalized;
   }
 
