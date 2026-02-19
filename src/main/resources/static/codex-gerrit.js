@@ -28,7 +28,7 @@ Gerrit.install(plugin => {
   const defaultBrowserRepoUrl = 'https://github.com/codesandbox/codesandbox-client';
   const log = (...args) => console.log(logPrefix, ...args);
   const warn = (...args) => console.warn(logPrefix, ...args);
-  const error = (...args) => console.error(logPrefix, ...args);
+  const logError = (...args) => console.error(logPrefix, ...args);
 
   log('Plugin installed.', {
     pluginName,
@@ -299,8 +299,8 @@ Gerrit.install(plugin => {
           this.patchsetFiles = [];
           log('No patchset files returned for @ mentions.');
         }
-      } catch (error) {
-        warn('Failed to load models.', error);
+      } catch (err) {
+        warn('Failed to load models.', err);
       }
     }
 
@@ -338,10 +338,10 @@ Gerrit.install(plugin => {
           this.output.textContent = '';
           this.setStatus('No reply received.');
         }
-      } catch (error) {
-        error('Reverse patchset request failed.', error);
+      } catch (err) {
+        logError('Reverse patchset request failed.', err);
         this.output.textContent = '';
-        this.setStatus(`Request failed: ${error && error.message ? error.message : error}`);
+        this.setStatus(`Request failed: ${err && err.message ? err.message : err}`);
       } finally {
         this.setBusy(false);
       }
@@ -628,10 +628,10 @@ Gerrit.install(plugin => {
           this.output.textContent = '';
           this.setStatus('No reply received.');
         }
-      } catch (error) {
-        error('Chat request failed.', error);
+      } catch (err) {
+        logError('Chat request failed.', err);
         this.output.textContent = '';
-        this.setStatus(`Request failed: ${error && error.message ? error.message : error}`);
+        this.setStatus(`Request failed: ${err && err.message ? err.message : err}`);
       } finally {
         this.activeSessionId = null;
         this.setBusy(false);
@@ -659,7 +659,7 @@ Gerrit.install(plugin => {
         await plugin.restApi().post(path, { sessionId });
         this.setStatus('Stop request sent. Waiting for session to close...');
       } catch (stopError) {
-        error('Chat stop request failed.', stopError);
+        logError('Chat stop request failed.', stopError);
         this.setStatus(`Stop failed: ${stopError && stopError.message ? stopError.message : stopError}`);
       }
     }
