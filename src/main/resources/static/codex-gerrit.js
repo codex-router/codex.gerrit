@@ -1310,7 +1310,7 @@ Gerrit.install(plugin => {
         log('Chat REST response received.', response);
         if (response && response.reply) {
           this.appendMessage('assistant', response.reply);
-          const fileChanges = this.extractFileChangesFromReply(response.reply);
+          const fileChanges = this.extractFileChangesFromReply(response.reply, contextFiles);
           if (fileChanges.length > 0) {
             this.showFileChangesDialog(fileChanges);
             this.setStatus(`Detected ${fileChanges.length} changed file(s). Choose Keep or Undo in Review.`);
@@ -1401,15 +1401,20 @@ Gerrit.install(plugin => {
       }
     }
 
-    extractFileChangesFromReply(reply) {
+    extractFileChangesFromReply(reply, contextFiles) {
       const blocks = this.extractDiffBlocks(reply || '');
       if (blocks.length === 0) {
         return [];
       }
 
       const merged = new Map();
+      const fallbackFilePath = this.resolveFallbackDiffFilePath(reply, contextFiles || []);
       blocks.forEach(block => {
-        this.parseDiffBlock(block).forEach(change => {
+        const parsedChanges = this.parseDiffBlock(block);
+        if (parsedChanges.length === 0 && fallbackFilePath && this.blockContainsPatchContent(block)) {
+          parsedChanges.push({ filePath: fallbackFilePath, diffText: block.trim() });
+        }
+        parsedChanges.forEach(change => {
           if (!change.filePath || !change.diffText) {
             return;
           }
@@ -1430,6 +1435,47 @@ Gerrit.install(plugin => {
           diffText,
           decision: 'pending'
         };
+      });
+    }
+
+    resolveFallbackDiffFilePath(reply, contextFiles) {
+      if (!contextFiles || contextFiles.length === 0) {
+        return '';
+      }
+
+      if (contextFiles.length === 1) {
+        return contextFiles[0];
+      }
+
+      const text = String(reply || '');
+      for (const file of contextFiles) {
+        if (!file) {
+          continue;
+        }
+        if (text.includes(`\`${file}\``) || text.includes(file)) {
+          return file;
+        }
+      }
+
+      return '';
+    }
+
+    blockContainsPatchContent(block) {
+      const lines = (block || '').split('\n');
+      return lines.some(line => {
+        if (!line || line.length === 0) {
+          return false;
+        }
+        if (line.startsWith('@@')) {
+          return true;
+        }
+        if (line.startsWith('+') && !line.startsWith('+++')) {
+          return true;
+        }
+        if (line.startsWith('-') && !line.startsWith('---')) {
+          return true;
+        }
+        return false;
       });
     }
 
