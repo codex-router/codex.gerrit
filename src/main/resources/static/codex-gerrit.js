@@ -18,11 +18,7 @@ Gerrit.install(plugin => {
   const logPrefix = '[codex-gerrit]';
   const fallbackAgents = ['codex'];
   const codespacesActions = [
-    { value: 'open-android-studio', label: 'Open in Android Studio' },
-    { value: 'open-browser', label: 'Open in Browser' },
-    { value: 'open-trae', label: 'Open in Trae' },
-    { value: 'open-cursor', label: 'Open in Cursor' },
-    { value: 'open-vscode', label: 'Open in VS Code' }
+    { value: 'open-browser', label: 'Open in Browser' }
   ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
   const browserRepoStorageKey = `${pluginName}-browser-repo-url`;
@@ -436,23 +432,7 @@ Gerrit.install(plugin => {
         return;
       }
       if (action === 'open-browser') {
-        this.setStatus('Open in Browser is coming soon.');
-        return;
-      }
-      if (action === 'open-vscode') {
-        await this.openPatchsetFilesInVsCode();
-        return;
-      }
-      if (action === 'open-trae') {
-        await this.openPatchsetFilesInTrae();
-        return;
-      }
-      if (action === 'open-cursor') {
-        await this.openPatchsetFilesInCursor();
-        return;
-      }
-      if (action === 'open-android-studio') {
-        await this.openPatchsetFilesInAndroidStudio();
+        await this.openPatchsetFilesInBrowser();
       }
     }
 
