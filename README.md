@@ -21,6 +21,7 @@ to supported AI agents for interactive chat.
 - When Codex response includes a unified diff, a popup dialog shows changed files and patch content.
 - Popup dialog supports per-file `Keep` or `Undo` decision similar to Copilot-style review flow.
 - Stop Chat interrupts an active chat request from the panel.
+- Clear action removes all messages and resets chat panel state.
 - Supports multiple AI agents exposed by `codex.serve`.
 - Loads available models from `codex.serve` via `GET /models`.
 
@@ -92,6 +93,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Replies are shown in the UI using the selected agent/model.
 - If a reply contains file diffs, review them in the popup and choose `Keep` or `Undo` for each file.
 - While a chat request is running, click `Stop Chat` to interrupt the current session.
+- Click `Clear` to remove all chat panel content (messages, input, and pending review state).
 ### Chat Session Stop Flow
 
 - Each chat request includes a generated session identifier (`sessionId`) in the request to `codex.serve` `POST /run`.

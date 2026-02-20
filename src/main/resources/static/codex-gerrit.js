@@ -175,6 +175,10 @@ Gerrit.install(plugin => {
       reviewChangesButton.textContent = 'Review';
       reviewChangesButton.disabled = true;
 
+      const clearButton = document.createElement('button');
+      clearButton.className = 'codex-button outline';
+      clearButton.textContent = 'Clear';
+
       const status = document.createElement('div');
       status.className = 'codex-status';
 
@@ -275,9 +279,14 @@ Gerrit.install(plugin => {
         workspaceRootDialog.appendChild(workspaceRootDialogBody);
         workspaceRootDialogOverlay.appendChild(workspaceRootDialog);
 
+      const inputActions = document.createElement('div');
+      inputActions.className = 'codex-actions';
+      inputActions.appendChild(stopButton);
+      inputActions.appendChild(reviewChangesButton);
+      inputActions.appendChild(clearButton);
+
       inputRow.appendChild(input);
-      inputRow.appendChild(stopButton);
-      inputRow.appendChild(reviewChangesButton);
+      inputRow.appendChild(inputActions);
 
       footer.appendChild(selectors);
       inputPanel.appendChild(inputRow);
@@ -301,6 +310,7 @@ Gerrit.install(plugin => {
 
       stopButton.addEventListener('click', () => this.stopChat());
       reviewChangesButton.addEventListener('click', () => this.openFileChangesDialog());
+      clearButton.addEventListener('click', () => this.clearChatPanel());
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
@@ -328,6 +338,7 @@ Gerrit.install(plugin => {
       this.status = status;
       this.stopButton = stopButton;
       this.reviewChangesButton = reviewChangesButton;
+      this.clearButton = clearButton;
       this.headerVersion = headerVersion;
       this.changeDialogOverlay = changeDialogOverlay;
       this.changeDialogBody = changeDialogBody;
@@ -1360,6 +1371,24 @@ Gerrit.install(plugin => {
         logError('Chat stop request failed.', stopError);
         this.setStatus(`Stop failed: ${this.getErrorMessage(stopError)}`);
       }
+    }
+
+    clearChatPanel() {
+      if (this.output) {
+        this.output.innerHTML = '';
+      }
+      if (this.input) {
+        this.input.value = '';
+      }
+      this.hideMentionDropdown();
+      this.promptHistory = [];
+      this.promptHistoryIndex = -1;
+      this.pendingFileChanges = [];
+      this.closeFileChangesDialog();
+      if (this.reviewChangesButton) {
+        this.reviewChangesButton.disabled = true;
+      }
+      this.setStatus('Chat panel cleared.');
     }
 
     async ensureAuthenticated() {
