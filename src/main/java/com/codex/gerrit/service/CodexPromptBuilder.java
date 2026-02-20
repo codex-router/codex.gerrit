@@ -62,6 +62,8 @@ public class CodexPromptBuilder {
         builder.append("- ").append(file).append("\n");
       }
       builder.append("Focus your response primarily on the selected context files.\n");
+      builder.append(
+          "If you propose code edits for selected context files, include unified diff output in fenced ```diff blocks with proper file headers (diff --git, ---, +++, @@).\\n");
     }
 
     builder.append("\nUser prompt:\n").append(input.prompt).append("\n");
