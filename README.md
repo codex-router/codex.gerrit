@@ -101,7 +101,8 @@ When using `Open in Browser` for the first time, the panel prompts for your GitH
 (default: `https://github.com/codesandbox/codesandbox-client`) and stores it in browser local storage for future opens.
 
 When using `Open in Android Studio`, `Open in Cursor`, `Open in Trae`, or `Open in VS Code` for the first time, the panel opens a workspace-root dialog.
-Use `Browse...` to open your file explorer on Windows, Ubuntu/Linux, or macOS, then confirm or edit the root path and click `Save`. The path is stored in browser local storage for future opens.
+Use `Browse...` to open the browser's native directory picker on Windows, Ubuntu/Linux, or macOS, then confirm or edit the root path and click `Save`.
+If the native picker is blocked or unavailable, enter the path manually and click `Save`. The path is stored in browser local storage for future opens.
 All actions open all current patchset files.
 
 ### Codespaces: Open in Android Studio
