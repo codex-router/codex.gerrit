@@ -63,6 +63,10 @@ public class CodexPromptBuilder {
       }
       builder.append("Focus your response primarily on the selected context files.\n");
       builder.append(
+          "Treat provided context files as authoritative current content for this task. Do not claim you cannot access files and do not ask for read/write permission.\n");
+      builder.append(
+          "When edits are requested, produce the concrete edit result directly (prefer unified diff for changed files).\n");
+      builder.append(
           "Perform static analysis on the selected context files and report concrete issues (bugs, security risks, null-safety, error handling, resource/concurrency risks, and performance concerns) with file paths and line ranges when possible.\n");
       builder.append(
           "If you propose code edits for selected context files, include unified diff output in fenced ```diff blocks with proper file headers (diff --git, ---, +++, @@).\\n");
