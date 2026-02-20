@@ -102,7 +102,9 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     normalized.agent = config.normalizeAgentOrDefault(requestedAgent);
     normalized.model = normalizeModel(input.model);
     normalized.sessionId = normalizeSessionId(input.sessionId);
-    normalized.contextFiles = normalizeContextFiles(input.contextFiles, files);
+    List<String> selectedContextFiles = normalizeContextFiles(input.contextFiles, files);
+    List<String> mentionedContextFiles = normalizeContextFilesFromPrompt(prompt, files);
+    normalized.contextFiles = mergeContextFiles(selectedContextFiles, mentionedContextFiles);
     return normalized;
   }
 
@@ -120,15 +122,12 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
 
   private static List<String> normalizeContextFiles(
       List<String> contextFiles, Map<String, FileInfo> files) {
-    if (contextFiles == null || contextFiles.isEmpty() || files == null || files.isEmpty()) {
+    if (contextFiles == null || contextFiles.isEmpty()) {
       return new ArrayList<>();
     }
-    Set<String> availableFiles = new HashSet<>();
-    for (String file : files.keySet()) {
-      if (file == null || file.isEmpty() || file.startsWith("/")) {
-        continue;
-      }
-      availableFiles.add(file);
+    Set<String> availableFiles = collectAvailableFiles(files);
+    if (availableFiles.isEmpty()) {
+      return new ArrayList<>();
     }
     List<String> normalized = new ArrayList<>();
     Set<String> seen = new HashSet<>();
@@ -145,6 +144,62 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       }
     }
     return normalized;
+  }
+
+  private static List<String> normalizeContextFilesFromPrompt(String prompt, Map<String, FileInfo> files) {
+    if (prompt == null || prompt.isEmpty()) {
+      return new ArrayList<>();
+    }
+    Set<String> availableFiles = collectAvailableFiles(files);
+    if (availableFiles.isEmpty()) {
+      return new ArrayList<>();
+    }
+    List<String> normalized = new ArrayList<>();
+    Set<String> seen = new HashSet<>();
+    String[] tokens = prompt.split("\\s+");
+    for (String token : tokens) {
+      if (token == null || token.isEmpty() || !token.startsWith("@")) {
+        continue;
+      }
+      String candidate = token.substring(1).replaceAll("[\\]\\[(){}.,!?;:]+$", "");
+      if (candidate.isEmpty()) {
+        continue;
+      }
+      if (availableFiles.contains(candidate) && seen.add(candidate)) {
+        normalized.add(candidate);
+      }
+    }
+    return normalized;
+  }
+
+  private static List<String> mergeContextFiles(List<String> selected, List<String> mentioned) {
+    List<String> merged = new ArrayList<>();
+    Set<String> seen = new HashSet<>();
+    for (String file : selected) {
+      if (file != null && seen.add(file)) {
+        merged.add(file);
+      }
+    }
+    for (String file : mentioned) {
+      if (file != null && seen.add(file)) {
+        merged.add(file);
+      }
+    }
+    return merged;
+  }
+
+  private static Set<String> collectAvailableFiles(Map<String, FileInfo> files) {
+    Set<String> availableFiles = new HashSet<>();
+    if (files == null || files.isEmpty()) {
+      return availableFiles;
+    }
+    for (String file : files.keySet()) {
+      if (file == null || file.isEmpty() || file.startsWith("/")) {
+        continue;
+      }
+      availableFiles.add(file);
+    }
+    return availableFiles;
   }
 
   private static String normalizeMode(String mode) {

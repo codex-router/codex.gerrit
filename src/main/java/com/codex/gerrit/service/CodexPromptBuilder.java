@@ -63,6 +63,8 @@ public class CodexPromptBuilder {
       }
       builder.append("Focus your response primarily on the selected context files.\n");
       builder.append(
+          "Perform static analysis on the selected context files and report concrete issues (bugs, security risks, null-safety, error handling, resource/concurrency risks, and performance concerns) with file paths and line ranges when possible.\n");
+      builder.append(
           "If you propose code edits for selected context files, include unified diff output in fenced ```diff blocks with proper file headers (diff --git, ---, +++, @@).\\n");
     }
 

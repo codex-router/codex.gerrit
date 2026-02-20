@@ -13,7 +13,9 @@ to supported AI agents for interactive chat.
 - Model selector shows models returned by `codex.serve` `GET /models`.
 - The first item returned by `GET /models` is selected by default.
 - `@` file mention dropdown sourced from current patchset files for context selection.
+- Backend also parses `@` file mentions from prompt text and merges them with `contextFiles` for robust context selection.
 - When one or more `@` files are mentioned, the plugin appends guidance to return unified diff blocks so `Review` can detect changed files and patch content.
+- When one or more `@` files are mentioned, the plugin appends static-analysis guidance to focus findings on those files (bugs, security risks, null-safety, error handling, resource/concurrency risks, and performance concerns).
 - If a diff block omits file headers, `Review` can still map changes to `@`-mentioned files and show the popup.
 - If exactly one `@` file is mentioned and the reply provides only a fenced code block, the plugin synthesizes a unified diff preview for `Review`.
 - `Codespaces` includes `Open in Browser`.
@@ -88,7 +90,9 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
 - Use `Codespaces` → `Open in Browser` (currently coming soon).
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
+- `@` file mentions are validated server-side against patchset files and merged with UI-selected `contextFiles`.
 - If your prompt includes `@` files and requests code changes, Codex is guided to answer with unified diff blocks that automatically open the review dialog.
+- If your prompt includes `@` files, Codex is also guided to perform static analysis for those files and report concrete risks.
 - Even if the returned diff block does not include `diff --git` / `---` / `+++`, review fallback can still use `@` file context to enable the dialog.
 - For single-file `@` prompts, a plain fenced code suggestion can still be shown in the review dialog via synthesized unified diff output.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Shift+Enter` for a newline).
