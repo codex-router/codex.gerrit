@@ -242,19 +242,23 @@ Gerrit.install(plugin => {
         const workspaceRootDialogDescription = document.createElement('div');
         workspaceRootDialogDescription.className = 'codex-workspace-root-dialog-description';
         workspaceRootDialogDescription.textContent =
-          'Enter your local workspace root path for this repository (e.g. /home/user/repo or C:\\repo).';
+            'Enter your local workspace root path for this repository (e.g. /home/user/repo, /Users/user/repo, or C:\\repo).';
 
         const workspaceRootDialogInput = document.createElement('input');
         workspaceRootDialogInput.type = 'text';
         workspaceRootDialogInput.className = 'codex-workspace-root-dialog-input';
-        workspaceRootDialogInput.placeholder = '/home/user/repo or C:/repo';
+        workspaceRootDialogInput.placeholder = '/home/user/repo, /Users/user/repo, or C:/repo';
 
         const workspaceRootFallbackDirectoryInput = document.createElement('input');
         workspaceRootFallbackDirectoryInput.type = 'file';
         workspaceRootFallbackDirectoryInput.className = 'codex-workspace-root-directory-input hidden';
         workspaceRootFallbackDirectoryInput.setAttribute('webkitdirectory', '');
+        workspaceRootFallbackDirectoryInput.setAttribute('mozdirectory', '');
+        workspaceRootFallbackDirectoryInput.setAttribute('msdirectory', '');
         workspaceRootFallbackDirectoryInput.setAttribute('directory', '');
         workspaceRootFallbackDirectoryInput.setAttribute('multiple', '');
+        workspaceRootFallbackDirectoryInput.webkitdirectory = true;
+        workspaceRootFallbackDirectoryInput.directory = true;
 
         const workspaceRootDialogActions = document.createElement('div');
         workspaceRootDialogActions.className = 'codex-workspace-root-dialog-actions';
@@ -1181,7 +1185,7 @@ Gerrit.install(plugin => {
       }
 
       try {
-        const directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        const directoryHandle = await this.showDirectoryPickerCompat();
         if (!directoryHandle || !directoryHandle.name) {
           return '';
         }
@@ -1198,6 +1202,27 @@ Gerrit.install(plugin => {
         warn('showDirectoryPicker failed, falling back to input directory chooser.', error);
         return await this.pickWorkspaceRootPathFromFallbackChooser(currentPath);
       }
+    }
+
+    async showDirectoryPickerCompat() {
+      if (!window.showDirectoryPicker) {
+        return null;
+      }
+
+      try {
+        return await window.showDirectoryPicker({ mode: 'readwrite' });
+      } catch (error) {
+        const message = this.getErrorMessage(error).toLowerCase();
+        const unsupportedOptions =
+            (error && error.name === 'TypeError') ||
+            message.indexOf('mode') >= 0 ||
+            message.indexOf('dictionary') >= 0;
+        if (!unsupportedOptions) {
+          throw error;
+        }
+      }
+
+      return await window.showDirectoryPicker();
     }
 
     pickWorkspaceRootPathFromFallbackChooser(currentPath) {
