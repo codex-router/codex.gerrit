@@ -249,6 +249,13 @@ Gerrit.install(plugin => {
         workspaceRootDialogInput.className = 'codex-workspace-root-dialog-input';
         workspaceRootDialogInput.placeholder = '/home/user/repo or C:/repo';
 
+        const workspaceRootFallbackDirectoryInput = document.createElement('input');
+        workspaceRootFallbackDirectoryInput.type = 'file';
+        workspaceRootFallbackDirectoryInput.className = 'codex-workspace-root-directory-input hidden';
+        workspaceRootFallbackDirectoryInput.setAttribute('webkitdirectory', '');
+        workspaceRootFallbackDirectoryInput.setAttribute('directory', '');
+        workspaceRootFallbackDirectoryInput.setAttribute('multiple', '');
+
         const workspaceRootDialogActions = document.createElement('div');
         workspaceRootDialogActions.className = 'codex-workspace-root-dialog-actions';
 
@@ -273,6 +280,7 @@ Gerrit.install(plugin => {
 
         workspaceRootDialogBody.appendChild(workspaceRootDialogDescription);
         workspaceRootDialogBody.appendChild(workspaceRootDialogInput);
+        workspaceRootDialogBody.appendChild(workspaceRootFallbackDirectoryInput);
         workspaceRootDialogBody.appendChild(workspaceRootDialogActions);
 
         workspaceRootDialog.appendChild(workspaceRootDialogHeader);
@@ -340,6 +348,7 @@ Gerrit.install(plugin => {
       this.workspaceRootDialogBrowse = workspaceRootDialogBrowse;
       this.workspaceRootDialogCancel = workspaceRootDialogCancel;
       this.workspaceRootDialogSave = workspaceRootDialogSave;
+      this.workspaceRootFallbackDirectoryInput = workspaceRootFallbackDirectoryInput;
 
       this.showWelcomeMessage();
       this.loadConfig();
@@ -1168,8 +1177,7 @@ Gerrit.install(plugin => {
 
     async pickWorkspaceRootPathFromDirectory(currentPath) {
       if (!window.showDirectoryPicker) {
-        this.setStatus('Directory picker is not available in this browser. Enter the path manually.');
-        return '';
+        return await this.pickWorkspaceRootPathFromFallbackChooser(currentPath);
       }
 
       try {
@@ -1187,9 +1195,64 @@ Gerrit.install(plugin => {
         if (error && error.name === 'AbortError') {
           return '';
         }
-        this.setStatus(`Directory picker failed: ${this.getErrorMessage(error)}`);
-        return '';
+        warn('showDirectoryPicker failed, falling back to input directory chooser.', error);
+        return await this.pickWorkspaceRootPathFromFallbackChooser(currentPath);
       }
+    }
+
+    pickWorkspaceRootPathFromFallbackChooser(currentPath) {
+      return new Promise(resolve => {
+        const fileInput = this.workspaceRootFallbackDirectoryInput;
+        if (!fileInput) {
+          this.setStatus('Directory picker is not available in this browser. Enter the path manually.');
+          resolve('');
+          return;
+        }
+
+        const finish = value => {
+          fileInput.removeEventListener('change', onChange);
+          window.removeEventListener('focus', onWindowFocus);
+          resolve(value || '');
+        };
+
+        const onChange = () => {
+          const files = fileInput.files;
+          if (!files || files.length === 0) {
+            fileInput.value = '';
+            finish('');
+            return;
+          }
+
+          const firstFile = files[0];
+          const relativePath = firstFile && firstFile.webkitRelativePath ? this.normalizePath(firstFile.webkitRelativePath) : '';
+          fileInput.value = '';
+
+          if (!relativePath) {
+            this.setStatus('Directory selected from file explorer. Verify the full path, then click Save.');
+            finish(this.normalizePath(currentPath));
+            return;
+          }
+
+          const selectedDirectoryName = relativePath.split('/').filter(Boolean)[0] || '';
+          const inferredPath = this.inferWorkspaceRootFromSelection(currentPath, selectedDirectoryName);
+          this.setStatus('Directory selected from file explorer. Verify the full path, then click Save.');
+          finish(inferredPath);
+        };
+
+        const onWindowFocus = () => {
+          window.setTimeout(() => {
+            const files = fileInput.files;
+            if (!files || files.length === 0) {
+              fileInput.value = '';
+              finish('');
+            }
+          }, 250);
+        };
+
+        fileInput.addEventListener('change', onChange);
+        window.addEventListener('focus', onWindowFocus, { once: true });
+        fileInput.click();
+      });
     }
 
     inferWorkspaceRootFromSelection(currentPath, selectedDirectoryName) {
