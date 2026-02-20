@@ -62,13 +62,23 @@ public class CodexAgentClient {
   }
 
   public String run(String prompt, String model, String agent, String sessionId) throws RestApiException {
+    return run(prompt, model, agent, sessionId, Collections.emptyList());
+  }
+
+  public String run(
+      String prompt,
+      String model,
+      String agent,
+      String sessionId,
+      List<ContextFile> contextFiles)
+      throws RestApiException {
     String normalizedAgent = config.normalizeAgentOrDefault(agent);
     if (config.getCodexServeUrl().isEmpty()) {
       throw new BadRequestException("codexServeUrl is not configured");
     }
 
     try {
-      return runOnServer(prompt, model, normalizedAgent, sessionId);
+      return runOnServer(prompt, model, normalizedAgent, sessionId, contextFiles);
     } catch (IOException e) {
       throw new BadRequestException("Remote execution failed: " + e.getMessage());
     }
@@ -114,7 +124,12 @@ public class CodexAgentClient {
     }
   }
 
-  private String runOnServer(String prompt, String model, String agent, String sessionId)
+    private String runOnServer(
+      String prompt,
+      String model,
+      String agent,
+      String sessionId,
+      List<ContextFile> contextFiles)
       throws IOException, RestApiException {
     URL url = new URL(config.getCodexServeUrl() + "/run");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -139,6 +154,9 @@ public class CodexAgentClient {
     }
 
     json.add("args", GSON.toJsonTree(args));
+    if (contextFiles != null && !contextFiles.isEmpty()) {
+      json.add("contextFiles", GSON.toJsonTree(contextFiles));
+    }
 
     String jsonInputString = GSON.toJson(json);
 
@@ -333,5 +351,15 @@ public class CodexAgentClient {
       }
     }
     return output.toString();
+  }
+
+  public static class ContextFile {
+    public String path;
+    public String content;
+
+    public ContextFile(String path, String content) {
+      this.path = path;
+      this.content = content;
+    }
   }
 }

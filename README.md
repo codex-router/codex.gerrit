@@ -14,6 +14,7 @@ to supported AI agents for interactive chat.
 - The first item returned by `GET /models` is selected by default.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - Backend also parses `@` file mentions from prompt text and merges them with `contextFiles` for robust context selection.
+- For selected or `@`-mentioned files, backend reads current revision file content and forwards it as explicit context so the agent can operate on actual file text.
 - When one or more `@` files are mentioned, the plugin appends guidance to return unified diff blocks so `Review` can detect changed files and patch content.
 - When one or more `@` files are mentioned, the plugin appends static-analysis guidance to focus findings on those files (bugs, security risks, null-safety, error handling, resource/concurrency risks, and performance concerns).
 - If a diff block omits file headers, `Review` can still map changes to `@`-mentioned files and show the popup.
@@ -67,6 +68,7 @@ When enabled:
 - All agent requests are sent to the configured URL via HTTP POST.
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
 - The plugin sends `agent`, `stdin`, `sessionId`, and `args` (`--model` when a specific model is selected).
+- When `@` files are used, the plugin also sends `contextFiles` with `{path, content}` entries to `codex.serve`.
 - During an active chat request, the plugin can stop that session via `POST /sessions/{sessionId}/stop`.
 - The plugin fetches agent options from `codex.serve` using `GET /agents`.
 - The first item returned by `GET /agents` is selected by default.
@@ -91,6 +93,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Use `Codespaces` → `Open in Browser` (currently coming soon).
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - `@` file mentions are validated server-side against patchset files and merged with UI-selected `contextFiles`.
+- `@` file mentions now include real current-revision file content in the agent input (bounded by server-side limits).
 - If your prompt includes `@` files and requests code changes, Codex is guided to answer with unified diff blocks that automatically open the review dialog.
 - If your prompt includes `@` files, Codex is also guided to perform static analysis for those files and report concrete risks.
 - Even if the returned diff block does not include `diff --git` / `---` / `+++`, review fallback can still use `@` file context to enable the dialog.

@@ -22,6 +22,7 @@ import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.changes.ChangeApi;
 import com.google.gerrit.extensions.common.ChangeInfo;
 import com.google.gerrit.extensions.common.FileInfo;
+import com.google.gerrit.extensions.restapi.BinaryResult;
 import com.google.gerrit.extensions.restapi.BadRequestException;
 import com.google.gerrit.extensions.restapi.Response;
 import com.google.gerrit.extensions.restapi.RestApiException;
@@ -29,6 +30,9 @@ import com.google.gerrit.extensions.restapi.RestModifyView;
 import com.google.gerrit.server.change.RevisionResource;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -40,6 +44,8 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class CodexChatRest implements RestModifyView<RevisionResource, CodexChatInput> {
   private static final Logger logger = LoggerFactory.getLogger(CodexChatRest.class);
+  private static final int MAX_CONTEXT_FILES_TO_READ = 20;
+  private static final int MAX_CONTEXT_FILE_CHARS = 12_000;
 
   private final CodexGerritConfig config;
   private final GerritApi gerritApi;
@@ -70,9 +76,11 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     ChangeInfo changeInfo = changeApi.get();
     Map<String, FileInfo> files = changeApi.current().files();
     CodexChatInput normalized = normalizeInput(input, files);
+    List<CodexAgentClient.ContextFile> contextFiles = loadContextFiles(changeApi, normalized.contextFiles);
 
     String prompt = promptBuilder.buildPrompt(changeInfo, files, normalized);
-    String reply = agentClient.run(prompt, normalized.model, normalized.agent, normalized.sessionId);
+    String reply =
+      agentClient.run(prompt, normalized.model, normalized.agent, normalized.sessionId, contextFiles);
 
     if (normalized.postAsReview) {
       try {
@@ -231,5 +239,44 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       return null;
     }
     return normalized;
+  }
+
+  private List<CodexAgentClient.ContextFile> loadContextFiles(
+      ChangeApi changeApi, List<String> selectedFiles) {
+    if (selectedFiles == null || selectedFiles.isEmpty()) {
+      return new ArrayList<>();
+    }
+
+    List<CodexAgentClient.ContextFile> resolved = new ArrayList<>();
+    int limit = Math.min(selectedFiles.size(), MAX_CONTEXT_FILES_TO_READ);
+    for (int index = 0; index < limit; index++) {
+      String filePath = selectedFiles.get(index);
+      if (filePath == null || filePath.trim().isEmpty()) {
+        continue;
+      }
+      try {
+        String content = readRevisionFileText(changeApi, filePath);
+        resolved.add(new CodexAgentClient.ContextFile(filePath, content));
+      } catch (RestApiException ex) {
+        logger.warn("Failed to load context file {}", filePath, ex);
+      }
+    }
+    return resolved;
+  }
+
+  private String readRevisionFileText(ChangeApi changeApi, String filePath) throws RestApiException {
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    try (BinaryResult binaryResult = changeApi.current().file(filePath).content()) {
+      binaryResult.writeTo(output);
+    } catch (IOException ioException) {
+      throw new RestApiException("Failed to read file content for " + filePath, ioException);
+    }
+
+    String text = new String(output.toByteArray(), StandardCharsets.UTF_8);
+    if (text.length() <= MAX_CONTEXT_FILE_CHARS) {
+      return text;
+    }
+    return text.substring(0, MAX_CONTEXT_FILE_CHARS)
+        + "\n\n[truncated by codex.gerrit context limit]";
   }
 }
