@@ -100,13 +100,14 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 When using `Open in Browser` for the first time, the panel prompts for your GitHub repository URL
 (default: `https://github.com/codesandbox/codesandbox-client`) and stores it in browser local storage for future opens.
 
-When using `Open in Android Studio`, `Open in Cursor`, `Open in Trae`, or `Open in VS Code` for the first time, the panel prompts for your local repository root
-path and stores it in browser local storage for future opens. All actions open all current patchset files.
+When using `Open in Android Studio`, `Open in Cursor`, `Open in Trae`, or `Open in VS Code` for the first time, the panel opens a workspace-root dialog.
+Use `Browse...` to open your file explorer, then confirm or edit the root path and click `Save`. The path is stored in browser local storage for future opens.
+All actions open all current patchset files.
 
 ### Codespaces: Open in Android Studio
 
 - `Open in Android Studio` downloads every file in the latest patchset from Gerrit to a local directory you choose in the browser file picker.
-- Enter your local repository root path (used to build `jetbrains://android-studio/...` links after download):
+- In the workspace-root dialog, use `Browse...` (file explorer) and confirm the local repository root path (used to build `jetbrains://android-studio/...` links after download):
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
 - Pick the target local directory when prompted; plugin writes latest patchset files into that directory (including nested folders).
@@ -121,7 +122,7 @@ path and stores it in browser local storage for future opens. All actions open a
 ### Codespaces: Open in Cursor
 
 - `Open in Cursor` writes every file in the latest patchset from Gerrit to your local workspace.
-- Enter your local repository root path (used to build `cursor://file/...` links after download):
+- In the workspace-root dialog, use `Browse...` (file explorer) and confirm the local repository root path (used to build `cursor://file/...` links after download):
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
 - If your browser supports directory picker, choose the target local directory and plugin writes files there.
@@ -133,7 +134,7 @@ path and stores it in browser local storage for future opens. All actions open a
 ### Codespaces: Open in Trae
 
 - `Open in Trae` writes every file in the latest patchset from Gerrit to your local workspace.
-- Enter your local repository root path (used to build `trae://file/...` links after download):
+- In the workspace-root dialog, use `Browse...` (file explorer) and confirm the local repository root path (used to build `trae://file/...` links after download):
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
 - If your browser supports directory picker, choose the target local directory and plugin writes files there.
@@ -145,7 +146,7 @@ path and stores it in browser local storage for future opens. All actions open a
 ### Codespaces: Open in VS Code
 
 - `Open in VS Code` writes every file in the latest patchset from Gerrit to your local workspace.
-- Enter your local repository root path (used to build `vscode://file/...` links after download):
+- In the workspace-root dialog, use `Browse...` (file explorer) and confirm the local repository root path (used to build `vscode://file/...` links after download):
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
 - If your browser supports directory picker, choose the target local directory and plugin writes files there.

@@ -218,6 +218,67 @@ Gerrit.install(plugin => {
       changeDialog.appendChild(changeDialogBody);
       changeDialogOverlay.appendChild(changeDialog);
 
+        const workspaceRootDialogOverlay = document.createElement('div');
+        workspaceRootDialogOverlay.className = 'codex-workspace-root-dialog-overlay hidden';
+
+        const workspaceRootDialog = document.createElement('div');
+        workspaceRootDialog.className = 'codex-workspace-root-dialog';
+        workspaceRootDialog.setAttribute('role', 'dialog');
+        workspaceRootDialog.setAttribute('aria-modal', 'true');
+        workspaceRootDialog.addEventListener('click', event => event.stopPropagation());
+
+        const workspaceRootDialogHeader = document.createElement('div');
+        workspaceRootDialogHeader.className = 'codex-change-dialog-header';
+
+        const workspaceRootDialogTitle = document.createElement('div');
+        workspaceRootDialogTitle.className = 'codex-change-dialog-title';
+        workspaceRootDialogTitle.textContent = 'Workspace Root Path';
+
+        workspaceRootDialogHeader.appendChild(workspaceRootDialogTitle);
+
+        const workspaceRootDialogBody = document.createElement('div');
+        workspaceRootDialogBody.className = 'codex-workspace-root-dialog-body';
+
+        const workspaceRootDialogDescription = document.createElement('div');
+        workspaceRootDialogDescription.className = 'codex-workspace-root-dialog-description';
+        workspaceRootDialogDescription.textContent =
+          'Enter your local workspace root path for this repository (e.g. /home/user/repo or C:\\repo).';
+
+        const workspaceRootDialogInput = document.createElement('input');
+        workspaceRootDialogInput.type = 'text';
+        workspaceRootDialogInput.className = 'codex-workspace-root-dialog-input';
+        workspaceRootDialogInput.placeholder = '/home/user/repo or C:/repo';
+
+        const workspaceRootDialogActions = document.createElement('div');
+        workspaceRootDialogActions.className = 'codex-workspace-root-dialog-actions';
+
+        const workspaceRootDialogBrowse = document.createElement('button');
+        workspaceRootDialogBrowse.type = 'button';
+        workspaceRootDialogBrowse.className = 'codex-button outline codex-small-button';
+        workspaceRootDialogBrowse.textContent = 'Browse...';
+
+        const workspaceRootDialogCancel = document.createElement('button');
+        workspaceRootDialogCancel.type = 'button';
+        workspaceRootDialogCancel.className = 'codex-button outline codex-small-button';
+        workspaceRootDialogCancel.textContent = 'Cancel';
+
+        const workspaceRootDialogSave = document.createElement('button');
+        workspaceRootDialogSave.type = 'button';
+        workspaceRootDialogSave.className = 'codex-button codex-small-button';
+        workspaceRootDialogSave.textContent = 'Save';
+
+        workspaceRootDialogActions.appendChild(workspaceRootDialogBrowse);
+        workspaceRootDialogActions.appendChild(workspaceRootDialogCancel);
+        workspaceRootDialogActions.appendChild(workspaceRootDialogSave);
+
+        workspaceRootDialogBody.appendChild(workspaceRootDialogDescription);
+        workspaceRootDialogBody.appendChild(workspaceRootDialogInput);
+        workspaceRootDialogBody.appendChild(workspaceRootDialogActions);
+
+        workspaceRootDialog.appendChild(workspaceRootDialogHeader);
+        workspaceRootDialog.appendChild(workspaceRootDialogBody);
+        workspaceRootDialogOverlay.appendChild(workspaceRootDialog);
+
       inputRow.appendChild(input);
       inputRow.appendChild(stopButton);
       inputRow.appendChild(reviewChangesButton);
@@ -232,6 +293,7 @@ Gerrit.install(plugin => {
       wrapper.appendChild(mentionDropdown);
       wrapper.appendChild(status);
       wrapper.appendChild(changeDialogOverlay);
+      wrapper.appendChild(workspaceRootDialogOverlay);
 
       const style = document.createElement('link');
       style.rel = 'stylesheet';
@@ -273,6 +335,11 @@ Gerrit.install(plugin => {
       this.headerVersion = headerVersion;
       this.changeDialogOverlay = changeDialogOverlay;
       this.changeDialogBody = changeDialogBody;
+      this.workspaceRootDialogOverlay = workspaceRootDialogOverlay;
+      this.workspaceRootDialogInput = workspaceRootDialogInput;
+      this.workspaceRootDialogBrowse = workspaceRootDialogBrowse;
+      this.workspaceRootDialogCancel = workspaceRootDialogCancel;
+      this.workspaceRootDialogSave = workspaceRootDialogSave;
 
       this.showWelcomeMessage();
       this.loadConfig();
@@ -396,7 +463,7 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const workspaceRoot = this.getOrPromptWorkspaceRoot();
+      const workspaceRoot = await this.getOrPromptWorkspaceRoot();
       if (!workspaceRoot) {
         this.setStatus('Open in VS Code canceled.');
         return;
@@ -840,7 +907,7 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const workspaceRoot = this.getOrPromptWorkspaceRoot();
+      const workspaceRoot = await this.getOrPromptWorkspaceRoot();
       if (!workspaceRoot) {
         this.setStatus('Open in Cursor canceled.');
         return;
@@ -880,7 +947,7 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const workspaceRoot = this.getOrPromptWorkspaceRoot();
+      const workspaceRoot = await this.getOrPromptWorkspaceRoot();
       if (!workspaceRoot) {
         this.setStatus('Open in Trae canceled.');
         return;
@@ -952,7 +1019,7 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const workspaceRoot = this.getOrPromptWorkspaceRoot();
+      const workspaceRoot = await this.getOrPromptWorkspaceRoot();
       if (!workspaceRoot) {
         this.setStatus('Open in Android Studio canceled.');
         return;
@@ -999,21 +1066,155 @@ Gerrit.install(plugin => {
       });
     }
 
-    getOrPromptWorkspaceRoot() {
+    async getOrPromptWorkspaceRoot() {
       const savedRoot = window.localStorage.getItem(workspaceRootStorageKey);
-      const promptDefault = savedRoot || '';
-      const workspaceRoot = window.prompt(
-          'Enter your local workspace root path for this repository (e.g. /home/user/repo or C:\\repo).',
-          promptDefault);
-      if (workspaceRoot === null) {
-        return '';
+      let workspaceRoot = '';
+
+      if (this.workspaceRootDialogOverlay && this.workspaceRootDialogInput) {
+        workspaceRoot = await this.promptWorkspaceRootDialog(savedRoot || '');
+      } else {
+        const promptDefault = savedRoot || '';
+        const promptValue = window.prompt(
+            'Enter your local workspace root path for this repository (e.g. /home/user/repo or C:\\repo).',
+            promptDefault);
+        if (promptValue === null) {
+          return '';
+        }
+        workspaceRoot = promptValue;
       }
+
       const normalized = this.normalizePath(workspaceRoot);
       if (!normalized) {
         return '';
       }
       window.localStorage.setItem(workspaceRootStorageKey, normalized);
       return normalized;
+    }
+
+    promptWorkspaceRootDialog(defaultValue) {
+      if (this.workspaceRootDialogPromise) {
+        return this.workspaceRootDialogPromise;
+      }
+
+      this.workspaceRootDialogPromise = new Promise(resolve => {
+        const overlay = this.workspaceRootDialogOverlay;
+        const input = this.workspaceRootDialogInput;
+        const browseButton = this.workspaceRootDialogBrowse;
+        const cancelButton = this.workspaceRootDialogCancel;
+        const saveButton = this.workspaceRootDialogSave;
+        if (!overlay || !input || !browseButton || !cancelButton || !saveButton) {
+          this.workspaceRootDialogPromise = null;
+          resolve('');
+          return;
+        }
+
+        let done = false;
+        const cleanup = () => {
+          overlay.removeEventListener('click', onOverlayClick);
+          input.removeEventListener('keydown', onInputKeydown);
+          browseButton.removeEventListener('click', onBrowseClick);
+          cancelButton.removeEventListener('click', onCancelClick);
+          saveButton.removeEventListener('click', onSaveClick);
+        };
+        const finish = value => {
+          if (done) {
+            return;
+          }
+          done = true;
+          cleanup();
+          overlay.classList.add('hidden');
+          this.workspaceRootDialogPromise = null;
+          resolve(value || '');
+        };
+
+        const onOverlayClick = () => finish('');
+        const onCancelClick = () => finish('');
+        const onSaveClick = () => finish(input.value || '');
+        const onInputKeydown = event => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            finish('');
+            return;
+          }
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            finish(input.value || '');
+          }
+        };
+        const onBrowseClick = async () => {
+          const path = await this.pickWorkspaceRootPathFromDirectory(input.value || '');
+          if (path) {
+            input.value = path;
+            input.focus();
+          }
+        };
+
+        overlay.addEventListener('click', onOverlayClick);
+        input.addEventListener('keydown', onInputKeydown);
+        browseButton.addEventListener('click', onBrowseClick);
+        cancelButton.addEventListener('click', onCancelClick);
+        saveButton.addEventListener('click', onSaveClick);
+
+        input.value = defaultValue || '';
+        overlay.classList.remove('hidden');
+        window.setTimeout(() => {
+          input.focus();
+          input.select();
+        }, 0);
+      });
+
+      return this.workspaceRootDialogPromise;
+    }
+
+    async pickWorkspaceRootPathFromDirectory(currentPath) {
+      if (!window.showDirectoryPicker) {
+        this.setStatus('Directory picker is not available in this browser. Enter the path manually.');
+        return '';
+      }
+
+      try {
+        const directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        if (!directoryHandle || !directoryHandle.name) {
+          return '';
+        }
+        const guessed = this.inferWorkspaceRootFromSelection(currentPath, directoryHandle.name);
+        if (!guessed) {
+          return '';
+        }
+        this.setStatus('Directory selected from file explorer. Verify the full path, then click Save.');
+        return guessed;
+      } catch (error) {
+        if (error && error.name === 'AbortError') {
+          return '';
+        }
+        this.setStatus(`Directory picker failed: ${this.getErrorMessage(error)}`);
+        return '';
+      }
+    }
+
+    inferWorkspaceRootFromSelection(currentPath, selectedDirectoryName) {
+      const normalizedName = this.normalizePath(selectedDirectoryName).replace(/^\/+/g, '').replace(/\/+$/g, '');
+      if (!normalizedName) {
+        return this.normalizePath(currentPath);
+      }
+
+      const normalizedCurrent = this.normalizePath(currentPath).replace(/\/+$/g, '');
+      if (!normalizedCurrent) {
+        return normalizedName;
+      }
+
+      const pathParts = normalizedCurrent.split('/').filter(part => part && part.length > 0);
+      if (pathParts.length === 0) {
+        return normalizedName;
+      }
+
+      pathParts[pathParts.length - 1] = normalizedName;
+      const inferredPath = pathParts.join('/');
+
+      if (normalizedCurrent.startsWith('/')) {
+        return `/${inferredPath}`;
+      }
+      return inferredPath;
     }
 
     getOrPromptBrowserRepoUrl() {

@@ -349,6 +349,65 @@
   display: none;
 }
 
+.codex-workspace-root-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  background: rgba(0, 0, 0, 0.42);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.codex-workspace-root-dialog-overlay.hidden {
+  display: none;
+}
+
+.codex-workspace-root-dialog {
+  width: min(560px, 92vw);
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #d9d9d9;
+  display: flex;
+  flex-direction: column;
+}
+
+.codex-workspace-root-dialog-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.codex-workspace-root-dialog-description {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.4;
+}
+
+.codex-workspace-root-dialog-input {
+  width: 100%;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.codex-workspace-root-dialog-input:focus {
+  outline: none;
+  border-color: #b65a2a;
+}
+
+.codex-workspace-root-dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .codex-change-dialog {
   width: min(1020px, 94vw);
   max-height: 82vh;
