@@ -1893,14 +1893,40 @@ Gerrit.install(plugin => {
         codeBlockLanguage = '';
       };
 
-      lines.forEach(line => {
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+        const line = lines[lineIndex];
+
         if (inCodeBlock) {
           if (/^```\s*$/.test(line)) {
             flushCodeBlock();
           } else {
             codeLines.push(line);
           }
-          return;
+          continue;
+        }
+
+        const headerCells = this.parseMarkdownTableRow(line);
+        const tableAlignments = lineIndex + 1 < lines.length
+            ? this.parseMarkdownTableAlignments(lines[lineIndex + 1])
+            : null;
+        if (headerCells && tableAlignments && headerCells.length === tableAlignments.length) {
+          flushParagraph();
+          closeLists();
+
+          const bodyRows = [];
+          let rowIndex = lineIndex + 2;
+          while (rowIndex < lines.length) {
+            const bodyRowCells = this.parseMarkdownTableRow(lines[rowIndex]);
+            if (!bodyRowCells || bodyRowCells.length !== tableAlignments.length) {
+              break;
+            }
+            bodyRows.push(bodyRowCells);
+            rowIndex += 1;
+          }
+
+          html.push(this.renderMarkdownTable(headerCells, tableAlignments, bodyRows));
+          lineIndex = rowIndex - 1;
+          continue;
         }
 
         const codeFenceMatch = line.match(/^```\s*([a-zA-Z0-9_+-]+)?\s*$/);
@@ -1909,13 +1935,13 @@ Gerrit.install(plugin => {
           closeLists();
           inCodeBlock = true;
           codeBlockLanguage = codeFenceMatch[1] || '';
-          return;
+          continue;
         }
 
         if (/^\s*$/.test(line)) {
           flushParagraph();
           closeLists();
-          return;
+          continue;
         }
 
         const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
@@ -1924,14 +1950,14 @@ Gerrit.install(plugin => {
           closeLists();
           const level = headingMatch[1].length;
           html.push(`<h${level}>${this.renderMarkdownInline(headingMatch[2].trim())}</h${level}>`);
-          return;
+          continue;
         }
 
         if (/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
           flushParagraph();
           closeLists();
           html.push('<hr>');
-          return;
+          continue;
         }
 
         const blockquoteMatch = line.match(/^>\s?(.*)$/);
@@ -1939,7 +1965,7 @@ Gerrit.install(plugin => {
           flushParagraph();
           closeLists();
           html.push(`<blockquote>${this.renderMarkdownInline(blockquoteMatch[1].trim())}</blockquote>`);
-          return;
+          continue;
         }
 
         const unorderedListMatch = line.match(/^\s*[-*+]\s+(.+)$/);
@@ -1951,7 +1977,7 @@ Gerrit.install(plugin => {
             inUnorderedList = true;
           }
           html.push(`<li>${this.renderMarkdownInline(unorderedListMatch[1].trim())}</li>`);
-          return;
+          continue;
         }
 
         const orderedListMatch = line.match(/^\s*\d+\.\s+(.+)$/);
@@ -1963,18 +1989,80 @@ Gerrit.install(plugin => {
             inOrderedList = true;
           }
           html.push(`<li>${this.renderMarkdownInline(orderedListMatch[1].trim())}</li>`);
-          return;
+          continue;
         }
 
         closeLists();
         paragraphLines.push(line.trim());
-      });
+      }
 
       flushParagraph();
       closeLists();
       flushCodeBlock();
 
       return html.join('');
+    }
+
+    parseMarkdownTableRow(line) {
+      if (typeof line !== 'string' || !line.includes('|')) {
+        return null;
+      }
+
+      const trimmed = line.trim();
+      if (!trimmed || /^\|?\s*-{3,}\s*\|?$/.test(trimmed)) {
+        return null;
+      }
+
+      const raw = trimmed.replace(/^\|/, '').replace(/\|$/, '');
+      const cells = raw.split('|').map(cell => cell.trim());
+      if (cells.length < 2 || cells.some(cell => !cell.length)) {
+        return null;
+      }
+      return cells;
+    }
+
+    parseMarkdownTableAlignments(line) {
+      if (typeof line !== 'string' || !line.includes('|')) {
+        return null;
+      }
+
+      const raw = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+      const tokens = raw.split('|').map(token => token.trim());
+      if (tokens.length < 2) {
+        return null;
+      }
+
+      const alignments = [];
+      for (const token of tokens) {
+        if (!/^:?-{3,}:?$/.test(token)) {
+          return null;
+        }
+        if (token.startsWith(':') && token.endsWith(':')) {
+          alignments.push('center');
+        } else if (token.endsWith(':')) {
+          alignments.push('right');
+        } else {
+          alignments.push('left');
+        }
+      }
+      return alignments;
+    }
+
+    renderMarkdownTable(headerCells, alignments, bodyRows) {
+      const renderHeaderCells = headerCells
+          .map((cell, index) => `<th class="codex-table-${alignments[index]}">${this.renderMarkdownInline(cell)}</th>`)
+          .join('');
+
+      const renderBodyRows = bodyRows
+          .map(row => {
+            const cells = row
+                .map((cell, index) => `<td class="codex-table-${alignments[index]}">${this.renderMarkdownInline(cell)}</td>`)
+                .join('');
+            return `<tr>${cells}</tr>`;
+          })
+          .join('');
+
+      return `<table><thead><tr>${renderHeaderCells}</tr></thead><tbody>${renderBodyRows}</tbody></table>`;
     }
 
     renderMarkdownInline(value) {

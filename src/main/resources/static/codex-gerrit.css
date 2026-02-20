@@ -319,6 +319,38 @@
   margin: 10px 0;
 }
 
+.codex-message.markdown-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 10px;
+  table-layout: fixed;
+}
+
+.codex-message.markdown-preview th,
+.codex-message.markdown-preview td {
+  border: 1px solid #e0e0e0;
+  padding: 6px 8px;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.codex-message.markdown-preview th {
+  background: #f6f6f6;
+  font-weight: 600;
+}
+
+.codex-message.markdown-preview .codex-table-left {
+  text-align: left;
+}
+
+.codex-message.markdown-preview .codex-table-center {
+  text-align: center;
+}
+
+.codex-message.markdown-preview .codex-table-right {
+  text-align: right;
+}
+
 .codex-small-button {
   height: 28px;
   min-width: 68px;
