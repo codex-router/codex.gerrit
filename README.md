@@ -112,6 +112,7 @@ All actions open all current patchset files.
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
 - Pick the target local directory when prompted; plugin writes latest patchset files into that directory (including nested folders).
+- If directory picker is unavailable/blocked and workspace-root sync also fails, plugin falls back to browser file downloads for the latest patchset (one file per download, no `.zip` artifact).
 - The root path is saved in browser local storage and reused for later opens.
 - If your browser asks for file-system write permission or to open Android Studio links, allow it.
 - If files do not open, ensure JetBrains protocol handler support is enabled, use a Chromium-based browser (for directory picker support), and that the saved root path matches the selected local directory.
@@ -128,6 +129,7 @@ All actions open all current patchset files.
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
 - If your browser supports directory picker, choose the target local directory and plugin writes files there.
 - If directory picker is unavailable or blocked, plugin syncs files directly to the workspace root path you entered (via `codex.serve`) with no `.zip` artifact.
+- If directory picker is unavailable/blocked and workspace-root sync fails, plugin falls back to browser file downloads for the latest patchset (one file per download, no `.zip` artifact).
 - The root path is saved in browser local storage and reused for later opens.
 - If your browser asks for file-system write permission or to open Cursor links, allow it.
 - If files do not open, check that Cursor URL handling is enabled, use a Chromium-based browser (for directory picker support), and that the saved root path matches the selected local directory.
@@ -140,6 +142,7 @@ All actions open all current patchset files.
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
 - If your browser supports directory picker, choose the target local directory and plugin writes files there.
 - If directory picker is unavailable or blocked, plugin syncs files directly to the workspace root path you entered (via `codex.serve`) with no `.zip` artifact.
+- If directory picker is unavailable/blocked and workspace-root sync fails, plugin falls back to browser file downloads for the latest patchset (one file per download, no `.zip` artifact).
 - The root path is saved in browser local storage and reused for later opens.
 - If your browser asks for file-system write permission or to open Trae links, allow it.
 - If files do not open, check that Trae URL handling is enabled, use a Chromium-based browser (for directory picker support), and ensure the saved root path matches the selected local directory.
@@ -152,6 +155,7 @@ All actions open all current patchset files.
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
 - If your browser supports directory picker, choose the target local directory and plugin writes files there.
 - If directory picker is unavailable or blocked, plugin syncs files directly to the workspace root path you entered (via `codex.serve`) with no `.zip` artifact.
+- If directory picker is unavailable/blocked and workspace-root sync fails, plugin falls back to browser file downloads for the latest patchset (one file per download, no `.zip` artifact).
 - The root path is saved in browser local storage and reused for later opens.
 - If your browser asks for file-system write permission or to open VS Code links, allow it.
 - If files do not open, check that VS Code URL handling is enabled, use a Chromium-based browser (for directory picker support), and ensure the saved root path matches the selected local directory.
