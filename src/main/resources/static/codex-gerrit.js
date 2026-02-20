@@ -20,6 +20,7 @@ Gerrit.install(plugin => {
   const codespacesActions = [
     { value: 'open-android-studio', label: 'Open in Android Studio' },
     { value: 'open-browser', label: 'Open in Browser' },
+    { value: 'open-trae', label: 'Open in Trae' },
     { value: 'open-cursor', label: 'Open in Cursor' },
     { value: 'open-vscode', label: 'Open in VS Code' }
   ];
@@ -367,11 +368,15 @@ Gerrit.install(plugin => {
         return;
       }
       if (action === 'open-browser') {
-        await this.openPatchsetFilesInBrowser();
+        this.setStatus('Open in Browser is coming soon.');
         return;
       }
       if (action === 'open-vscode') {
         await this.openPatchsetFilesInVsCode();
+        return;
+      }
+      if (action === 'open-trae') {
+        await this.openPatchsetFilesInTrae();
         return;
       }
       if (action === 'open-cursor') {
@@ -384,8 +389,9 @@ Gerrit.install(plugin => {
     }
 
     async openPatchsetFilesInVsCode() {
-      if (!this.patchsetFiles || this.patchsetFiles.length === 0) {
-        this.setStatus('No patchset files found for this change.');
+      const changeId = this.getChangeId();
+      if (!changeId) {
+        this.setStatus('Unable to detect change id.');
         return;
       }
 
@@ -395,43 +401,111 @@ Gerrit.install(plugin => {
         return;
       }
 
-      let opened = 0;
-      this.patchsetFiles.forEach((relativePath, index) => {
-        const uri = this.toVsCodeFileUri(this.joinPaths(workspaceRoot, relativePath));
+      const directoryHandle = await this.selectDownloadDirectoryHandle();
+      if (!directoryHandle) {
+        this.setStatus('Open in VS Code canceled.');
+        return;
+      }
+
+      try {
+        this.setStatus('Downloading latest patchset files from Gerrit...');
+        const files = await this.fetchLatestPatchsetFiles(changeId);
+        if (!files || files.length === 0) {
+          this.setStatus('No patchset files found for this change.');
+          return;
+        }
+
+        await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        this.openPatchsetInVsCode(workspaceRoot, files);
+        this.setStatus(`Downloaded ${files.length} patchset files and opening in VS Code...`);
+      } catch (err) {
+        logError('Open in VS Code failed.', err);
+        this.setStatus(`Open in VS Code failed: ${this.getErrorMessage(err)}`);
+      }
+    }
+
+    async fetchLatestPatchsetFiles(changeId) {
+      const path = `/changes/${changeId}/revisions/current/codex-patchset-files`;
+      const response = await plugin.restApi().get(path);
+      return response && response.files ? response.files : [];
+    }
+
+    async selectDownloadDirectoryHandle() {
+      if (!window.showDirectoryPicker) {
+        throw new Error('Directory picker is not supported in this browser. Use a Chromium-based browser.');
+      }
+      try {
+        return await window.showDirectoryPicker({ mode: 'readwrite' });
+      } catch (error) {
+        if (error && error.name === 'AbortError') {
+          return null;
+        }
+        throw error;
+      }
+    }
+
+    async writePatchsetFilesToDirectory(directoryHandle, files) {
+      for (const file of files) {
+        if (!file || !file.path) {
+          continue;
+        }
+        const relativePath = this.normalizePath(file.path).replace(/^\/+/, '');
+        if (!relativePath) {
+          continue;
+        }
+        const directoryParts = relativePath.split('/').filter(Boolean);
+        const fileName = directoryParts.pop();
+        if (!fileName) {
+          continue;
+        }
+        let parentDirectory = directoryHandle;
+        for (const directoryName of directoryParts) {
+          parentDirectory = await parentDirectory.getDirectoryHandle(directoryName, { create: true });
+        }
+        const fileHandle = await parentDirectory.getFileHandle(fileName, { create: true });
+        const writable = await fileHandle.createWritable();
+        try {
+          const bytes = this.base64ToUint8Array(file.contentBase64 || '');
+          await writable.write(bytes);
+        } finally {
+          await writable.close();
+        }
+      }
+    }
+
+    openPatchsetInVsCode(workspaceRoot, files) {
+      const normalizedRoot = this.normalizePath(workspaceRoot).replace(/\/+$/, '');
+      const workspaceUri = this.toVsCodeFileUri(normalizedRoot);
+      window.open(workspaceUri, '_blank');
+
+      files.forEach((file, index) => {
+        if (!file || !file.path) {
+          return;
+        }
+        const uri = this.toVsCodeFileUri(this.joinPaths(normalizedRoot, file.path));
         window.setTimeout(() => {
           window.open(uri, '_blank');
-        }, index * 60);
-        opened += 1;
+        }, (index + 1) * 60);
       });
-      this.setStatus(`Opening ${opened} patchset files in VS Code...`);
+    }
+
+    base64ToUint8Array(value) {
+      const raw = window.atob(value || '');
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i += 1) {
+        bytes[i] = raw.charCodeAt(i);
+      }
+      return bytes;
     }
 
     async openPatchsetFilesInBrowser() {
-      if (!this.patchsetFiles || this.patchsetFiles.length === 0) {
-        this.setStatus('No patchset files found for this change.');
-        return;
-      }
-
-      const repoUrl = this.getOrPromptBrowserRepoUrl();
-      if (!repoUrl) {
-        this.setStatus('Open in Browser canceled.');
-        return;
-      }
-
-      let opened = 0;
-      this.patchsetFiles.forEach((relativePath, index) => {
-        const uri = this.toBrowserFileUrl(repoUrl, relativePath);
-        window.setTimeout(() => {
-          window.open(uri, '_blank');
-        }, index * 60);
-        opened += 1;
-      });
-      this.setStatus(`Opening ${opened} patchset files in browser...`);
+      this.setStatus('Open in Browser is coming soon.');
     }
 
     async openPatchsetFilesInCursor() {
-      if (!this.patchsetFiles || this.patchsetFiles.length === 0) {
-        this.setStatus('No patchset files found for this change.');
+      const changeId = this.getChangeId();
+      if (!changeId) {
+        this.setStatus('Unable to detect change id.');
         return;
       }
 
@@ -441,20 +515,101 @@ Gerrit.install(plugin => {
         return;
       }
 
-      let opened = 0;
-      this.patchsetFiles.forEach((relativePath, index) => {
-        const uri = this.toCursorFileUri(this.joinPaths(workspaceRoot, relativePath));
+      const directoryHandle = await this.selectDownloadDirectoryHandle();
+      if (!directoryHandle) {
+        this.setStatus('Open in Cursor canceled.');
+        return;
+      }
+
+      try {
+        this.setStatus('Downloading latest patchset files from Gerrit...');
+        const files = await this.fetchLatestPatchsetFiles(changeId);
+        if (!files || files.length === 0) {
+          this.setStatus('No patchset files found for this change.');
+          return;
+        }
+
+        await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        this.openPatchsetInCursor(workspaceRoot, files);
+        this.setStatus(`Downloaded ${files.length} patchset files and opening in Cursor...`);
+      } catch (err) {
+        logError('Open in Cursor failed.', err);
+        this.setStatus(`Open in Cursor failed: ${this.getErrorMessage(err)}`);
+      }
+    }
+
+    async openPatchsetFilesInTrae() {
+      const changeId = this.getChangeId();
+      if (!changeId) {
+        this.setStatus('Unable to detect change id.');
+        return;
+      }
+
+      const workspaceRoot = this.getOrPromptWorkspaceRoot();
+      if (!workspaceRoot) {
+        this.setStatus('Open in Trae canceled.');
+        return;
+      }
+
+      const directoryHandle = await this.selectDownloadDirectoryHandle();
+      if (!directoryHandle) {
+        this.setStatus('Open in Trae canceled.');
+        return;
+      }
+
+      try {
+        this.setStatus('Downloading latest patchset files from Gerrit...');
+        const files = await this.fetchLatestPatchsetFiles(changeId);
+        if (!files || files.length === 0) {
+          this.setStatus('No patchset files found for this change.');
+          return;
+        }
+
+        await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        this.openPatchsetInTrae(workspaceRoot, files);
+        this.setStatus(`Downloaded ${files.length} patchset files and opening in Trae...`);
+      } catch (err) {
+        logError('Open in Trae failed.', err);
+        this.setStatus(`Open in Trae failed: ${this.getErrorMessage(err)}`);
+      }
+    }
+
+    openPatchsetInTrae(workspaceRoot, files) {
+      const normalizedRoot = this.normalizePath(workspaceRoot).replace(/\/+$/, '');
+      const workspaceUri = this.toTraeFileUri(normalizedRoot);
+      window.open(workspaceUri, '_blank');
+
+      files.forEach((file, index) => {
+        if (!file || !file.path) {
+          return;
+        }
+        const uri = this.toTraeFileUri(this.joinPaths(normalizedRoot, file.path));
         window.setTimeout(() => {
           window.open(uri, '_blank');
-        }, index * 60);
-        opened += 1;
+        }, (index + 1) * 60);
       });
-      this.setStatus(`Opening ${opened} patchset files in Cursor...`);
+    }
+
+    openPatchsetInCursor(workspaceRoot, files) {
+      const normalizedRoot = this.normalizePath(workspaceRoot).replace(/\/+$/, '');
+      const workspaceUri = this.toCursorFileUri(normalizedRoot);
+      window.open(workspaceUri, '_blank');
+
+      files.forEach((file, index) => {
+        if (!file || !file.path) {
+          return;
+        }
+        const uri = this.toCursorFileUri(this.joinPaths(normalizedRoot, file.path));
+        window.setTimeout(() => {
+          window.open(uri, '_blank');
+        }, (index + 1) * 60);
+      });
     }
 
     async openPatchsetFilesInAndroidStudio() {
-      if (!this.patchsetFiles || this.patchsetFiles.length === 0) {
-        this.setStatus('No patchset files found for this change.');
+      const changeId = this.getChangeId();
+      if (!changeId) {
+        this.setStatus('Unable to detect change id.');
         return;
       }
 
@@ -464,15 +619,41 @@ Gerrit.install(plugin => {
         return;
       }
 
-      let opened = 0;
-      this.patchsetFiles.forEach((relativePath, index) => {
-        const uri = this.toAndroidStudioFileUri(workspaceRoot, this.joinPaths(workspaceRoot, relativePath));
+      const directoryHandle = await this.selectDownloadDirectoryHandle();
+      if (!directoryHandle) {
+        this.setStatus('Open in Android Studio canceled.');
+        return;
+      }
+
+      try {
+        this.setStatus('Downloading latest patchset files from Gerrit...');
+        const files = await this.fetchLatestPatchsetFiles(changeId);
+        if (!files || files.length === 0) {
+          this.setStatus('No patchset files found for this change.');
+          return;
+        }
+
+        await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        this.openPatchsetInAndroidStudio(workspaceRoot, files);
+        this.setStatus(`Downloaded ${files.length} patchset files and opening in Android Studio...`);
+      } catch (err) {
+        logError('Open in Android Studio failed.', err);
+        this.setStatus(`Open in Android Studio failed: ${this.getErrorMessage(err)}`);
+      }
+    }
+
+    openPatchsetInAndroidStudio(workspaceRoot, files) {
+      const normalizedRoot = this.normalizePath(workspaceRoot).replace(/\/+$/, '');
+      files.forEach((file, index) => {
+        if (!file || !file.path) {
+          return;
+        }
+        const fullPath = this.joinPaths(normalizedRoot, file.path);
+        const uri = this.toAndroidStudioFileUri(normalizedRoot, fullPath);
         window.setTimeout(() => {
           window.open(uri, '_blank');
         }, index * 60);
-        opened += 1;
       });
-      this.setStatus(`Opening ${opened} patchset files in Android Studio...`);
     }
 
     getOrPromptWorkspaceRoot() {
@@ -575,6 +756,18 @@ Gerrit.install(plugin => {
           .join('/')
           .replace(/^\/(%[0-9A-Fa-f]{2})?([A-Za-z])%3A\//, '/$2:/');
       return `cursor://file${encodedPath}`;
+    }
+
+    toTraeFileUri(path) {
+      const normalized = this.normalizePath(path);
+      const drivePathMatch = normalized.match(/^[A-Za-z]:\//);
+      const withLeadingSlash = drivePathMatch ? `/${normalized}` : normalized;
+      const encodedPath = withLeadingSlash
+          .split('/')
+          .map(segment => encodeURIComponent(segment))
+          .join('/')
+          .replace(/^\/(%[0-9A-Fa-f]{2})?([A-Za-z])%3A\//, '/$2:/');
+      return `trae://file${encodedPath}`;
     }
 
     toAndroidStudioFileUri(workspaceRoot, fullPath) {

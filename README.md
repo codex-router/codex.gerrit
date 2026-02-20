@@ -13,7 +13,9 @@ to supported AI agents for interactive chat.
 - Model selector shows models returned by `codex.serve` `GET /models`.
 - The first item returned by `GET /models` is selected by default.
 - `@` file mention dropdown sourced from current patchset files for context selection.
-- `Codespaces` includes `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, and `Open in VS Code` to open patchset files in browser/local IDEs.
+- `Codespaces` includes `Open in Android Studio`, `Open in Browser` (coming soon), `Open in Cursor`, `Open in Trae`, and `Open in VS Code`.
+- `Open in VS Code` downloads all files from the latest patchset to a selected local directory, then opens that directory/files in VS Code.
+- `Open in Trae` downloads all files from the latest patchset to a selected local directory, then opens that directory/files in Trae.
 - Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
 - When Codex response includes a unified diff, a popup dialog shows changed files and patch content.
 - Popup dialog supports per-file `Keep` or `Undo` decision similar to Copilot-style review flow.
@@ -81,7 +83,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Use the selector row to choose `Agent` (options are loaded from `codex.serve` `GET /agents`; the first returned item is selected by default, and if unavailable it falls back to `codex`).
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
-- Use `Codespaces` → `Open in Android Studio`, `Open in Browser`, `Open in Cursor`, or `Open in VS Code` to open all patchset files.
+- Use `Codespaces` → `Open in Android Studio`, `Open in Cursor`, `Open in Trae`, or `Open in VS Code` to open all patchset files. `Open in Browser` currently shows a coming soon status.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Shift+Enter` for a newline).
 - Replies are shown in the UI using the selected agent/model.
@@ -98,46 +100,56 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 When using `Open in Browser` for the first time, the panel prompts for your GitHub repository URL
 (default: `https://github.com/codesandbox/codesandbox-client`) and stores it in browser local storage for future opens.
 
-When using `Open in Android Studio`, `Open in Cursor`, or `Open in VS Code` for the first time, the panel prompts for your local repository root
+When using `Open in Android Studio`, `Open in Cursor`, `Open in Trae`, or `Open in VS Code` for the first time, the panel prompts for your local repository root
 path and stores it in browser local storage for future opens. All actions open all current patchset files.
 
 ### Codespaces: Open in Android Studio
 
-- `Open in Android Studio` opens every file in the current patchset in your local Android Studio IDE using `jetbrains://android-studio/...` links.
-- On first use, enter your local repository root path:
+- `Open in Android Studio` downloads every file in the latest patchset from Gerrit to a local directory you choose in the browser file picker.
+- Enter your local repository root path (used to build `jetbrains://android-studio/...` links after download):
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
+- Pick the target local directory when prompted; plugin writes latest patchset files into that directory (including nested folders).
 - The root path is saved in browser local storage and reused for later opens.
-- If your browser asks for permission to open Android Studio links, allow it.
-- If files do not open, ensure JetBrains protocol handler support is enabled for Android Studio on your machine and that the saved root path matches your local checkout.
+- If your browser asks for file-system write permission or to open Android Studio links, allow it.
+- If files do not open, ensure JetBrains protocol handler support is enabled, use a Chromium-based browser (for directory picker support), and that the saved root path matches the selected local directory.
 
 ### Codespaces: Open in Browser
 
-- `Open in Browser` opens every file in the current patchset in GitHub using `https://github.com/<owner>/<repo>/blob/HEAD/<path>` links.
-- On first use, enter your repository URL:
-	- Example: `https://github.com/codesandbox/codesandbox-client`
-- The repository URL is saved in browser local storage and reused for later opens.
-- If your browser blocks popups, allow popups for Gerrit to open all patchset files.
+- `Open in Browser` is coming soon.
 
 ### Codespaces: Open in Cursor
 
-- `Open in Cursor` opens every file in the current patchset in your local Cursor IDE using `cursor://file/...` links.
-- On first use, enter your local repository root path:
+- `Open in Cursor` downloads every file in the latest patchset from Gerrit to a local directory you choose in the browser file picker.
+- Enter your local repository root path (used to build `cursor://file/...` links after download):
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
+- Pick the target local directory when prompted; plugin writes latest patchset files into that directory (including nested folders).
 - The root path is saved in browser local storage and reused for later opens.
-- If your browser asks for permission to open Cursor links, allow it.
-- If files do not open, check that Cursor URL handling is enabled on your machine and that the saved root path matches your local checkout.
+- If your browser asks for file-system write permission or to open Cursor links, allow it.
+- If files do not open, check that Cursor URL handling is enabled, use a Chromium-based browser (for directory picker support), and that the saved root path matches the selected local directory.
+
+### Codespaces: Open in Trae
+
+- `Open in Trae` downloads every file in the latest patchset from Gerrit to a local directory you choose in the browser file picker.
+- Enter your local repository root path (used to build `trae://file/...` links after download):
+	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
+	- Windows example: `C:\Users\<user>\src\codex.gerrit`
+- Pick the target local directory when prompted; plugin writes latest patchset files into that directory (including nested folders).
+- The root path is saved in browser local storage and reused for later opens.
+- If your browser asks for file-system write permission or to open Trae links, allow it.
+- If files do not open, check that Trae URL handling is enabled, use a Chromium-based browser (for directory picker support), and ensure the saved root path matches the selected local directory.
 
 ### Codespaces: Open in VS Code
 
-- `Open in VS Code` opens every file in the current patchset using `vscode://file/...` links.
-- On first use, enter your local repository root path:
+- `Open in VS Code` downloads every file in the latest patchset from Gerrit to a local directory you choose in the browser file picker.
+- Enter your local repository root path (used to build `vscode://file/...` links after download):
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
+- Pick the target local directory when prompted; plugin writes latest patchset files into that directory (including nested folders).
 - The root path is saved in browser local storage and reused for later opens.
-- If your browser asks for permission to open VS Code links, allow it.
-- If files do not open, check that VS Code URL handling is enabled on your machine and that the saved root path matches your local checkout.
+- If your browser asks for file-system write permission or to open VS Code links, allow it.
+- If files do not open, check that VS Code URL handling is enabled, use a Chromium-based browser (for directory picker support), and ensure the saved root path matches the selected local directory.
 
 ## Reference
 
