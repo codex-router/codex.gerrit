@@ -401,9 +401,8 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle();
+      const directoryHandle = await this.selectDownloadDirectoryHandle('VS Code');
       if (!directoryHandle) {
-        this.setStatus('Open in VS Code canceled.');
         return;
       }
 
@@ -430,14 +429,24 @@ Gerrit.install(plugin => {
       return response && response.files ? response.files : [];
     }
 
-    async selectDownloadDirectoryHandle() {
+    async selectDownloadDirectoryHandle(editorName) {
       if (!window.showDirectoryPicker) {
-        throw new Error('Directory picker is not supported in this browser. Use a Chromium-based browser.');
+        const secureHint = window.isSecureContext
+            ? ''
+            : ' This page is not in a secure context (HTTPS or localhost), so directory access is unavailable.';
+        this.setStatus(`Open in ${editorName || 'editor'} requires Chromium and a secure context.${secureHint}`);
+        return null;
       }
       try {
         return await window.showDirectoryPicker({ mode: 'readwrite' });
       } catch (error) {
         if (error && error.name === 'AbortError') {
+          this.setStatus(`Open in ${editorName || 'editor'} canceled.`);
+          return null;
+        }
+        if (error && error.name === 'SecurityError') {
+          this.setStatus(
+              `Open in ${editorName || 'editor'} requires Gerrit to be served over HTTPS (or localhost). Current URL is ${window.location.protocol}//...`);
           return null;
         }
         throw error;
@@ -515,9 +524,8 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle();
+      const directoryHandle = await this.selectDownloadDirectoryHandle('Cursor');
       if (!directoryHandle) {
-        this.setStatus('Open in Cursor canceled.');
         return;
       }
 
@@ -551,9 +559,8 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle();
+      const directoryHandle = await this.selectDownloadDirectoryHandle('Trae');
       if (!directoryHandle) {
-        this.setStatus('Open in Trae canceled.');
         return;
       }
 
@@ -619,9 +626,8 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle();
+      const directoryHandle = await this.selectDownloadDirectoryHandle('Android Studio');
       if (!directoryHandle) {
-        this.setStatus('Open in Android Studio canceled.');
         return;
       }
 
