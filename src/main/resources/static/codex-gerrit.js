@@ -1432,29 +1432,36 @@ Gerrit.install(plugin => {
 
     extractFileChangesFromReply(reply, contextFiles) {
       const blocks = this.extractDiffBlocks(reply || '');
-      if (blocks.length === 0) {
-        return [];
-      }
-
       const merged = new Map();
       const fallbackFilePath = this.resolveFallbackDiffFilePath(reply, contextFiles || []);
-      blocks.forEach(block => {
-        const parsedChanges = this.parseDiffBlock(block);
-        if (parsedChanges.length === 0 && fallbackFilePath && this.blockContainsPatchContent(block)) {
-          parsedChanges.push({ filePath: fallbackFilePath, diffText: block.trim() });
-        }
-        parsedChanges.forEach(change => {
-          if (!change.filePath || !change.diffText) {
-            return;
+      if (blocks.length > 0) {
+        blocks.forEach(block => {
+          const parsedChanges = this.parseDiffBlock(block);
+          if (parsedChanges.length === 0 && fallbackFilePath && this.blockContainsPatchContent(block)) {
+            parsedChanges.push({ filePath: fallbackFilePath, diffText: block.trim() });
           }
-          const existing = merged.get(change.filePath);
-          if (!existing) {
-            merged.set(change.filePath, change.diffText.trim());
-            return;
-          }
-          merged.set(change.filePath, `${existing}\n\n${change.diffText.trim()}`.trim());
+          parsedChanges.forEach(change => {
+            if (!change.filePath || !change.diffText) {
+              return;
+            }
+            const existing = merged.get(change.filePath);
+            if (!existing) {
+              merged.set(change.filePath, change.diffText.trim());
+              return;
+            }
+            merged.set(change.filePath, `${existing}\n\n${change.diffText.trim()}`.trim());
+          });
         });
-      });
+      } else if (fallbackFilePath) {
+        const synthesizedDiff = this.synthesizeDiffFromCodeBlock(reply || '', fallbackFilePath);
+        if (synthesizedDiff) {
+          merged.set(fallbackFilePath, synthesizedDiff);
+        }
+      }
+
+      if (merged.size === 0) {
+        return [];
+      }
 
       return Array.from(merged.entries()).map(([filePath, diffText]) => {
         this.fileChangeSequence += 1;
@@ -1506,6 +1513,61 @@ Gerrit.install(plugin => {
         }
         return false;
       });
+    }
+
+    synthesizeDiffFromCodeBlock(reply, filePath) {
+      const codeBlocks = this.extractFencedCodeBlocks(reply || '');
+      if (codeBlocks.length === 0) {
+        return '';
+      }
+
+      const preferred = codeBlocks.find(block => {
+        const language = (block.language || '').toLowerCase();
+        if (language === 'diff' || language === 'patch') {
+          return false;
+        }
+        return !!(block.content || '').trim();
+      });
+      if (!preferred || !preferred.content) {
+        return '';
+      }
+
+      const contentLines = preferred.content
+          .replace(/\r\n?/g, '\n')
+          .split('\n');
+      while (contentLines.length > 0 && contentLines[contentLines.length - 1] === '') {
+        contentLines.pop();
+      }
+      if (contentLines.length === 0) {
+        return '';
+      }
+
+      const addedLines = contentLines.map(line => `+${line}`);
+      return [
+        `diff --git a/${filePath} b/${filePath}`,
+        `--- a/${filePath}`,
+        `+++ b/${filePath}`,
+        `@@ -1,0 +1,${contentLines.length} @@`,
+        ...addedLines
+      ].join('\n');
+    }
+
+    extractFencedCodeBlocks(text) {
+      const normalized = (text || '').replace(/\r\n?/g, '\n');
+      if (!normalized.trim()) {
+        return [];
+      }
+
+      const blocks = [];
+      const fencedBlockRegex = /```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g;
+      let match;
+      while ((match = fencedBlockRegex.exec(normalized)) !== null) {
+        blocks.push({
+          language: (match[1] || '').trim(),
+          content: (match[2] || '').trim()
+        });
+      }
+      return blocks;
     }
 
     extractDiffBlocks(text) {
