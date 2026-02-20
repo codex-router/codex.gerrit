@@ -26,8 +26,8 @@ import com.google.gerrit.extensions.restapi.RestReadView;
 import com.google.gerrit.server.change.RevisionResource;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -66,13 +66,17 @@ public class CodexPatchsetFilesRest implements RestReadView<RevisionResource> {
   }
 
   private String readFileAsBase64(RevisionApi revisionApi, String filePath) throws RestApiException {
-    try (BinaryResult binaryResult = revisionApi.file(filePath).content();
-        InputStream inputStream = binaryResult.asInputStream()) {
-      byte[] bytes = inputStream.readAllBytes();
+    try {
+      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      try (BinaryResult binaryResult = revisionApi.file(filePath).content()) {
+        binaryResult.writeTo(outputStream);
+      }
+      byte[] bytes = outputStream.toByteArray();
       return Base64.getEncoder().encodeToString(bytes);
     } catch (IOException ioException) {
       logger.warn("Failed to read patchset file content for {}", filePath, ioException);
-      throw new ResourceConflictException("Failed to read patchset file content for " + filePath);
+      throw new ResourceConflictException(
+          "Failed to read patchset file content for " + filePath);
     }
   }
 
