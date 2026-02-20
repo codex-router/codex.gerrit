@@ -24,6 +24,7 @@ import com.google.gerrit.extensions.common.ChangeInfo;
 import com.google.gerrit.extensions.common.FileInfo;
 import com.google.gerrit.extensions.restapi.BinaryResult;
 import com.google.gerrit.extensions.restapi.BadRequestException;
+import com.google.gerrit.extensions.restapi.ResourceConflictException;
 import com.google.gerrit.extensions.restapi.Response;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gerrit.extensions.restapi.RestModifyView;
@@ -269,7 +270,8 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     try (BinaryResult binaryResult = changeApi.current().file(filePath).content()) {
       binaryResult.writeTo(output);
     } catch (IOException ioException) {
-      throw new RestApiException("Failed to read file content for " + filePath, ioException);
+      throw new ResourceConflictException(
+          "Failed to read file content for " + filePath + ": " + ioException.getMessage());
     }
 
     String text = new String(output.toByteArray(), StandardCharsets.UTF_8);
