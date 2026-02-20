@@ -15,10 +15,12 @@
 package com.codex.gerrit.rest;
 
 import com.google.gerrit.extensions.api.GerritApi;
+import com.google.gerrit.extensions.api.changes.BinaryResult;
 import com.google.gerrit.extensions.api.changes.ChangeApi;
 import com.google.gerrit.extensions.api.changes.RevisionApi;
 import com.google.gerrit.extensions.common.FileInfo;
 import com.google.gerrit.extensions.restapi.Response;
+import com.google.gerrit.extensions.restapi.ResourceConflictException;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gerrit.extensions.restapi.RestReadView;
 import com.google.gerrit.server.change.RevisionResource;
@@ -64,12 +66,13 @@ public class CodexPatchsetFilesRest implements RestReadView<RevisionResource> {
   }
 
   private String readFileAsBase64(RevisionApi revisionApi, String filePath) throws RestApiException {
-    try (InputStream inputStream = revisionApi.file(filePath).content()) {
+    try (BinaryResult binaryResult = revisionApi.file(filePath).content();
+        InputStream inputStream = binaryResult.asInputStream()) {
       byte[] bytes = inputStream.readAllBytes();
       return Base64.getEncoder().encodeToString(bytes);
     } catch (IOException ioException) {
       logger.warn("Failed to read patchset file content for {}", filePath, ioException);
-      throw new RestApiException("Failed to read patchset file content for " + filePath, ioException);
+      throw new ResourceConflictException("Failed to read patchset file content for " + filePath);
     }
   }
 
