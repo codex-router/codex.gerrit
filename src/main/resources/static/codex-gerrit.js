@@ -556,15 +556,28 @@ Gerrit.install(plugin => {
     }
 
     async getJsonFromGerrit(path) {
-      const response = await this.fetchFromGerrit(path, { method: 'GET' }, true);
-      return await response.json();
+      const restApi = plugin.restApi && plugin.restApi();
+      const candidates = this.getGerritRestCandidates(path);
+
+      if (restApi && typeof restApi.get === 'function') {
+        for (const candidate of candidates) {
+          try {
+            const data = await restApi.get(candidate);
+            if (data !== undefined && data !== null) {
+              return data;
+            }
+          } catch (restError) {
+            logError('Gerrit REST get failed for candidate path.', { path: candidate, error: this.getErrorMessage(restError) });
+          }
+        }
+      }
+
+      const response = await this.fetchFromGerrit(path, { method: 'GET' }, false);
+      return await this.parseGerritJsonResponse(response);
     }
 
     async fetchFromGerrit(path, options, expectJson) {
-      const candidates = [path];
-      if (!path.startsWith('/a/') && !window.location.pathname.startsWith('/a/')) {
-        candidates.push(`/a${path}`);
-      }
+      const candidates = this.getGerritRestCandidates(path);
 
       const errors = [];
       for (const candidate of candidates) {
@@ -578,9 +591,10 @@ Gerrit.install(plugin => {
           continue;
         }
         if (expectJson) {
-          const contentType = (response.headers.get('content-type') || '').toLowerCase();
-          if (contentType.indexOf('application/json') < 0) {
-            errors.push(`${candidate}: unexpected content-type ${contentType || 'unknown'}`);
+          try {
+            await this.parseGerritJsonResponse(response.clone());
+          } catch (parseError) {
+            errors.push(`${candidate}: ${this.getErrorMessage(parseError)}`);
             continue;
           }
         }
@@ -591,24 +605,26 @@ Gerrit.install(plugin => {
     }
 
     async tryFetchGerritCandidate(path, options) {
-      const restApi = plugin.restApi && plugin.restApi();
-      if (restApi && typeof restApi.fetch === 'function') {
-        try {
-          const restResponse = await restApi.fetch(path, options || { method: 'GET' });
-          if (restResponse) {
-            return restResponse;
-          }
-        } catch (restError) {
-          logError('Gerrit REST fetch failed for candidate path.', { path, error: this.getErrorMessage(restError) });
-        }
-      }
-
       try {
         return await window.fetch(path, Object.assign({ credentials: 'same-origin' }, options || { method: 'GET' }));
       } catch (fetchError) {
         logError('window.fetch failed for candidate path.', { path, error: this.getErrorMessage(fetchError) });
         return null;
       }
+    }
+
+    getGerritRestCandidates(path) {
+      const candidates = [path];
+      if (!path.startsWith('/a/') && !window.location.pathname.startsWith('/a/')) {
+        candidates.push(`/a${path}`);
+      }
+      return candidates;
+    }
+
+    async parseGerritJsonResponse(response) {
+      const bodyText = await response.text();
+      const sanitized = bodyText.replace(/^\)\]\}'\n/, '');
+      return sanitized ? JSON.parse(sanitized) : null;
     }
 
     parseFilenameFromContentDisposition(value) {
