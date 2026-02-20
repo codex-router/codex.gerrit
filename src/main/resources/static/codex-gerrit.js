@@ -170,11 +170,6 @@ Gerrit.install(plugin => {
       stopButton.textContent = 'Stop';
       stopButton.disabled = true;
 
-      const reviewChangesButton = document.createElement('button');
-      reviewChangesButton.className = 'codex-button outline';
-      reviewChangesButton.textContent = 'Review';
-      reviewChangesButton.disabled = true;
-
       const clearButton = document.createElement('button');
       clearButton.className = 'codex-button outline';
       clearButton.textContent = 'Clear';
@@ -282,7 +277,6 @@ Gerrit.install(plugin => {
       const inputActions = document.createElement('div');
       inputActions.className = 'codex-actions';
       inputActions.appendChild(stopButton);
-      inputActions.appendChild(reviewChangesButton);
       inputActions.appendChild(clearButton);
 
       inputRow.appendChild(input);
@@ -309,7 +303,6 @@ Gerrit.install(plugin => {
       log('Panel DOM mounted. Loading models...');
 
       stopButton.addEventListener('click', () => this.stopChat());
-      reviewChangesButton.addEventListener('click', () => this.openFileChangesDialog());
       clearButton.addEventListener('click', () => this.clearChatPanel());
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
@@ -337,7 +330,6 @@ Gerrit.install(plugin => {
       this.output = output;
       this.status = status;
       this.stopButton = stopButton;
-      this.reviewChangesButton = reviewChangesButton;
       this.clearButton = clearButton;
       this.headerVersion = headerVersion;
       this.changeDialogOverlay = changeDialogOverlay;
@@ -1324,7 +1316,7 @@ Gerrit.install(plugin => {
           const fileChanges = this.extractFileChangesFromReply(response.reply, contextFiles);
           if (fileChanges.length > 0) {
             this.showFileChangesDialog(fileChanges);
-            this.setStatus(`Detected ${fileChanges.length} changed file(s). Choose Keep or Undo in Review.`);
+            this.setStatus(`Detected ${fileChanges.length} changed file(s). Review dialog opened for Keep/Undo.`);
           } else {
             this.setStatus('Done.');
           }
@@ -1385,9 +1377,6 @@ Gerrit.install(plugin => {
       this.promptHistoryIndex = -1;
       this.pendingFileChanges = [];
       this.closeFileChangesDialog();
-      if (this.reviewChangesButton) {
-        this.reviewChangesButton.disabled = true;
-      }
       this.setStatus('Chat panel cleared.');
     }
 
@@ -1424,9 +1413,6 @@ Gerrit.install(plugin => {
       this.isBusyState = isBusy;
       if (this.stopButton) {
         this.stopButton.disabled = !isBusy;
-      }
-      if (this.reviewChangesButton) {
-        this.reviewChangesButton.disabled = isBusy || this.pendingFileChanges.length === 0;
       }
     }
 
@@ -1697,9 +1683,6 @@ Gerrit.install(plugin => {
       this.pendingFileChanges = fileChanges.slice();
       this.renderFileChangesDialog();
       this.openFileChangesDialog();
-      if (this.reviewChangesButton) {
-        this.reviewChangesButton.disabled = false;
-      }
     }
 
     isFileChangesDialogVisible() {

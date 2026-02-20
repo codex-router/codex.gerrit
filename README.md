@@ -88,9 +88,9 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
 - Use `Codespaces` → `Open in Browser` (currently coming soon).
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
-- If your prompt includes `@` files and requests code changes, Codex is guided to answer with unified diff blocks that can be opened in `Review`.
-- Even if the returned diff block does not include `diff --git` / `---` / `+++`, `Review` can fall back to the `@` file context to enable the dialog.
-- For single-file `@` prompts, a plain fenced code suggestion can still be shown in `Review` via synthesized unified diff output.
+- If your prompt includes `@` files and requests code changes, Codex is guided to answer with unified diff blocks that automatically open the review dialog.
+- Even if the returned diff block does not include `diff --git` / `---` / `+++`, review fallback can still use `@` file context to enable the dialog.
+- For single-file `@` prompts, a plain fenced code suggestion can still be shown in the review dialog via synthesized unified diff output.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Shift+Enter` for a newline).
 - Replies are shown in the UI using the selected agent/model.
 - If a reply contains file diffs, review them in the popup and choose `Keep` or `Undo` for each file.
