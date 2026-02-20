@@ -1033,29 +1033,92 @@ Gerrit.install(plugin => {
     }
 
     async pickWorkspaceRootPathFromDirectory(currentPath) {
-      if (!window.showDirectoryPicker) {
-        this.setStatus('Native directory picker is not available in this browser. Enter the path manually, then click Save.');
-        return '';
-      }
-
       try {
-        const directoryHandle = await this.showDirectoryPickerCompat();
-        if (!directoryHandle || !directoryHandle.name) {
-          return '';
+        if (window.showDirectoryPicker) {
+          const directoryHandle = await this.showDirectoryPickerCompat();
+          if (directoryHandle && directoryHandle.name) {
+            const guessed = this.inferWorkspaceRootFromSelection(currentPath, directoryHandle.name);
+            if (!guessed) {
+              return '';
+            }
+            this.setStatus('Directory selected from file explorer. Verify the full path, then click Save.');
+            return guessed;
+          }
         }
-        const guessed = this.inferWorkspaceRootFromSelection(currentPath, directoryHandle.name);
-        if (!guessed) {
+
+        const fallbackPath = await this.pickWorkspaceRootPathUsingFileInput(currentPath);
+        if (!fallbackPath) {
           return '';
         }
         this.setStatus('Directory selected from file explorer. Verify the full path, then click Save.');
-        return guessed;
+        return fallbackPath;
       } catch (error) {
         if (error && error.name === 'AbortError') {
           return '';
         }
+
+        const fallbackPath = await this.pickWorkspaceRootPathUsingFileInput(currentPath);
+        if (fallbackPath) {
+          this.setStatus('Directory selected from file explorer. Verify the full path, then click Save.');
+          return fallbackPath;
+        }
+
         this.setStatus(`Directory picker is blocked or unavailable: ${this.getErrorMessage(error)}. Enter the path manually, then click Save.`);
         return '';
       }
+    }
+
+    async pickWorkspaceRootPathUsingFileInput(currentPath) {
+      if (!document || !document.body) {
+        return '';
+      }
+
+      const selectedDirectoryName = await new Promise(resolve => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.style.position = 'fixed';
+        input.style.left = '-9999px';
+        input.style.width = '1px';
+        input.style.height = '1px';
+        input.style.opacity = '0';
+        input.multiple = true;
+        input.setAttribute('webkitdirectory', '');
+        input.setAttribute('directory', '');
+
+        const cleanup = () => {
+          input.removeEventListener('change', onChange);
+          input.removeEventListener('cancel', onCancel);
+          if (input.parentNode) {
+            input.parentNode.removeChild(input);
+          }
+        };
+
+        const onCancel = () => {
+          cleanup();
+          resolve('');
+        };
+
+        const onChange = () => {
+          const file = input.files && input.files.length > 0 ? input.files[0] : null;
+          const relative = file && typeof file.webkitRelativePath === 'string' ? file.webkitRelativePath : '';
+          const directoryName = relative && relative.indexOf('/') > 0
+              ? relative.split('/')[0]
+              : '';
+          cleanup();
+          resolve(directoryName || '');
+        };
+
+        input.addEventListener('change', onChange, { once: true });
+        input.addEventListener('cancel', onCancel, { once: true });
+        document.body.appendChild(input);
+        input.click();
+      });
+
+      if (!selectedDirectoryName) {
+        return '';
+      }
+
+      return this.inferWorkspaceRootFromSelection(currentPath, selectedDirectoryName);
     }
 
     async showDirectoryPickerCompat() {
