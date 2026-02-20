@@ -14,6 +14,4 @@
 
 package com.codex.gerrit.rest;
 
-public class CodexPatchsetSyncInput {
-  public String workspaceRoot;
-}
+public class CodexPatchsetSyncInput {}
