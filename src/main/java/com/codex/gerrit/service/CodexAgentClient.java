@@ -31,6 +31,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
@@ -111,6 +112,23 @@ public class CodexAgentClient {
       return fetchAgentsFromServer();
     } catch (IOException e) {
       throw new BadRequestException("Failed to fetch agents: " + e.getMessage());
+    }
+  }
+
+  public WorkspaceSyncResult syncWorkspaceFiles(String workspaceRoot, List<WorkspaceSyncFile> files)
+      throws RestApiException {
+    if (config.getCodexServeUrl().isEmpty()) {
+      throw new BadRequestException("codexServeUrl is not configured");
+    }
+    String normalizedWorkspaceRoot = workspaceRoot == null ? "" : workspaceRoot.trim();
+    if (normalizedWorkspaceRoot.isEmpty()) {
+      throw new BadRequestException("workspaceRoot is required");
+    }
+
+    try {
+      return syncWorkspaceFilesOnServer(normalizedWorkspaceRoot, files);
+    } catch (IOException e) {
+      throw new BadRequestException("Failed to sync workspace files: " + e.getMessage());
     }
   }
 
@@ -312,6 +330,74 @@ public class CodexAgentClient {
       }
     }
     return agents;
+  }
+
+  private WorkspaceSyncResult syncWorkspaceFilesOnServer(
+      String workspaceRoot, List<WorkspaceSyncFile> files) throws IOException, RestApiException {
+    URL url = new URL(config.getCodexServeUrl() + "/workspace/sync");
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.setRequestMethod("POST");
+    conn.setRequestProperty("Content-Type", "application/json");
+    conn.setRequestProperty("Accept", "application/json");
+    conn.setDoOutput(true);
+    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+    conn.setReadTimeout(CONTROL_READ_TIMEOUT_MS);
+
+    JsonObject payload = new JsonObject();
+    payload.addProperty("workspaceRoot", workspaceRoot);
+
+    ArrayList<JsonObject> filePayload = new ArrayList<>();
+    if (files != null) {
+      for (WorkspaceSyncFile file : files) {
+        if (file == null || file.path == null || file.path.trim().isEmpty()) {
+          continue;
+        }
+        JsonObject item = new JsonObject();
+        item.addProperty("path", file.path.trim());
+        item.addProperty("contentBase64", Base64.getEncoder().encodeToString(file.contentBytes));
+        filePayload.add(item);
+      }
+    }
+    payload.add("files", GSON.toJsonTree(filePayload));
+
+    try (OutputStream os = conn.getOutputStream()) {
+      byte[] input = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
+      os.write(input, 0, input.length);
+    }
+
+    int responseCode = conn.getResponseCode();
+    InputStream is =
+        (responseCode >= 200 && responseCode < 300) ? conn.getInputStream() : conn.getErrorStream();
+    String body = readText(is);
+
+    if (responseCode != 200) {
+      throw new BadRequestException("Remote server error " + responseCode + ": " + body);
+    }
+
+    JsonObject json = GSON.fromJson(body, JsonObject.class);
+    if (json == null) {
+      throw new BadRequestException("Invalid /workspace/sync response from codex.serve");
+    }
+    int written = json.has("written") ? json.get("written").getAsInt() : 0;
+    return new WorkspaceSyncResult(written);
+  }
+
+  public static class WorkspaceSyncFile {
+    public final String path;
+    public final byte[] contentBytes;
+
+    public WorkspaceSyncFile(String path, byte[] contentBytes) {
+      this.path = path;
+      this.contentBytes = contentBytes == null ? new byte[0] : contentBytes;
+    }
+  }
+
+  public static class WorkspaceSyncResult {
+    public final int written;
+
+    public WorkspaceSyncResult(int written) {
+      this.written = written;
+    }
   }
 
   private static String readText(InputStream is) throws IOException {

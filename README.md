@@ -14,8 +14,8 @@ to supported AI agents for interactive chat.
 - The first item returned by `GET /models` is selected by default.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - `Codespaces` includes `Open in Android Studio`, `Open in Browser` (coming soon), `Open in Cursor`, `Open in Trae`, and `Open in VS Code`.
-- `Open in VS Code` downloads all files from the latest patchset to a selected local directory, then opens that directory/files in VS Code.
-- `Open in Trae` downloads all files from the latest patchset to a selected local directory, then opens that directory/files in Trae.
+- `Open in VS Code` writes all files from the latest patchset to a local directory and opens that directory/files in VS Code.
+- `Open in Trae` writes all files from the latest patchset to a local directory and opens that directory/files in Trae.
 - Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
 - When Codex response includes a unified diff, a popup dialog shows changed files and patch content.
 - Popup dialog supports per-file `Keep` or `Undo` decision similar to Copilot-style review flow.
@@ -120,33 +120,36 @@ path and stores it in browser local storage for future opens. All actions open a
 
 ### Codespaces: Open in Cursor
 
-- `Open in Cursor` downloads every file in the latest patchset from Gerrit to a local directory you choose in the browser file picker.
+- `Open in Cursor` writes every file in the latest patchset from Gerrit to your local workspace.
 - Enter your local repository root path (used to build `cursor://file/...` links after download):
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
-- Pick the target local directory when prompted; plugin writes latest patchset files into that directory (including nested folders).
+- If your browser supports directory picker, choose the target local directory and plugin writes files there.
+- If directory picker is unavailable or blocked, plugin syncs files directly to the workspace root path you entered (via `codex.serve`) with no `.zip` artifact.
 - The root path is saved in browser local storage and reused for later opens.
 - If your browser asks for file-system write permission or to open Cursor links, allow it.
 - If files do not open, check that Cursor URL handling is enabled, use a Chromium-based browser (for directory picker support), and that the saved root path matches the selected local directory.
 
 ### Codespaces: Open in Trae
 
-- `Open in Trae` downloads every file in the latest patchset from Gerrit to a local directory you choose in the browser file picker.
+- `Open in Trae` writes every file in the latest patchset from Gerrit to your local workspace.
 - Enter your local repository root path (used to build `trae://file/...` links after download):
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
-- Pick the target local directory when prompted; plugin writes latest patchset files into that directory (including nested folders).
+- If your browser supports directory picker, choose the target local directory and plugin writes files there.
+- If directory picker is unavailable or blocked, plugin syncs files directly to the workspace root path you entered (via `codex.serve`) with no `.zip` artifact.
 - The root path is saved in browser local storage and reused for later opens.
 - If your browser asks for file-system write permission or to open Trae links, allow it.
 - If files do not open, check that Trae URL handling is enabled, use a Chromium-based browser (for directory picker support), and ensure the saved root path matches the selected local directory.
 
 ### Codespaces: Open in VS Code
 
-- `Open in VS Code` downloads every file in the latest patchset from Gerrit to a local directory you choose in the browser file picker.
+- `Open in VS Code` writes every file in the latest patchset from Gerrit to your local workspace.
 - Enter your local repository root path (used to build `vscode://file/...` links after download):
 	- Linux/macOS example: `/home/<user>/my-tmp/codex.gerrit`
 	- Windows example: `C:\Users\<user>\src\codex.gerrit`
-- Pick the target local directory when prompted; plugin writes latest patchset files into that directory (including nested folders).
+- If your browser supports directory picker, choose the target local directory and plugin writes files there.
+- If directory picker is unavailable or blocked, plugin syncs files directly to the workspace root path you entered (via `codex.serve`) with no `.zip` artifact.
 - The root path is saved in browser local storage and reused for later opens.
 - If your browser asks for file-system write permission or to open VS Code links, allow it.
 - If files do not open, check that VS Code URL handling is enabled, use a Chromium-based browser (for directory picker support), and ensure the saved root path matches the selected local directory.

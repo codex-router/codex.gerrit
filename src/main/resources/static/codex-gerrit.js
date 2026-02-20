@@ -26,6 +26,7 @@ Gerrit.install(plugin => {
   ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
   const browserRepoStorageKey = `${pluginName}-browser-repo-url`;
+  const syncedViaWorkspaceRootSentinel = '__codex_synced_via_workspace_root__';
   const defaultBrowserRepoUrl = 'https://github.com/codesandbox/codesandbox-client';
   const log = (...args) => console.log(logPrefix, ...args);
   const warn = (...args) => console.warn(logPrefix, ...args);
@@ -401,22 +402,27 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle('VS Code', changeId);
+      const directoryHandle = await this.selectDownloadDirectoryHandle('VS Code', changeId, workspaceRoot);
       if (!directoryHandle) {
         return;
       }
 
       try {
-        this.setStatus('Downloading latest patchset files from Gerrit...');
-        const files = await this.fetchLatestPatchsetFiles(changeId);
+        const files = directoryHandle === syncedViaWorkspaceRootSentinel
+            ? await this.listLatestPatchsetFilesFromGerrit(changeId, 'current')
+            : await this.fetchLatestPatchsetFiles(changeId);
         if (!files || files.length === 0) {
           this.setStatus('No patchset files found for this change.');
           return;
         }
 
-        await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        if (directoryHandle !== syncedViaWorkspaceRootSentinel) {
+          this.setStatus('Downloading latest patchset files from Gerrit...');
+          await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        }
         this.openPatchsetInVsCode(workspaceRoot, files);
-        this.setStatus(`Downloaded ${files.length} patchset files and opening in VS Code...`);
+        const syncLabel = directoryHandle === syncedViaWorkspaceRootSentinel ? 'Synced' : 'Downloaded';
+        this.setStatus(`${syncLabel} ${files.length} patchset files and opening in VS Code...`);
       } catch (err) {
         logError('Open in VS Code failed.', err);
         this.setStatus(`Open in VS Code failed: ${this.getErrorMessage(err)}`);
@@ -429,10 +435,9 @@ Gerrit.install(plugin => {
       return response && response.files ? response.files : [];
     }
 
-    async selectDownloadDirectoryHandle(editorName, changeId) {
+    async selectDownloadDirectoryHandle(editorName, changeId, workspaceRoot) {
       if (!window.showDirectoryPicker) {
-        await this.downloadLatestPatchsetFilesViaContentApi(changeId, editorName);
-        return null;
+        return await this.syncPatchsetFilesToWorkspaceRoot(changeId, workspaceRoot, editorName);
       }
       try {
         return await window.showDirectoryPicker({ mode: 'readwrite' });
@@ -442,10 +447,31 @@ Gerrit.install(plugin => {
           return null;
         }
         if (error && error.name === 'SecurityError') {
-          await this.downloadLatestPatchsetFilesViaContentApi(changeId, editorName);
-          return null;
+          return await this.syncPatchsetFilesToWorkspaceRoot(changeId, workspaceRoot, editorName);
         }
         throw error;
+      }
+    }
+
+    async syncPatchsetFilesToWorkspaceRoot(changeId, workspaceRoot, editorName) {
+      const normalizedRoot = this.normalizePath(workspaceRoot);
+      if (!normalizedRoot) {
+        this.setStatus(`Open in ${editorName || 'editor'} canceled.`);
+        return null;
+      }
+      try {
+        this.setStatus(`Syncing latest patchset files to ${normalizedRoot}...`);
+        const syncPath = `/changes/${encodeURIComponent(changeId)}/revisions/current/codex-patchset-sync`;
+        const response = await plugin.restApi().post(syncPath, { workspaceRoot: normalizedRoot });
+        const written = response && Number.isFinite(response.written) ? response.written : 0;
+        if (written <= 0) {
+          throw new Error('No files were synchronized.');
+        }
+        return syncedViaWorkspaceRootSentinel;
+      } catch (syncError) {
+        logError('Workspace-root sync failed, falling back to ZIP download.', syncError);
+        await this.downloadLatestPatchsetFilesViaContentApi(changeId, editorName);
+        return null;
       }
     }
 
@@ -820,22 +846,27 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle('Cursor', changeId);
+      const directoryHandle = await this.selectDownloadDirectoryHandle('Cursor', changeId, workspaceRoot);
       if (!directoryHandle) {
         return;
       }
 
       try {
-        this.setStatus('Downloading latest patchset files from Gerrit...');
-        const files = await this.fetchLatestPatchsetFiles(changeId);
+        const files = directoryHandle === syncedViaWorkspaceRootSentinel
+            ? await this.listLatestPatchsetFilesFromGerrit(changeId, 'current')
+            : await this.fetchLatestPatchsetFiles(changeId);
         if (!files || files.length === 0) {
           this.setStatus('No patchset files found for this change.');
           return;
         }
 
-        await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        if (directoryHandle !== syncedViaWorkspaceRootSentinel) {
+          this.setStatus('Downloading latest patchset files from Gerrit...');
+          await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        }
         this.openPatchsetInCursor(workspaceRoot, files);
-        this.setStatus(`Downloaded ${files.length} patchset files and opening in Cursor...`);
+        const syncLabel = directoryHandle === syncedViaWorkspaceRootSentinel ? 'Synced' : 'Downloaded';
+        this.setStatus(`${syncLabel} ${files.length} patchset files and opening in Cursor...`);
       } catch (err) {
         logError('Open in Cursor failed.', err);
         this.setStatus(`Open in Cursor failed: ${this.getErrorMessage(err)}`);
@@ -855,22 +886,27 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle('Trae', changeId);
+      const directoryHandle = await this.selectDownloadDirectoryHandle('Trae', changeId, workspaceRoot);
       if (!directoryHandle) {
         return;
       }
 
       try {
-        this.setStatus('Downloading latest patchset files from Gerrit...');
-        const files = await this.fetchLatestPatchsetFiles(changeId);
+        const files = directoryHandle === syncedViaWorkspaceRootSentinel
+            ? await this.listLatestPatchsetFilesFromGerrit(changeId, 'current')
+            : await this.fetchLatestPatchsetFiles(changeId);
         if (!files || files.length === 0) {
           this.setStatus('No patchset files found for this change.');
           return;
         }
 
-        await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        if (directoryHandle !== syncedViaWorkspaceRootSentinel) {
+          this.setStatus('Downloading latest patchset files from Gerrit...');
+          await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        }
         this.openPatchsetInTrae(workspaceRoot, files);
-        this.setStatus(`Downloaded ${files.length} patchset files and opening in Trae...`);
+        const syncLabel = directoryHandle === syncedViaWorkspaceRootSentinel ? 'Synced' : 'Downloaded';
+        this.setStatus(`${syncLabel} ${files.length} patchset files and opening in Trae...`);
       } catch (err) {
         logError('Open in Trae failed.', err);
         this.setStatus(`Open in Trae failed: ${this.getErrorMessage(err)}`);
@@ -922,22 +958,27 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle('Android Studio', changeId);
+      const directoryHandle = await this.selectDownloadDirectoryHandle('Android Studio', changeId, workspaceRoot);
       if (!directoryHandle) {
         return;
       }
 
       try {
-        this.setStatus('Downloading latest patchset files from Gerrit...');
-        const files = await this.fetchLatestPatchsetFiles(changeId);
+        const files = directoryHandle === syncedViaWorkspaceRootSentinel
+            ? await this.listLatestPatchsetFilesFromGerrit(changeId, 'current')
+            : await this.fetchLatestPatchsetFiles(changeId);
         if (!files || files.length === 0) {
           this.setStatus('No patchset files found for this change.');
           return;
         }
 
-        await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        if (directoryHandle !== syncedViaWorkspaceRootSentinel) {
+          this.setStatus('Downloading latest patchset files from Gerrit...');
+          await this.writePatchsetFilesToDirectory(directoryHandle, files);
+        }
         this.openPatchsetInAndroidStudio(workspaceRoot, files);
-        this.setStatus(`Downloaded ${files.length} patchset files and opening in Android Studio...`);
+        const syncLabel = directoryHandle === syncedViaWorkspaceRootSentinel ? 'Synced' : 'Downloaded';
+        this.setStatus(`${syncLabel} ${files.length} patchset files and opening in Android Studio...`);
       } catch (err) {
         logError('Open in Android Studio failed.', err);
         this.setStatus(`Open in Android Studio failed: ${this.getErrorMessage(err)}`);
