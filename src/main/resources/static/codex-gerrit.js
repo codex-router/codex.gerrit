@@ -431,7 +431,7 @@ Gerrit.install(plugin => {
 
     async selectDownloadDirectoryHandle(editorName, changeId) {
       if (!window.showDirectoryPicker) {
-        await this.downloadLatestPatchsetArchive(changeId, editorName);
+        await this.downloadLatestPatchsetFilesViaContentApi(changeId, editorName);
         return null;
       }
       try {
@@ -442,50 +442,295 @@ Gerrit.install(plugin => {
           return null;
         }
         if (error && error.name === 'SecurityError') {
-          await this.downloadLatestPatchsetArchive(changeId, editorName);
+          await this.downloadLatestPatchsetFilesViaContentApi(changeId, editorName);
           return null;
         }
         throw error;
       }
     }
 
-    async downloadLatestPatchsetArchive(changeId, editorName) {
+    async downloadLatestPatchsetFilesViaContentApi(changeId, editorName) {
       if (!changeId) {
         this.setStatus('Unable to detect change id.');
         return false;
       }
 
       const revisionId = 'current';
-      const archivePath = `/changes/${encodeURIComponent(changeId)}/revisions/${encodeURIComponent(revisionId)}/archive?format=zip`;
       const fileSafeChangeId = String(changeId).replace(/[^A-Za-z0-9._-]+/g, '-');
-      const fileName = `${fileSafeChangeId}-${revisionId}.zip`;
+      const outputFileName = `${fileSafeChangeId}-${revisionId}.zip`;
 
       try {
-        this.setStatus('Downloading latest patchset archive from Gerrit REST API...');
-        const response = await window.fetch(archivePath, {
-          method: 'GET',
-          credentials: 'same-origin'
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+        this.setStatus('Listing latest patchset files from Gerrit...');
+        const files = await this.listLatestPatchsetFilesFromGerrit(changeId, revisionId);
+        if (!files || files.length === 0) {
+          this.setStatus('No patchset files found for this change.');
+          return false;
         }
-        const blob = await response.blob();
+
+        const zipEntries = [];
+        const downloadErrors = [];
+        for (let index = 0; index < files.length; index += 1) {
+          const file = files[index];
+          this.setStatus(`Downloading file ${index + 1}/${files.length} via Gerrit Download Content API...`);
+          try {
+            const entry = await this.downloadPatchsetFileAsZipEntry(changeId, revisionId, file.path);
+            if (entry) {
+              zipEntries.push(entry);
+            }
+          } catch (fileError) {
+            downloadErrors.push(`${file.path}: ${this.getErrorMessage(fileError)}`);
+          }
+        }
+
+        if (zipEntries.length === 0) {
+          throw new Error(downloadErrors.length > 0 ? downloadErrors.join('; ') : 'No files downloaded.');
+        }
+
+        const blob = this.createZipBlob(zipEntries);
+
         const objectUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = objectUrl;
-        link.download = fileName;
+        link.download = outputFileName;
         document.body.appendChild(link);
         link.click();
         link.remove();
         window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
-        this.setStatus(
-            `Downloaded latest patchset ZIP via Gerrit REST API. Extract it locally, then run Open in ${editorName || 'editor'} again.`);
+        if (downloadErrors.length > 0) {
+          logError('Some patchset files failed to download via Download Content API.', downloadErrors);
+          this.setStatus(`Downloaded ${zipEntries.length}/${files.length} files via Gerrit Download Content API as ZIP.`);
+        } else {
+          this.setStatus(
+              `Downloaded latest patchset files via Gerrit Download Content API. Extract locally, then run Open in ${editorName || 'editor'} again.`);
+        }
         return true;
       } catch (error) {
-        logError('Failed to download latest patchset archive.', error);
-        this.setStatus(`Patchset archive download failed: ${this.getErrorMessage(error)}`);
+        logError('Failed to download latest patchset files via Download Content API.', error);
+        this.setStatus(`Patchset download failed: ${this.getErrorMessage(error)}`);
         return false;
       }
+    }
+
+    async listLatestPatchsetFilesFromGerrit(changeId, revisionId) {
+      const basePath = `/changes/${encodeURIComponent(changeId)}/revisions/${encodeURIComponent(revisionId)}/files/`;
+      const fileMap = await this.getJsonFromGerrit(basePath);
+      if (!fileMap || typeof fileMap !== 'object') {
+        return [];
+      }
+
+      return Object.keys(fileMap)
+          .filter(path => !!path && !path.startsWith('/'))
+          .filter(path => !(fileMap[path] && fileMap[path].status === 'D'))
+          .map(path => ({ path }))
+          .sort((left, right) => left.path.localeCompare(right.path));
+    }
+
+    async downloadPatchsetFileAsZipEntry(changeId, revisionId, filePath) {
+      const normalizedPath = this.normalizePath(filePath).replace(/^\/+/, '');
+      if (!normalizedPath) {
+        return null;
+      }
+
+      const encodedFilePath = encodeURIComponent(normalizedPath);
+      const downloadPath = `/changes/${encodeURIComponent(changeId)}/revisions/${encodeURIComponent(revisionId)}/files/${encodedFilePath}/download`;
+      const response = await this.fetchFromGerrit(downloadPath, { method: 'GET' }, false);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.length === 0) {
+        return null;
+      }
+
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      if (contentType.indexOf('application/zip') >= 0) {
+        const serverName = this.parseFilenameFromContentDisposition(response.headers.get('content-disposition'));
+        const fallbackName = `${normalizedPath.split('/').pop() || 'file'}.safe.zip`;
+        return {
+          name: `unsafe/${serverName || fallbackName}`,
+          bytes
+        };
+      }
+
+      return {
+        name: normalizedPath,
+        bytes
+      };
+    }
+
+    async getJsonFromGerrit(path) {
+      const response = await this.fetchFromGerrit(path, { method: 'GET' }, true);
+      return await response.json();
+    }
+
+    async fetchFromGerrit(path, options, expectJson) {
+      const candidates = [path];
+      if (!path.startsWith('/a/') && !window.location.pathname.startsWith('/a/')) {
+        candidates.push(`/a${path}`);
+      }
+
+      const errors = [];
+      for (const candidate of candidates) {
+        const response = await this.tryFetchGerritCandidate(candidate, options);
+        if (!response) {
+          errors.push(`${candidate}: no response`);
+          continue;
+        }
+        if (!response.ok) {
+          errors.push(`${candidate}: HTTP ${response.status}`);
+          continue;
+        }
+        if (expectJson) {
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          if (contentType.indexOf('application/json') < 0) {
+            errors.push(`${candidate}: unexpected content-type ${contentType || 'unknown'}`);
+            continue;
+          }
+        }
+        return response;
+      }
+
+      throw new Error(errors.join('; '));
+    }
+
+    async tryFetchGerritCandidate(path, options) {
+      const restApi = plugin.restApi && plugin.restApi();
+      if (restApi && typeof restApi.fetch === 'function') {
+        try {
+          const restResponse = await restApi.fetch(path, options || { method: 'GET' });
+          if (restResponse) {
+            return restResponse;
+          }
+        } catch (restError) {
+          logError('Gerrit REST fetch failed for candidate path.', { path, error: this.getErrorMessage(restError) });
+        }
+      }
+
+      try {
+        return await window.fetch(path, Object.assign({ credentials: 'same-origin' }, options || { method: 'GET' }));
+      } catch (fetchError) {
+        logError('window.fetch failed for candidate path.', { path, error: this.getErrorMessage(fetchError) });
+        return null;
+      }
+    }
+
+    parseFilenameFromContentDisposition(value) {
+      if (!value) {
+        return '';
+      }
+      const filenameStarMatch = value.match(/filename\*=UTF-8''([^;]+)/i);
+      if (filenameStarMatch && filenameStarMatch[1]) {
+        try {
+          return decodeURIComponent(filenameStarMatch[1]).replace(/^\"|\"$/g, '');
+        } catch (error) {
+          return filenameStarMatch[1].replace(/^\"|\"$/g, '');
+        }
+      }
+      const filenameMatch = value.match(/filename=([^;]+)/i);
+      if (!filenameMatch || !filenameMatch[1]) {
+        return '';
+      }
+      return filenameMatch[1].trim().replace(/^\"|\"$/g, '');
+    }
+
+    createZipBlob(entries) {
+      const textEncoder = new TextEncoder();
+      const localParts = [];
+      const centralParts = [];
+      let offset = 0;
+
+      entries.forEach(entry => {
+        const fileName = this.normalizePath(entry.name).replace(/^\/+/, '');
+        if (!fileName) {
+          return;
+        }
+        const nameBytes = textEncoder.encode(fileName);
+        const dataBytes = entry.bytes instanceof Uint8Array ? entry.bytes : new Uint8Array(entry.bytes || []);
+        const crc = this.computeCrc32(dataBytes);
+
+        const localHeader = new ArrayBuffer(30 + nameBytes.length);
+        const localView = new DataView(localHeader);
+        localView.setUint32(0, 0x04034b50, true);
+        localView.setUint16(4, 20, true);
+        localView.setUint16(6, 0, true);
+        localView.setUint16(8, 0, true);
+        localView.setUint16(10, 0, true);
+        localView.setUint16(12, 0, true);
+        localView.setUint32(14, crc >>> 0, true);
+        localView.setUint32(18, dataBytes.length, true);
+        localView.setUint32(22, dataBytes.length, true);
+        localView.setUint16(26, nameBytes.length, true);
+        localView.setUint16(28, 0, true);
+        new Uint8Array(localHeader, 30).set(nameBytes);
+
+        localParts.push(new Uint8Array(localHeader));
+        localParts.push(dataBytes);
+
+        const centralHeader = new ArrayBuffer(46 + nameBytes.length);
+        const centralView = new DataView(centralHeader);
+        centralView.setUint32(0, 0x02014b50, true);
+        centralView.setUint16(4, 20, true);
+        centralView.setUint16(6, 20, true);
+        centralView.setUint16(8, 0, true);
+        centralView.setUint16(10, 0, true);
+        centralView.setUint16(12, 0, true);
+        centralView.setUint16(14, 0, true);
+        centralView.setUint32(16, crc >>> 0, true);
+        centralView.setUint32(20, dataBytes.length, true);
+        centralView.setUint32(24, dataBytes.length, true);
+        centralView.setUint16(28, nameBytes.length, true);
+        centralView.setUint16(30, 0, true);
+        centralView.setUint16(32, 0, true);
+        centralView.setUint16(34, 0, true);
+        centralView.setUint16(36, 0, true);
+        centralView.setUint32(38, 0, true);
+        centralView.setUint32(42, offset, true);
+        new Uint8Array(centralHeader, 46).set(nameBytes);
+
+        centralParts.push(new Uint8Array(centralHeader));
+
+        offset += localHeader.byteLength + dataBytes.length;
+      });
+
+      const centralSize = centralParts.reduce((sum, part) => sum + part.byteLength, 0);
+      const endRecord = new ArrayBuffer(22);
+      const endView = new DataView(endRecord);
+      const entryCount = centralParts.length;
+      endView.setUint32(0, 0x06054b50, true);
+      endView.setUint16(4, 0, true);
+      endView.setUint16(6, 0, true);
+      endView.setUint16(8, entryCount, true);
+      endView.setUint16(10, entryCount, true);
+      endView.setUint32(12, centralSize, true);
+      endView.setUint32(16, offset, true);
+      endView.setUint16(20, 0, true);
+
+      return new Blob([...localParts, ...centralParts, new Uint8Array(endRecord)], { type: 'application/zip' });
+    }
+
+    computeCrc32(bytes) {
+      let crc = 0 ^ (-1);
+      for (let index = 0; index < bytes.length; index += 1) {
+        crc = (crc >>> 8) ^ this.crc32Table[(crc ^ bytes[index]) & 0xff];
+      }
+      return (crc ^ (-1)) >>> 0;
+    }
+
+    get crc32Table() {
+      if (this._crc32Table) {
+        return this._crc32Table;
+      }
+      const table = new Uint32Array(256);
+      for (let i = 0; i < 256; i += 1) {
+        let value = i;
+        for (let j = 0; j < 8; j += 1) {
+          if ((value & 1) === 1) {
+            value = 0xEDB88320 ^ (value >>> 1);
+          } else {
+            value >>>= 1;
+          }
+        }
+        table[i] = value >>> 0;
+      }
+      this._crc32Table = table;
+      return this._crc32Table;
     }
 
     async writePatchsetFilesToDirectory(directoryHandle, files) {
