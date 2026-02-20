@@ -401,7 +401,7 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle('VS Code');
+      const directoryHandle = await this.selectDownloadDirectoryHandle('VS Code', changeId);
       if (!directoryHandle) {
         return;
       }
@@ -429,12 +429,9 @@ Gerrit.install(plugin => {
       return response && response.files ? response.files : [];
     }
 
-    async selectDownloadDirectoryHandle(editorName) {
+    async selectDownloadDirectoryHandle(editorName, changeId) {
       if (!window.showDirectoryPicker) {
-        const secureHint = window.isSecureContext
-            ? ''
-            : ' This page is not in a secure context (HTTPS or localhost), so directory access is unavailable.';
-        this.setStatus(`Open in ${editorName || 'editor'} requires Chromium and a secure context.${secureHint}`);
+        await this.downloadLatestPatchsetArchive(changeId, editorName);
         return null;
       }
       try {
@@ -445,11 +442,49 @@ Gerrit.install(plugin => {
           return null;
         }
         if (error && error.name === 'SecurityError') {
-          this.setStatus(
-              `Open in ${editorName || 'editor'} requires Gerrit to be served over HTTPS (or localhost). Current URL is ${window.location.protocol}//...`);
+          await this.downloadLatestPatchsetArchive(changeId, editorName);
           return null;
         }
         throw error;
+      }
+    }
+
+    async downloadLatestPatchsetArchive(changeId, editorName) {
+      if (!changeId) {
+        this.setStatus('Unable to detect change id.');
+        return false;
+      }
+
+      const revisionId = 'current';
+      const archivePath = `/changes/${encodeURIComponent(changeId)}/revisions/${encodeURIComponent(revisionId)}/archive?format=zip`;
+      const fileSafeChangeId = String(changeId).replace(/[^A-Za-z0-9._-]+/g, '-');
+      const fileName = `${fileSafeChangeId}-${revisionId}.zip`;
+
+      try {
+        this.setStatus('Downloading latest patchset archive from Gerrit REST API...');
+        const response = await window.fetch(archivePath, {
+          method: 'GET',
+          credentials: 'same-origin'
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const blob = await response.blob();
+        const objectUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
+        this.setStatus(
+            `Downloaded latest patchset ZIP via Gerrit REST API. Extract it locally, then run Open in ${editorName || 'editor'} again.`);
+        return true;
+      } catch (error) {
+        logError('Failed to download latest patchset archive.', error);
+        this.setStatus(`Patchset archive download failed: ${this.getErrorMessage(error)}`);
+        return false;
       }
     }
 
@@ -524,7 +559,7 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle('Cursor');
+      const directoryHandle = await this.selectDownloadDirectoryHandle('Cursor', changeId);
       if (!directoryHandle) {
         return;
       }
@@ -559,7 +594,7 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle('Trae');
+      const directoryHandle = await this.selectDownloadDirectoryHandle('Trae', changeId);
       if (!directoryHandle) {
         return;
       }
@@ -626,7 +661,7 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const directoryHandle = await this.selectDownloadDirectoryHandle('Android Studio');
+      const directoryHandle = await this.selectDownloadDirectoryHandle('Android Studio', changeId);
       if (!directoryHandle) {
         return;
       }
