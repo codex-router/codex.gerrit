@@ -122,6 +122,7 @@
 }
 
 .codex-voice-button {
+  flex-shrink: 0;
   min-width: var(--codex-input-height);
   width: var(--codex-input-height);
   padding: 0;
@@ -132,8 +133,8 @@
 }
 
 .codex-voice-button svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 .codex-voice-button.recording {
