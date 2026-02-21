@@ -15,9 +15,7 @@ to supported AI agents for interactive chat.
 - `@` file mention dropdown sourced from current patchset files for context selection.
 - Backend also parses `@` file mentions from prompt text and merges them with `contextFiles` for robust context selection.
 - For selected or `@`-mentioned files, backend reads current revision file content and forwards it as explicit context so the agent can operate on actual file text.
-- Patchset files are not included as default analysis context; they are included only when explicitly referenced via `@` mention.
 - Users can attach arbitrary local files via the 📎 attach button in the chat panel; attached files are sent as inline context in each request and cleared after submission.
-- Attached files are treated as authoritative inline context even when they are not part of the current patchset file list.
 - Attached file content is bounded by a 512 KB per-file browser-side limit and a 12 000-character server-side limit per file.
 - When one or more `@` files are mentioned, the plugin appends guidance to return unified diff blocks so `Review` can detect changed files and patch content.
 - When one or more `@` files are mentioned, the plugin appends static-analysis guidance to focus findings on those files (bugs, security risks, null-safety, error handling, resource/concurrency risks, and performance concerns).
@@ -74,7 +72,7 @@ When enabled:
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
 - The plugin sends `agent`, `stdin`, `sessionId`, and `args` (`--model` when a specific model is selected).
 - When `@` files are used, the plugin also sends `contextFiles` with `{path, content}` entries to `codex.serve`.
-- When files are attached by the user in the chat panel, the plugin sends attachment payloads with `name` (alias of `path`) and `base64Content` (or `content` fallback); backend forwards them to `codex.serve` via `contextFiles` for `POST /run` compatibility.
+- When files are attached by the user in the chat panel, the plugin sends them as `attachedFiles` with `{name, content}` entries; `codex.serve` accepts these via the `contextFiles` field of `POST /run` using the typed `ContextFileItem` model (supports `content` for plain text or `base64Content` for binary files).
 - During an active chat request, the plugin can stop that session via `POST /sessions/{sessionId}/stop`.
 - The plugin fetches agent options from `codex.serve` using `GET /agents`.
 - The first item returned by `GET /agents` is selected by default.
@@ -97,11 +95,10 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Use the selector row to choose `Agent` (options are loaded from `codex.serve` `GET /agents`; the first returned item is selected by default, and if unavailable it falls back to `codex`).
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
 - Use `Codespaces` → `Open in Browser` (currently coming soon).
-- Type `@` in the prompt to pick files from the current patchset and include them as context. Without `@` mentions, patchset files are not used as default analysis context.
-- Click the 📎 button next to the prompt input to attach local files (up to 512 KB each). Attached files appear as removable chips above the input and are sent with the next request, then automatically cleared.
+- Type `@` in the prompt to pick files from the current patchset and include them as context.
+- Click the 📎 button next to the prompt input to attach local files (any text file up to 512 KB each). Attached files appear as removable chips above the input and are sent with the next request, then automatically cleared.
 - `@` file mentions are validated server-side against patchset files and merged with UI-selected `contextFiles`.
 - `@` file mentions now include real current-revision file content in the agent input (bounded by server-side limits).
-- Attached files are considered valid inline context even when they are not part of the Gerrit change file list.
 - If your prompt includes `@` files and requests code changes, Codex is guided to answer with unified diff blocks that automatically open the review dialog.
 - If your prompt includes `@` files, Codex is also guided to perform static analysis for those files and report concrete risks.
 - Even if the returned diff block does not include `diff --git` / `---` / `+++`, review fallback can still use `@` file context to enable the dialog.
