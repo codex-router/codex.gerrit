@@ -179,7 +179,7 @@ Gerrit.install(plugin => {
       attachButton.className = 'codex-button outline codex-attach-button';
       attachButton.title = 'Attach files';
       attachButton.setAttribute('aria-label', 'Attach files');
-      attachButton.innerHTML = '&#128206;'; // 📎
+      attachButton.innerHTML = '&#128206;&#xFE0E;'; // 📎 in text presentation
 
       const mentionDropdown = document.createElement('div');
       mentionDropdown.className = 'codex-mention-dropdown hidden';

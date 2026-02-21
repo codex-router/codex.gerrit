@@ -583,6 +583,7 @@
   width: var(--codex-input-height);
   padding: 0;
   font-size: 16px;
+  color: #b65a2a;
   display: flex;
   align-items: center;
   justify-content: center;
