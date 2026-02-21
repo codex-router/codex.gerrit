@@ -2286,6 +2286,12 @@ Gerrit.install(plugin => {
         return;
       }
 
+      if (event.key === 'PageDown' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        event.preventDefault();
+        this.restoreNextPrompt();
+        return;
+      }
+
       if (event.key === 'Enter' && event.ctrlKey && !event.altKey && !event.metaKey && !event.isComposing) {
         event.preventDefault();
         if (!this.input) {
@@ -2332,6 +2338,33 @@ Gerrit.install(plugin => {
       this.input.setSelectionRange(previousPrompt.length, previousPrompt.length);
       this.hideMentionDropdown();
       this.setStatus(`Restored previous message (${this.promptHistoryIndex + 1}/${this.promptHistory.length}).`);
+    }
+
+    restoreNextPrompt() {
+      if (!this.input || this.promptHistory.length === 0) {
+        this.setStatus('No next message to restore.');
+        return;
+      }
+      if (this.promptHistoryIndex <= -1) {
+        this.setStatus('Already at newest input.');
+        return;
+      }
+      this.promptHistoryIndex -= 1;
+      if (this.promptHistoryIndex === -1) {
+        this.input.value = '';
+        this.input.focus();
+        this.input.setSelectionRange(0, 0);
+        this.hideMentionDropdown();
+        this.setStatus('Returned to newest input.');
+        return;
+      }
+      const historyIndex = this.promptHistory.length - 1 - this.promptHistoryIndex;
+      const nextPrompt = this.promptHistory[historyIndex] || '';
+      this.input.value = nextPrompt;
+      this.input.focus();
+      this.input.setSelectionRange(nextPrompt.length, nextPrompt.length);
+      this.hideMentionDropdown();
+      this.setStatus(`Restored next message (${this.promptHistoryIndex + 1}/${this.promptHistory.length}).`);
     }
 
     getMentionAtCursor() {
