@@ -172,7 +172,7 @@ Gerrit.install(plugin => {
       const input = document.createElement('textarea');
       input.className = 'codex-input';
       input.rows = 1;
-      input.placeholder = 'Ask Codex about this change. Type @ to reference patchset files. Use 📎 to attach local files. Enter to send · Ctrl+Enter for newline.';
+      input.placeholder = 'Ask Codex about this change. Type @ to reference patchset files. Use 📎 to attach local files. Enter to send · Ctrl+Enter for newline · PageUp/PageDown for history.';
 
       // Attach-file button (paperclip)
       const attachButton = document.createElement('button');
