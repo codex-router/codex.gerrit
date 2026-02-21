@@ -193,16 +193,13 @@
   min-height: 26px;
   display: flex;
   align-items: center;
+  order: 999;
   font-size: 12px;
   color: #5a5a5a;
 }
 
-.codex-output-panel {
-  margin-bottom: 12px;
-}
-
 .codex-output {
-  margin-bottom: 0;
+  margin-bottom: 12px;
   width: 100%;
   background: #fcfcfc;
   color: #1f1f1f;
