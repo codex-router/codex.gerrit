@@ -32,7 +32,11 @@ public class CodexChatInput {
 
   /** A file uploaded directly by the user, identified by name and inline text content. */
   public static class AttachedFile {
-    /** The file name (or relative path) as provided by the user's browser. */
+    /**
+     * The file name (or relative path) as provided by the client.
+     * Accepts both "name" (chat-panel payload) and "path" (/run-compatible payload).
+     */
+    @SerializedName(value = "name", alternate = {"path"})
     public String name;
     /** Plain-text content of the file. */
     public String content;

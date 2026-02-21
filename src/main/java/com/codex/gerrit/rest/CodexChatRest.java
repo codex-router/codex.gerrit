@@ -35,7 +35,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -143,7 +142,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       CodexChatInput.AttachedFile normAf = new CodexChatInput.AttachedFile();
       normAf.name = name;
       normAf.content = af.content;
-      normAf.base64Content = af.base64Content;
+      normAf.base64Content = hasBase64 ? af.base64Content.trim() : null;
       normalized.add(normAf);
     }
     return normalized;
@@ -288,25 +287,26 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       if (name.isEmpty()) {
         continue;
       }
-      String text;
+      String text = null;
+      String base64Content = null;
       if (af.base64Content != null && !af.base64Content.trim().isEmpty()) {
-        try {
-          byte[] bytes = Base64.getDecoder().decode(af.base64Content.trim());
-          text = new String(bytes, StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException ex) {
-          logger.warn("Failed to decode base64 content for attached file {}", name, ex);
-          continue;
-        }
+        base64Content = af.base64Content.trim();
       } else if (af.content != null) {
         text = af.content;
       } else {
         continue;
       }
-      if (text.length() > MAX_CONTEXT_FILE_CHARS) {
+
+      if (text != null && text.length() > MAX_CONTEXT_FILE_CHARS) {
         text = text.substring(0, MAX_CONTEXT_FILE_CHARS)
             + "\n\n[truncated by codex.gerrit context limit]";
       }
-      resolved.add(new CodexAgentClient.ContextFile(name, text));
+
+      if (base64Content != null) {
+        resolved.add(CodexAgentClient.ContextFile.withBase64(name, base64Content));
+      } else {
+        resolved.add(new CodexAgentClient.ContextFile(name, text));
+      }
     }
     return resolved;
   }

@@ -356,10 +356,18 @@ public class CodexAgentClient {
   public static class ContextFile {
     public String path;
     public String content;
+    public String base64Content;
 
     public ContextFile(String path, String content) {
       this.path = path;
       this.content = content;
+      this.base64Content = null;
+    }
+
+    public static ContextFile withBase64(String path, String base64Content) {
+      ContextFile file = new ContextFile(path, null);
+      file.base64Content = base64Content;
+      return file;
     }
   }
 }

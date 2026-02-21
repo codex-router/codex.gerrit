@@ -45,7 +45,7 @@ Gerrit.install(plugin => {
       this.promptHistoryIndex = -1;
       this.pendingFileChanges = [];
       this.fileChangeSequence = 0;
-      /** @type {Array<{name: string, content: string}>} Files attached by the user in this session. */
+      /** @type {Array<{name: string, content?: string, base64Content?: string}>} Files attached by the user in this session. */
       this.attachedFiles = [];
     }
 
@@ -1264,7 +1264,15 @@ Gerrit.install(plugin => {
       const agent = this.agentSelect && this.agentSelect.value ? this.agentSelect.value : 'codex';
       const model = this.modelSelect && this.modelSelect.value ? this.modelSelect.value : null;
       const contextFiles = this.extractContextFiles(prompt);
-      const attachedFiles = (this.attachedFiles || []).map(f => ({ name: f.name, content: f.content }));
+      const attachedFiles = (this.attachedFiles || []).map(f => {
+        const payload = { name: f.name };
+        if (f.base64Content) {
+          payload.base64Content = f.base64Content;
+        } else {
+          payload.content = f.content || '';
+        }
+        return payload;
+      });
       const sessionId = this.createSessionId();
       this.activeSessionId = sessionId;
 
@@ -1362,7 +1370,7 @@ Gerrit.install(plugin => {
 
     /**
      * Called when the user selects files via the hidden file input.
-     * Reads each file as text and stores it in this.attachedFiles.
+    * Reads each file and stores it in this.attachedFiles.
      * @param {HTMLInputElement} fileInputEl
      */
     handleFilesSelected(fileInputEl) {
@@ -1386,13 +1394,15 @@ Gerrit.install(plugin => {
         }
         const reader = new FileReader();
         reader.onload = event => {
-          const content = event.target && event.target.result != null ? String(event.target.result) : '';
+          const result = event.target ? event.target.result : null;
           const name = file.name || 'file';
+          const base64Content = this.toBase64FromDataUrl(result);
+          const content = typeof result === 'string' ? this.extractTextFromDataUrl(result) : '';
           // Avoid duplicates by name
           const alreadyExists = this.attachedFiles.some(f => f.name === name);
           if (!alreadyExists) {
-            this.attachedFiles.push({ name, content });
-            log('Attached file added.', { name, size: content.length });
+            this.attachedFiles.push(base64Content ? { name, base64Content } : { name, content });
+            log('Attached file added.', { name, size: file.size, encoded: !!base64Content });
           } else {
             log('Attached file already in list, skipping.', { name });
           }
@@ -1410,8 +1420,36 @@ Gerrit.install(plugin => {
             this.renderAttachedFileChips();
           }
         };
-        reader.readAsText(file);
+        reader.readAsDataURL(file);
       });
+    }
+
+    toBase64FromDataUrl(dataUrl) {
+      if (typeof dataUrl !== 'string') {
+        return null;
+      }
+      const commaIndex = dataUrl.indexOf(',');
+      if (commaIndex < 0) {
+        return null;
+      }
+      const base64Part = dataUrl.substring(commaIndex + 1).trim();
+      return base64Part || null;
+    }
+
+    extractTextFromDataUrl(dataUrl) {
+      if (typeof dataUrl !== 'string') {
+        return '';
+      }
+      const commaIndex = dataUrl.indexOf(',');
+      if (commaIndex < 0) {
+        return '';
+      }
+      const body = dataUrl.substring(commaIndex + 1);
+      try {
+        return atob(body);
+      } catch (error) {
+        return '';
+      }
     }
 
     /**
@@ -1442,7 +1480,8 @@ Gerrit.install(plugin => {
       this.attachedFiles.forEach(file => {
         const chip = document.createElement('span');
         chip.className = 'codex-attached-chip';
-        chip.title = `${file.name} (${Math.ceil(file.content.length / 1024)} KB)`;
+        const estimatedChars = (file.content || file.base64Content || '').length;
+        chip.title = `${file.name} (${Math.ceil(estimatedChars / 1024)} KB)`;
 
         const label = document.createElement('span');
         label.className = 'codex-attached-chip-label';
