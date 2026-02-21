@@ -45,11 +45,6 @@ Gerrit.install(plugin => {
       this.promptHistoryIndex = -1;
       this.pendingFileChanges = [];
       this.fileChangeSequence = 0;
-      this.speechRecognition = null;
-      this.speechRecognitionSupported = false;
-      this.isVoiceRecording = false;
-      this.voiceBaseInputValue = '';
-      this.voiceInterimTranscript = '';
       /** @type {Array<{name: string, content?: string, base64Content?: string}>} Files attached by the user in this session. */
       this.attachedFiles = [];
     }
@@ -176,7 +171,7 @@ Gerrit.install(plugin => {
       const input = document.createElement('textarea');
       input.className = 'codex-input';
       input.rows = 1;
-      input.placeholder = 'Ask Codex about this change. Type @ to reference patchset files. Use 📎 to attach local files or 🎤 for voice input. Enter to send · Ctrl+Enter for newline · Up/Down for history.';
+      input.placeholder = 'Ask Codex about this change. Type @ to reference patchset files. Use 📎 to attach local files. Enter to send · Ctrl+Enter for newline · Up/Down for history.';
 
       // Attach-file button (paperclip)
       const attachButton = document.createElement('button');
@@ -185,12 +180,6 @@ Gerrit.install(plugin => {
       attachButton.title = 'Attach files';
       attachButton.setAttribute('aria-label', 'Attach files');
       attachButton.innerHTML = '&#128206;&#xFE0E;'; // 📎 in text presentation
-
-      const voiceButton = document.createElement('button');
-      voiceButton.type = 'button';
-      voiceButton.className = 'codex-button outline codex-voice-button';
-      voiceButton.setAttribute('aria-label', 'Start voice input');
-      voiceButton.innerHTML = '&#127908;&#xFE0E;'; // 🎤 in text presentation
 
       const mentionDropdown = document.createElement('div');
       mentionDropdown.className = 'codex-mention-dropdown hidden';
@@ -312,7 +301,6 @@ Gerrit.install(plugin => {
 
       inputRow.appendChild(input);
       inputRow.appendChild(attachButton);
-      inputRow.appendChild(voiceButton);
       inputRow.appendChild(inputActions);
 
       footer.appendChild(selectors);
@@ -342,7 +330,6 @@ Gerrit.install(plugin => {
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
       attachButton.addEventListener('click', () => fileInput.click());
-      voiceButton.addEventListener('click', () => this.toggleVoiceInput());
       fileInput.addEventListener('change', () => this.handleFilesSelected(fileInput));
       codespacesSelect.addEventListener('change', () => this.handleCodespacesAction());
       document.addEventListener('click', event => {
@@ -368,7 +355,6 @@ Gerrit.install(plugin => {
       this.status = status;
       this.stopButton = stopButton;
       this.clearButton = clearButton;
-      this.voiceButton = voiceButton;
       this.headerVersion = headerVersion;
       this.changeDialogOverlay = changeDialogOverlay;
       this.changeDialogBody = changeDialogBody;
@@ -379,8 +365,6 @@ Gerrit.install(plugin => {
       this.workspaceRootDialogSave = workspaceRootDialogSave;
       this.fileInput = fileInput;
       this.attachedFilesRow = attachedFilesRow;
-
-      this.initSpeechRecognition();
 
       this.showWelcomeMessage();
       this.loadConfig();
@@ -1248,9 +1232,6 @@ Gerrit.install(plugin => {
         return;
       }
 
-      this.finalizeVoiceTranscription();
-      this.stopVoiceInput(true);
-
       if (!(await this.ensureAuthenticated())) {
         this.setStatus('Sign in to Gerrit before using Codex Chat.');
         return;
@@ -1377,9 +1358,6 @@ Gerrit.install(plugin => {
       if (this.input) {
         this.input.value = '';
       }
-      this.voiceBaseInputValue = '';
-      this.voiceInterimTranscript = '';
-      this.stopVoiceInput(true);
       this.hideMentionDropdown();
       this.promptHistory = [];
       this.promptHistoryIndex = -1;
@@ -1558,182 +1536,6 @@ Gerrit.install(plugin => {
       this.isBusyState = isBusy;
       if (this.stopButton) {
         this.stopButton.disabled = !isBusy;
-      }
-      if (isBusy) {
-        this.finalizeVoiceTranscription();
-        this.stopVoiceInput(true);
-      }
-      this.updateVoiceButtonState();
-    }
-
-    initSpeechRecognition() {
-      const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (typeof SpeechRecognitionCtor !== 'function') {
-        this.speechRecognition = null;
-        this.speechRecognitionSupported = false;
-        this.updateVoiceButtonState();
-        return;
-      }
-
-      const recognition = new SpeechRecognitionCtor();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = (window.navigator && window.navigator.language) || 'en-US';
-
-      recognition.onstart = () => {
-        this.isVoiceRecording = true;
-        this.updateVoiceButtonState();
-        this.setStatus('Voice input started. Speak now...');
-      };
-
-      recognition.onresult = event => this.handleSpeechResult(event);
-
-      recognition.onerror = event => {
-        const errorCode = event && event.error ? event.error : 'unknown';
-        warn('Speech recognition error.', { errorCode, event });
-        if (errorCode === 'not-allowed' || errorCode === 'service-not-allowed') {
-          this.setStatus('Microphone permission denied. Allow mic access and try again.');
-        } else if (errorCode === 'network') {
-          this.setStatus('Voice recognition needs a network connection.');
-        } else if (errorCode !== 'aborted') {
-          this.setStatus(`Voice input error: ${errorCode}.`);
-        }
-      };
-
-      recognition.onend = () => {
-        const wasRecording = this.isVoiceRecording;
-        this.isVoiceRecording = false;
-        this.voiceInterimTranscript = '';
-        this.updateVoiceButtonState();
-        if (wasRecording && !this.isBusyState) {
-          this.setStatus('Voice input stopped.');
-        }
-      };
-
-      this.speechRecognition = recognition;
-      this.speechRecognitionSupported = true;
-      this.updateVoiceButtonState();
-    }
-
-    toggleVoiceInput() {
-      if (!this.speechRecognitionSupported || !this.speechRecognition) {
-        this.setStatus('Voice input is not supported in this browser.');
-        return;
-      }
-      if (this.isBusyState) {
-        this.setStatus('Voice input is unavailable while a request is running.');
-        return;
-      }
-      if (this.isVoiceRecording) {
-        this.finalizeVoiceTranscription();
-        this.stopVoiceInput(false);
-        return;
-      }
-
-      this.voiceBaseInputValue = (this.input && this.input.value) || '';
-      this.voiceInterimTranscript = '';
-      if (this.input) {
-        this.input.focus();
-      }
-      try {
-        this.speechRecognition.start();
-      } catch (err) {
-        warn('Failed to start speech recognition.', err);
-        this.setStatus(`Unable to start voice input: ${this.getErrorMessage(err)}`);
-      }
-    }
-
-    stopVoiceInput(quiet) {
-      if (!this.speechRecognitionSupported || !this.speechRecognition || !this.isVoiceRecording) {
-        return;
-      }
-      try {
-        this.speechRecognition.stop();
-      } catch (err) {
-        warn('Failed to stop speech recognition.', err);
-      }
-      if (!quiet) {
-        this.setStatus('Voice input stopped.');
-      }
-    }
-
-    handleSpeechResult(event) {
-      if (!this.input || !event || !event.results) {
-        return;
-      }
-      let finalTranscript = '';
-      let interimTranscript = '';
-
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        if (!result || !result[0]) {
-          continue;
-        }
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript || '';
-        } else {
-          interimTranscript += result[0].transcript || '';
-        }
-      }
-
-      if (finalTranscript.trim()) {
-        this.voiceBaseInputValue = this.appendVoiceText(this.voiceBaseInputValue, finalTranscript);
-      }
-      this.voiceInterimTranscript = interimTranscript.trim();
-
-      const composedInput = this.voiceInterimTranscript
-        ? this.appendVoiceText(this.voiceBaseInputValue, this.voiceInterimTranscript)
-        : this.voiceBaseInputValue;
-      this.input.value = composedInput;
-      this.input.setSelectionRange(composedInput.length, composedInput.length);
-      this.handleInputChanged();
-    }
-
-    finalizeVoiceTranscription() {
-      if (!this.input) {
-        return;
-      }
-      if (this.voiceInterimTranscript) {
-        this.voiceBaseInputValue = this.appendVoiceText(this.voiceBaseInputValue, this.voiceInterimTranscript);
-        this.voiceInterimTranscript = '';
-      }
-      this.input.value = this.voiceBaseInputValue || this.input.value || '';
-      const cursorPosition = this.input.value.length;
-      this.input.setSelectionRange(cursorPosition, cursorPosition);
-      this.handleInputChanged();
-    }
-
-    appendVoiceText(baseText, transcript) {
-      const normalizedTranscript = String(transcript || '').trim();
-      if (!normalizedTranscript) {
-        return String(baseText || '');
-      }
-      const currentText = String(baseText || '');
-      if (!currentText) {
-        return normalizedTranscript;
-      }
-      const needsSpace = !/\s$/.test(currentText);
-      return `${currentText}${needsSpace ? ' ' : ''}${normalizedTranscript}`;
-    }
-
-    updateVoiceButtonState() {
-      if (!this.voiceButton) {
-        return;
-      }
-      const disabled = this.isBusyState || !this.speechRecognitionSupported;
-      this.voiceButton.disabled = disabled;
-      this.voiceButton.classList.toggle('recording', this.isVoiceRecording);
-      this.voiceButton.setAttribute('aria-pressed', this.isVoiceRecording ? 'true' : 'false');
-
-      if (!this.speechRecognitionSupported) {
-        this.voiceButton.title = 'Voice input is unavailable in this browser';
-        this.voiceButton.setAttribute('aria-label', 'Voice input unavailable');
-      } else if (this.isVoiceRecording) {
-        this.voiceButton.title = 'Stop voice input';
-        this.voiceButton.setAttribute('aria-label', 'Stop voice input');
-      } else {
-        this.voiceButton.title = 'Start voice input';
-        this.voiceButton.setAttribute('aria-label', 'Start voice input');
       }
     }
 

@@ -17,7 +17,6 @@ to supported AI agents for interactive chat.
 - Backend uses only explicit `@` file mentions from prompt text when selecting patchset-file context.
 - For `@`-mentioned files, backend reads current revision file content and forwards it as explicit context so the agent can operate on actual file text.
 - Users can attach arbitrary local files via the 📎 attach button in the chat panel; attached files are sent as inline context in each request and cleared after submission.
-- Users can input prompts by voice via the 🎤 button in the chat panel; browser speech recognition converts speech to text directly into the input box.
 - Attached file content is bounded by a 512 KB per-file browser-side limit and a 12 000-character server-side limit per file.
 - When one or more `@` files are mentioned, the plugin appends guidance to return unified diff blocks so `Review` can detect changed files and patch content.
 - When one or more `@` files are mentioned, the plugin appends static-analysis guidance to focus findings on those files (bugs, security risks, null-safety, error handling, resource/concurrency risks, and performance concerns).
@@ -97,8 +96,6 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Use `Codespaces` → `Open in Browser` (currently coming soon).
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Click the 📎 button next to the prompt input to attach local files (any text file up to 512 KB each). Attached files appear as removable chips above the input and are sent with the next request, then automatically cleared.
-- Click the 🎤 button next to the prompt input to start/stop voice input. While recording, spoken words are transcribed into the prompt field in real time.
-- Voice input depends on browser Web Speech support (for example Chrome/Edge) and microphone permission; some environments may require network access for speech recognition.
 - `@` file mentions are validated server-side against patchset files and are the only patchset-file context included for analysis.
 - `@` file mentions now include real current-revision file content in the agent input (bounded by server-side limits).
 - If your prompt includes `@` files and requests code changes, Codex is guided to answer with unified diff blocks that automatically open the review dialog.
