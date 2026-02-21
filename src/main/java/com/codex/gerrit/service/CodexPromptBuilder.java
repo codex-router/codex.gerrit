@@ -51,13 +51,8 @@ public class CodexPromptBuilder {
           .append("\n");
     }
 
-    builder.append("Files:\n");
-    for (String file : trimFiles(files)) {
-      builder.append("- ").append(file).append("\n");
-    }
-
     if (input.contextFiles != null && !input.contextFiles.isEmpty()) {
-      builder.append("\nSelected context files:\n");
+      builder.append("\nPatchset files explicitly referenced with @mention:\n");
       for (String file : input.contextFiles) {
         builder.append("- ").append(file).append("\n");
       }
@@ -71,6 +66,27 @@ public class CodexPromptBuilder {
       builder.append(
           "If you propose code edits for selected context files, include unified diff output in fenced ```diff blocks with proper file headers (diff --git, ---, +++, @@).\\n");
     }
+
+    if (input.attachedFiles != null && !input.attachedFiles.isEmpty()) {
+      builder.append("\nAttached files from chat upload:\n");
+      for (CodexChatInput.AttachedFile attachedFile : input.attachedFiles) {
+        if (attachedFile == null || attachedFile.name == null) {
+          continue;
+        }
+        String fileName = attachedFile.name.trim();
+        if (fileName.isEmpty()) {
+          continue;
+        }
+        builder.append("- ").append(fileName).append("\n");
+      }
+      builder.append(
+          "These attached files are provided intentionally as inline context, even when they are not part of the Gerrit patchset file list. Do not say they are missing or inaccessible.\n");
+      builder.append(
+          "If the user asks about an attached file, answer using the provided attached file context first.\n");
+    }
+
+      builder.append(
+        "\nDo not default to analyzing patchset files. Only analyze patchset files when they are explicitly referenced with @mention (and thus included as selected context files).\n");
 
     builder.append("\nUser prompt:\n").append(input.prompt).append("\n");
     if ("chat".equals(input.mode)) {
