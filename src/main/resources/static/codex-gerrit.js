@@ -172,7 +172,7 @@ Gerrit.install(plugin => {
       const input = document.createElement('textarea');
       input.className = 'codex-input';
       input.rows = 1;
-      input.placeholder = 'Ask Codex about this change. Type @ to reference patchset files. Use 📎 to attach local files. Enter to send · Ctrl+Enter for newline · PageUp/PageDown for history.';
+      input.placeholder = 'Ask Codex about this change. Type @ to reference patchset files. Use 📎 to attach local files. Enter to send · Ctrl+Enter for newline · Up/Down for history.';
 
       // Attach-file button (paperclip)
       const attachButton = document.createElement('button');
@@ -2252,6 +2252,11 @@ Gerrit.install(plugin => {
     }
 
     handleInputKeydown(event) {
+      const isArrowUp =
+        event.code === 'ArrowUp' || event.key === 'ArrowUp' || event.key === 'Up' || event.keyCode === 38;
+      const isArrowDown =
+        event.code === 'ArrowDown' || event.key === 'ArrowDown' || event.key === 'Down' || event.keyCode === 40;
+
       if (this.isMentionDropdownVisible()) {
         if (event.key === 'ArrowDown') {
           event.preventDefault();
@@ -2280,14 +2285,16 @@ Gerrit.install(plugin => {
         }
       }
 
-      if (event.key === 'PageUp' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (isArrowUp && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey && this.isCursorOnFirstLine()) {
         event.preventDefault();
+        event.stopPropagation();
         this.restorePreviousPrompt();
         return;
       }
 
-      if (event.key === 'PageDown' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (isArrowDown && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey && this.isCursorOnLastLine()) {
         event.preventDefault();
+        event.stopPropagation();
         this.restoreNextPrompt();
         return;
       }
@@ -2338,6 +2345,32 @@ Gerrit.install(plugin => {
       this.input.setSelectionRange(previousPrompt.length, previousPrompt.length);
       this.hideMentionDropdown();
       this.setStatus(`Restored previous message (${this.promptHistoryIndex + 1}/${this.promptHistory.length}).`);
+    }
+
+    isCursorOnFirstLine() {
+      if (!this.input) {
+        return false;
+      }
+      const selectionStart = this.input.selectionStart;
+      const selectionEnd = this.input.selectionEnd;
+      if (selectionStart !== selectionEnd) {
+        return false;
+      }
+      const value = this.input.value || '';
+      return value.substring(0, selectionStart).indexOf('\n') === -1;
+    }
+
+    isCursorOnLastLine() {
+      if (!this.input) {
+        return false;
+      }
+      const selectionStart = this.input.selectionStart;
+      const selectionEnd = this.input.selectionEnd;
+      if (selectionStart !== selectionEnd) {
+        return false;
+      }
+      const value = this.input.value || '';
+      return value.substring(selectionEnd).indexOf('\n') === -1;
     }
 
     restoreNextPrompt() {

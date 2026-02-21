@@ -30,6 +30,7 @@ to supported AI agents for interactive chat.
 - Popup dialog supports per-file `Keep` or `Undo` decision similar to Copilot-style review flow.
 - Stop Chat interrupts an active chat request from the panel.
 - Clear action removes all messages and resets chat panel state.
+- Prompt history navigation in the input panel uses `Up` (previous) and `Down` (next/newer).
 - Supports multiple AI agents exposed by `codex.serve`.
 - Loads available models from `codex.serve` via `GET /models`.
 
@@ -105,7 +106,8 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - If your prompt includes `@` files, Codex is also guided to perform static analysis for those files and report concrete risks.
 - Even if the returned diff block does not include `diff --git` / `---` / `+++`, review fallback can still use `@` file context to enable the dialog.
 - For single-file `@` prompts, a plain fenced code suggestion can still be shown in the review dialog via synthesized unified diff output.
-- Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Shift+Enter` for a newline).
+- Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Ctrl+Enter` for a newline).
+- In the prompt input, press `Up` to restore previous messages and `Down` to move forward to newer history entries.
 - Replies are shown in the UI using the selected agent/model.
 - If a reply contains file diffs, review them in the popup and choose `Keep` or `Undo` for each file.
 - While a chat request is running, click `Stop Chat` to interrupt the current session.
