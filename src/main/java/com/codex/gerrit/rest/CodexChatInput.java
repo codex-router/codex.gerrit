@@ -27,4 +27,19 @@ public class CodexChatInput {
   @SerializedName(value = "session_id", alternate = {"sessionId"})
   public String sessionId;
   public List<String> contextFiles;
+  /** Arbitrary files attached by the user in the chat panel UI. */
+  public List<AttachedFile> attachedFiles;
+
+  /** A file uploaded directly by the user, identified by name and inline text content. */
+  public static class AttachedFile {
+    /** The file name (or relative path) as provided by the user's browser. */
+    public String name;
+    /** Plain-text content of the file. */
+    public String content;
+    /**
+     * Base64-encoded content of the file (used for binary or non-UTF-8 files).
+     * When present it takes precedence over {@code content}.
+     */
+    public String base64Content;
+  }
 }

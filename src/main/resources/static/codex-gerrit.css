@@ -565,3 +565,70 @@
   background: #eef2ff;
   color: #33408b;
 }
+
+/* ── File attachment UI ─────────────────────────────────────────────────────── */
+
+/* Hidden native file input */
+.codex-file-input-hidden {
+  display: none;
+}
+
+/* Paperclip / attach button */
+.codex-attach-button {
+  flex-shrink: 0;
+  min-width: var(--codex-input-height);
+  width: var(--codex-input-height);
+  padding: 0;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Row containing attached-file chips, sits above the textarea */
+.codex-attached-files-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 2px 8px;
+}
+
+.codex-attached-files-row.hidden {
+  display: none;
+}
+
+/* Individual chip */
+.codex-attached-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff5f0;
+  border: 1px solid #e8c8b8;
+  border-radius: 999px;
+  padding: 2px 8px 2px 10px;
+  font-size: 12px;
+  color: #5b3a1d;
+  max-width: 220px;
+}
+
+.codex-attached-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 170px;
+}
+
+.codex-attached-chip-remove {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #b65a2a;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.codex-attached-chip-remove:hover {
+  color: #8a3010;
+}

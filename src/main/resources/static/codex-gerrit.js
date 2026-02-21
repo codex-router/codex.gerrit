@@ -45,6 +45,8 @@ Gerrit.install(plugin => {
       this.promptHistoryIndex = -1;
       this.pendingFileChanges = [];
       this.fileChangeSequence = 0;
+      /** @type {Array<{name: string, content: string}>} Files attached by the user in this session. */
+      this.attachedFiles = [];
     }
 
     connectedCallback() {
@@ -150,6 +152,16 @@ Gerrit.install(plugin => {
       const inputPanel = document.createElement('div');
       inputPanel.className = 'codex-input-panel';
 
+      // Hidden file input for attachment uploads
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.multiple = true;
+      fileInput.className = 'codex-file-input-hidden';
+
+      // Row that shows attached-file chips
+      const attachedFilesRow = document.createElement('div');
+      attachedFilesRow.className = 'codex-attached-files-row hidden';
+
       const inputRow = document.createElement('div');
       inputRow.className = 'codex-input-row';
 
@@ -157,6 +169,14 @@ Gerrit.install(plugin => {
       input.className = 'codex-input';
       input.rows = 1;
       input.placeholder = 'Ask Codex about this change. Type @ to reference patchset files. Enter to send · Ctrl+Enter for newline.';
+
+      // Attach-file button (paperclip)
+      const attachButton = document.createElement('button');
+      attachButton.type = 'button';
+      attachButton.className = 'codex-button outline codex-attach-button';
+      attachButton.title = 'Attach files';
+      attachButton.setAttribute('aria-label', 'Attach files');
+      attachButton.innerHTML = '&#128206;'; // 📎
 
       const mentionDropdown = document.createElement('div');
       mentionDropdown.className = 'codex-mention-dropdown hidden';
@@ -279,9 +299,12 @@ Gerrit.install(plugin => {
       inputActions.appendChild(clearButton);
 
       inputRow.appendChild(input);
+      inputRow.appendChild(attachButton);
       inputRow.appendChild(inputActions);
 
       footer.appendChild(selectors);
+      inputPanel.appendChild(fileInput);
+      inputPanel.appendChild(attachedFilesRow);
       inputPanel.appendChild(inputRow);
       inputPanel.appendChild(footer);
 
@@ -306,6 +329,8 @@ Gerrit.install(plugin => {
       input.addEventListener('input', () => this.handleInputChanged());
       input.addEventListener('keydown', event => this.handleInputKeydown(event));
       input.addEventListener('click', () => this.handleInputChanged());
+      attachButton.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => this.handleFilesSelected(fileInput));
       codespacesSelect.addEventListener('change', () => this.handleCodespacesAction());
       document.addEventListener('click', event => {
         if (!this.shadowRoot || !this.shadowRoot.contains(event.target)) {
@@ -338,6 +363,8 @@ Gerrit.install(plugin => {
       this.workspaceRootDialogBrowse = workspaceRootDialogBrowse;
       this.workspaceRootDialogCancel = workspaceRootDialogCancel;
       this.workspaceRootDialogSave = workspaceRootDialogSave;
+      this.fileInput = fileInput;
+      this.attachedFilesRow = attachedFilesRow;
 
       this.showWelcomeMessage();
       this.loadConfig();
@@ -1237,12 +1264,13 @@ Gerrit.install(plugin => {
       const agent = this.agentSelect && this.agentSelect.value ? this.agentSelect.value : 'codex';
       const model = this.modelSelect && this.modelSelect.value ? this.modelSelect.value : null;
       const contextFiles = this.extractContextFiles(prompt);
+      const attachedFiles = (this.attachedFiles || []).map(f => ({ name: f.name, content: f.content }));
       const sessionId = this.createSessionId();
       this.activeSessionId = sessionId;
 
       try {
         const path = `/changes/${changeId}/revisions/current/codex-chat`;
-        log('Submitting chat request.', { mode, postAsReview, agent, model, sessionId, contextFilesCount: contextFiles.length, path });
+        log('Submitting chat request.', { mode, postAsReview, agent, model, sessionId, contextFilesCount: contextFiles.length, attachedFilesCount: attachedFiles.length, path });
         const response = await plugin.restApi().post(path, {
           prompt,
           mode,
@@ -1251,7 +1279,8 @@ Gerrit.install(plugin => {
           model,
           sessionId,
           session_id: sessionId,
-          contextFiles
+          contextFiles,
+          attachedFiles
         });
         log('Chat REST response received.', response);
         if (response && response.reply) {
@@ -1274,6 +1303,9 @@ Gerrit.install(plugin => {
       } finally {
         this.activeSessionId = null;
         this.setBusy(false);
+        // Clear attached files after each submission so they are not re-sent.
+        this.attachedFiles = [];
+        this.renderAttachedFileChips();
       }
     }
 
@@ -1320,7 +1352,113 @@ Gerrit.install(plugin => {
       this.promptHistoryIndex = -1;
       this.pendingFileChanges = [];
       this.closeFileChangesDialog();
+      this.attachedFiles = [];
+      this.renderAttachedFileChips();
+      if (this.fileInput) {
+        this.fileInput.value = '';
+      }
       this.setStatus('Chat panel cleared.');
+    }
+
+    /**
+     * Called when the user selects files via the hidden file input.
+     * Reads each file as text and stores it in this.attachedFiles.
+     * @param {HTMLInputElement} fileInputEl
+     */
+    handleFilesSelected(fileInputEl) {
+      const files = fileInputEl.files;
+      if (!files || files.length === 0) {
+        return;
+      }
+      const MAX_FILE_SIZE = 512 * 1024; // 512 KB per file
+      let readCount = 0;
+      const totalFiles = files.length;
+      Array.from(files).forEach(file => {
+        if (file.size > MAX_FILE_SIZE) {
+          warn('Attached file exceeds size limit, skipping.', { name: file.name, size: file.size });
+          this.setStatus(`File "${file.name}" is too large (max 512 KB).`);
+          readCount++;
+          if (readCount === totalFiles) {
+            fileInputEl.value = '';
+            this.renderAttachedFileChips();
+          }
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = event => {
+          const content = event.target && event.target.result != null ? String(event.target.result) : '';
+          const name = file.name || 'file';
+          // Avoid duplicates by name
+          const alreadyExists = this.attachedFiles.some(f => f.name === name);
+          if (!alreadyExists) {
+            this.attachedFiles.push({ name, content });
+            log('Attached file added.', { name, size: content.length });
+          } else {
+            log('Attached file already in list, skipping.', { name });
+          }
+          readCount++;
+          if (readCount === totalFiles) {
+            fileInputEl.value = '';
+            this.renderAttachedFileChips();
+          }
+        };
+        reader.onerror = () => {
+          warn('Failed to read attached file.', { name: file.name });
+          readCount++;
+          if (readCount === totalFiles) {
+            fileInputEl.value = '';
+            this.renderAttachedFileChips();
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    /**
+     * Removes an attached file by name and re-renders the chips row.
+     * @param {string} fileName
+     */
+    removeAttachedFile(fileName) {
+      this.attachedFiles = this.attachedFiles.filter(f => f.name !== fileName);
+      this.renderAttachedFileChips();
+      log('Attached file removed.', { fileName });
+    }
+
+    /**
+     * Re-renders the chips row that shows currently attached files.
+     * Shows/hides the row depending on whether any files are attached.
+     */
+    renderAttachedFileChips() {
+      const row = this.attachedFilesRow;
+      if (!row) {
+        return;
+      }
+      row.innerHTML = '';
+      if (!this.attachedFiles || this.attachedFiles.length === 0) {
+        row.classList.add('hidden');
+        return;
+      }
+      row.classList.remove('hidden');
+      this.attachedFiles.forEach(file => {
+        const chip = document.createElement('span');
+        chip.className = 'codex-attached-chip';
+        chip.title = `${file.name} (${Math.ceil(file.content.length / 1024)} KB)`;
+
+        const label = document.createElement('span');
+        label.className = 'codex-attached-chip-label';
+        label.textContent = file.name;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'codex-attached-chip-remove';
+        removeBtn.setAttribute('aria-label', `Remove ${file.name}`);
+        removeBtn.textContent = '\u00d7'; // ×
+        removeBtn.addEventListener('click', () => this.removeAttachedFile(file.name));
+
+        chip.appendChild(label);
+        chip.appendChild(removeBtn);
+        row.appendChild(chip);
+      });
     }
 
     async ensureAuthenticated() {
