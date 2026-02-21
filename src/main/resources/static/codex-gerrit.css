@@ -123,10 +123,12 @@
 
 .codex-voice-button {
   flex-shrink: 0;
-  min-width: var(--codex-input-height);
-  width: var(--codex-input-height);
+  min-width: 28px;
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
   padding: 0;
-  font-size: 16px;
+  font-size: 14px;
   color: #b65a2a;
   display: flex;
   align-items: center;
@@ -134,8 +136,8 @@
 }
 
 .codex-voice-button svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .codex-voice-button.recording {
@@ -602,10 +604,12 @@
 /* Paperclip / attach button */
 .codex-attach-button {
   flex-shrink: 0;
-  min-width: var(--codex-input-height);
-  width: var(--codex-input-height);
+  min-width: 28px;
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
   padding: 0;
-  font-size: 16px;
+  font-size: 14px;
   color: #b65a2a;
   display: flex;
   align-items: center;
