@@ -35,6 +35,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -82,8 +83,14 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     List<CodexAgentClient.ContextFile> allContextFiles = mergeContextFileLists(contextFiles, attachedContextFiles);
 
     String prompt = promptBuilder.buildPrompt(changeInfo, files, normalized);
+    String promptWithAttachedContext = appendAttachedFilesToPrompt(prompt, normalized.attachedFiles);
     String reply =
-      agentClient.run(prompt, normalized.model, normalized.agent, normalized.sessionId, allContextFiles);
+      agentClient.run(
+          promptWithAttachedContext,
+          normalized.model,
+          normalized.agent,
+          normalized.sessionId,
+          allContextFiles);
 
     if (normalized.postAsReview) {
       try {
@@ -367,5 +374,65 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     }
     return text.substring(0, MAX_CONTEXT_FILE_CHARS)
         + "\n\n[truncated by codex.gerrit context limit]";
+  }
+
+  private String appendAttachedFilesToPrompt(
+      String prompt, List<CodexChatInput.AttachedFile> attachedFiles) {
+    if (attachedFiles == null || attachedFiles.isEmpty()) {
+      return prompt;
+    }
+
+    List<CodexAgentClient.ContextFile> inlineFiles = buildAttachedContextFiles(attachedFiles);
+    if (inlineFiles.isEmpty()) {
+      return prompt;
+    }
+
+    StringBuilder builder = new StringBuilder(prompt == null ? "" : prompt.trim());
+    builder.append("\n\nExecution note:\n");
+    builder.append("- Inline attached file contents below are provided intentionally as task context.\n");
+    builder.append("- Do not request filesystem permission or claim missing file access for these files.\n");
+    builder.append("\nAttached file context:\n");
+
+    int limit = Math.min(inlineFiles.size(), MAX_CONTEXT_FILES_TO_READ);
+    for (int index = 0; index < limit; index++) {
+      CodexAgentClient.ContextFile contextFile = inlineFiles.get(index);
+      if (contextFile == null || contextFile.path == null || contextFile.path.trim().isEmpty()) {
+        continue;
+      }
+      String content = resolveContextFileText(contextFile);
+      if (content == null) {
+        continue;
+      }
+      if (content.length() > MAX_CONTEXT_FILE_CHARS) {
+        content = content.substring(0, MAX_CONTEXT_FILE_CHARS)
+            + "\n\n[truncated by codex.gerrit context limit]";
+      }
+      String path = contextFile.path.trim();
+      builder.append("\n--- FILE: ").append(path).append(" ---\n");
+      builder.append(content).append("\n");
+      builder.append("--- END FILE: ").append(path).append(" ---\n");
+    }
+
+    builder.append('\n');
+    return builder.toString();
+  }
+
+  private String resolveContextFileText(CodexAgentClient.ContextFile contextFile) {
+    if (contextFile == null) {
+      return null;
+    }
+    if (contextFile.base64Content != null && !contextFile.base64Content.trim().isEmpty()) {
+      try {
+        byte[] bytes = Base64.getDecoder().decode(contextFile.base64Content.trim());
+        return new String(bytes, StandardCharsets.UTF_8);
+      } catch (IllegalArgumentException ex) {
+        logger.warn("Failed to decode base64 context file {}", contextFile.path, ex);
+        return null;
+      }
+    }
+    if (contextFile.content == null) {
+      return null;
+    }
+    return contextFile.content;
   }
 }
