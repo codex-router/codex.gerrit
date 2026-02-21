@@ -35,7 +35,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -79,12 +78,12 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     Map<String, FileInfo> files = changeApi.current().files();
     CodexChatInput normalized = normalizeInput(input, files);
     List<CodexAgentClient.ContextFile> contextFiles = loadContextFiles(changeApi, normalized.contextFiles);
-    List<CodexAgentClient.ContextFile> attachedContextFiles = buildAttachedContextFiles(normalized.attachedFiles);
-    List<CodexAgentClient.ContextFile> allContextFiles = mergeContextFileLists(contextFiles, attachedContextFiles);
 
     String prompt = promptBuilder.buildPrompt(changeInfo, files, normalized);
+    // Attached file content is inlined directly in the prompt by CodexPromptBuilder.
+    // Only patchset contextFiles are forwarded to codex.serve to avoid duplicating content.
     String reply =
-      agentClient.run(prompt, normalized.model, normalized.agent, normalized.sessionId, allContextFiles);
+      agentClient.run(prompt, normalized.model, normalized.agent, normalized.sessionId, contextFiles);
 
     if (normalized.postAsReview) {
       try {
@@ -272,61 +271,6 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       return null;
     }
     return normalized;
-  }
-
-  private List<CodexAgentClient.ContextFile> buildAttachedContextFiles(
-      List<CodexChatInput.AttachedFile> attachedFiles) {
-    if (attachedFiles == null || attachedFiles.isEmpty()) {
-      return new ArrayList<>();
-    }
-    List<CodexAgentClient.ContextFile> resolved = new ArrayList<>();
-    for (CodexChatInput.AttachedFile af : attachedFiles) {
-      if (af == null) {
-        continue;
-      }
-      String name = af.name == null ? "" : af.name.trim();
-      if (name.isEmpty()) {
-        continue;
-      }
-      String text;
-      if (af.base64Content != null && !af.base64Content.trim().isEmpty()) {
-        try {
-          byte[] bytes = Base64.getDecoder().decode(af.base64Content.trim());
-          text = new String(bytes, StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException ex) {
-          logger.warn("Failed to decode base64 content for attached file {}", name, ex);
-          continue;
-        }
-      } else if (af.content != null) {
-        text = af.content;
-      } else {
-        continue;
-      }
-      if (text.length() > MAX_CONTEXT_FILE_CHARS) {
-        text = text.substring(0, MAX_CONTEXT_FILE_CHARS)
-            + "\n\n[truncated by codex.gerrit context limit]";
-      }
-      resolved.add(new CodexAgentClient.ContextFile(name, text));
-    }
-    return resolved;
-  }
-
-  private static List<CodexAgentClient.ContextFile> mergeContextFileLists(
-      List<CodexAgentClient.ContextFile> primary,
-      List<CodexAgentClient.ContextFile> secondary) {
-    List<CodexAgentClient.ContextFile> merged = new ArrayList<>(primary);
-    Set<String> seen = new HashSet<>();
-    for (CodexAgentClient.ContextFile cf : primary) {
-      if (cf != null && cf.path != null) {
-        seen.add(cf.path);
-      }
-    }
-    for (CodexAgentClient.ContextFile cf : secondary) {
-      if (cf != null && cf.path != null && seen.add(cf.path)) {
-        merged.add(cf);
-      }
-    }
-    return merged;
   }
 
   private List<CodexAgentClient.ContextFile> loadContextFiles(
