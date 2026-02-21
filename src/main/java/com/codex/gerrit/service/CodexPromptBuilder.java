@@ -75,8 +75,9 @@ public class CodexPromptBuilder {
           "If you propose code edits for selected context files, include unified diff output in fenced ```diff blocks with proper file headers (diff --git, ---, +++, @@).\n");
     }
 
+    List<String> attachedFileNames = new ArrayList<>();
     if (input.attachedFiles != null && !input.attachedFiles.isEmpty()) {
-      builder.append("\nUser-attached files (content inlined below):\n");
+      builder.append("\nUser-attached files (content inlined below — do NOT read from filesystem):\n");
       for (CodexChatInput.AttachedFile af : input.attachedFiles) {
         String name = af.name == null ? "" : af.name.trim();
         if (name.isEmpty()) {
@@ -96,17 +97,36 @@ public class CodexPromptBuilder {
           builder.append("\n");
         }
         builder.append("--- END FILE: ").append(name).append(" ---\n");
+        attachedFileNames.add(name);
       }
-      builder.append(
-          "\nThe files above are user-uploaded attachments with their exact content inlined."
-              + " Answer directly based on the content shown above."
-              + " Do NOT attempt to access the filesystem or claim the files are missing or inaccessible.\n");
-      builder.append(
-          "When edits are requested, produce the concrete edit result directly"
-              + " (prefer unified diff for changed files).\n");
+      if (!attachedFileNames.isEmpty()) {
+        builder.append(
+            "\nIMPORTANT: The file(s) listed above are user-uploaded attachments."
+                + " Their COMPLETE content is already printed verbatim in the blocks above."
+                + " You MUST answer directly from that content."
+                + " Do NOT invoke any file-read tool, shell command, or filesystem API."
+                + " Do NOT say the files are missing, inaccessible, or not part of the change.\n");
+        builder.append(
+            "When edits are requested, produce the concrete edit result directly"
+                + " (prefer unified diff for changed files).\n");
+      }
     }
 
     builder.append("\nUser prompt:\n").append(input.prompt).append("\n");
+    if (!attachedFileNames.isEmpty()) {
+      builder.append(
+          "\nREMINDER: The file(s) ");
+      for (int i = 0; i < attachedFileNames.size(); i++) {
+        if (i > 0) {
+          builder.append(", ");
+        }
+        builder.append("'").append(attachedFileNames.get(i)).append("'");
+      }
+      builder.append(
+          " were uploaded by the user and their full content is already shown in the"
+              + " --- FILE: --- blocks earlier in this prompt."
+              + " Use ONLY that content to answer. Do NOT call any file-reading tool or shell command.\n");
+    }
     if ("chat".equals(input.mode)) {
       builder.append("\nAnswer as a coding assistant for this Gerrit change. Be concise and actionable.\n");
     } else if ("generate".equals(input.mode)) {
