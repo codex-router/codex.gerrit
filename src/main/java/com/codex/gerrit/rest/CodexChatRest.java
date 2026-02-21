@@ -81,7 +81,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     List<CodexAgentClient.ContextFile> attachedContextFiles = buildAttachedContextFiles(normalized.attachedFiles);
     List<CodexAgentClient.ContextFile> allContextFiles = mergeContextFileLists(contextFiles, attachedContextFiles);
 
-    String prompt = promptBuilder.buildPrompt(changeInfo, files, normalized);
+    String prompt = promptBuilder.buildPrompt(changeInfo, normalized);
     String reply =
       agentClient.run(prompt, normalized.model, normalized.agent, normalized.sessionId, allContextFiles);
 
@@ -113,9 +113,8 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     normalized.agent = config.normalizeAgentOrDefault(requestedAgent);
     normalized.model = normalizeModel(input.model);
     normalized.sessionId = normalizeSessionId(input.sessionId);
-    List<String> selectedContextFiles = normalizeContextFiles(input.contextFiles, files);
     List<String> mentionedContextFiles = normalizeContextFilesFromPrompt(prompt, files);
-    normalized.contextFiles = mergeContextFiles(selectedContextFiles, mentionedContextFiles);
+    normalized.contextFiles = mentionedContextFiles;
     normalized.attachedFiles = normalizeAttachedFiles(input.attachedFiles);
     return normalized;
   }
@@ -160,32 +159,6 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     return normalized.isEmpty() ? null : normalized;
   }
 
-  private static List<String> normalizeContextFiles(
-      List<String> contextFiles, Map<String, FileInfo> files) {
-    if (contextFiles == null || contextFiles.isEmpty()) {
-      return new ArrayList<>();
-    }
-    Set<String> availableFiles = collectAvailableFiles(files);
-    if (availableFiles.isEmpty()) {
-      return new ArrayList<>();
-    }
-    List<String> normalized = new ArrayList<>();
-    Set<String> seen = new HashSet<>();
-    for (String selectedFile : contextFiles) {
-      if (selectedFile == null) {
-        continue;
-      }
-      String trimmed = selectedFile.trim();
-      if (trimmed.isEmpty()) {
-        continue;
-      }
-      if (availableFiles.contains(trimmed) && seen.add(trimmed)) {
-        normalized.add(trimmed);
-      }
-    }
-    return normalized;
-  }
-
   private static List<String> normalizeContextFilesFromPrompt(String prompt, Map<String, FileInfo> files) {
     if (prompt == null || prompt.isEmpty()) {
       return new ArrayList<>();
@@ -210,22 +183,6 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       }
     }
     return normalized;
-  }
-
-  private static List<String> mergeContextFiles(List<String> selected, List<String> mentioned) {
-    List<String> merged = new ArrayList<>();
-    Set<String> seen = new HashSet<>();
-    for (String file : selected) {
-      if (file != null && seen.add(file)) {
-        merged.add(file);
-      }
-    }
-    for (String file : mentioned) {
-      if (file != null && seen.add(file)) {
-        merged.add(file);
-      }
-    }
-    return merged;
   }
 
   private static Set<String> collectAvailableFiles(Map<String, FileInfo> files) {

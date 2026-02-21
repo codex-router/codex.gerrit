@@ -17,12 +17,8 @@ package com.codex.gerrit.service;
 import com.codex.gerrit.config.CodexGerritConfig;
 import com.codex.gerrit.rest.CodexChatInput;
 import com.google.gerrit.extensions.common.ChangeInfo;
-import com.google.gerrit.extensions.common.FileInfo;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 @Singleton
 public class CodexPromptBuilder {
@@ -33,8 +29,7 @@ public class CodexPromptBuilder {
     this.config = config;
   }
 
-  public String buildPrompt(
-      ChangeInfo changeInfo, Map<String, FileInfo> files, CodexChatInput input) {
+  public String buildPrompt(ChangeInfo changeInfo, CodexChatInput input) {
     StringBuilder builder = new StringBuilder();
     builder.append("Task: ").append(input.mode).append("\n");
     builder.append("Change: ")
@@ -51,13 +46,12 @@ public class CodexPromptBuilder {
           .append("\n");
     }
 
-    builder.append("Files:\n");
-    for (String file : trimFiles(files)) {
-      builder.append("- ").append(file).append("\n");
-    }
+    builder.append("Patchset files are not included as default analysis context.\n");
+    builder.append(
+        "Only files explicitly referenced via @<path> mentions in the user prompt are in analysis scope.\n");
 
     if (input.contextFiles != null && !input.contextFiles.isEmpty()) {
-      builder.append("\nSelected context files:\n");
+      builder.append("\nExplicitly referenced context files (@mentions):\n");
       for (String file : input.contextFiles) {
         builder.append("- ").append(file).append("\n");
       }
@@ -84,14 +78,6 @@ public class CodexPromptBuilder {
       builder.append("\nPost as Gerrit bot: ").append(config.getGerritBotUser()).append("\n");
     }
     return builder.toString();
-  }
-
-  private List<String> trimFiles(Map<String, FileInfo> files) {
-    List<String> fileNames = new ArrayList<>(files.keySet());
-    if (fileNames.size() <= config.getMaxFiles()) {
-      return fileNames;
-    }
-    return fileNames.subList(0, config.getMaxFiles());
   }
 
   private static String safe(String value) {
