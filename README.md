@@ -71,6 +71,7 @@ When enabled:
 - The plugin sends `agent`, `stdin`, `sessionId`, and `args` (`--model` when a specific model is selected).
 - When `@` files are used, the plugin also sends `contextFiles` with `{path, content}` entries to `codex.serve`.
 - When files are attached by the user in the chat panel, the plugin sends them as `attachedFiles` with `{name, content}` entries; `codex.serve` accepts these via the `contextFiles` field of `POST /run` using the typed `ContextFileItem` model (supports `content` for plain text or `base64Content` for binary files).
+- For compatibility with different clients and naming policies, attachment parsing also accepts common aliases: `attached_files`/`attachments`/`files` at the top level, plus `path`/`fileName`, `base64_content`/`contentBase64`, and `text`/`body` in each file item.
 - During an active chat request, the plugin can stop that session via `POST /sessions/{sessionId}/stop`.
 - The plugin fetches agent options from `codex.serve` using `GET /agents`.
 - The first item returned by `GET /agents` is selected by default.
