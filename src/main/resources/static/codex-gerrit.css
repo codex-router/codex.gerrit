@@ -126,10 +126,11 @@
   min-width: var(--codex-input-height);
   width: var(--codex-input-height);
   padding: 0;
-  display: inline-flex;
+  font-size: 16px;
+  color: #b65a2a;
+  display: flex;
   align-items: center;
   justify-content: center;
-  color: #b65a2a;
 }
 
 .codex-voice-button svg {
