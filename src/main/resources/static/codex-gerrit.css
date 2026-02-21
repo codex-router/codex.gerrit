@@ -189,16 +189,20 @@
 }
 
 .codex-status {
-  margin-left: 4px;
+  margin-top: 8px;
   min-height: 26px;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   font-size: 12px;
   color: #5a5a5a;
 }
 
-.codex-output {
+.codex-output-panel {
   margin-bottom: 12px;
+}
+
+.codex-output {
+  margin-bottom: 0;
   width: 100%;
   background: #fcfcfc;
   color: #1f1f1f;

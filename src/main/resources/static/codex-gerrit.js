@@ -148,10 +148,12 @@ Gerrit.install(plugin => {
       const status = document.createElement('div');
       status.className = 'codex-status';
 
+      const outputPanel = document.createElement('div');
+      outputPanel.className = 'codex-output-panel';
+
       selectors.appendChild(agentContainer);
       selectors.appendChild(modelContainer);
       selectors.appendChild(codespacesContainer);
-      selectors.appendChild(status);
 
       const inputPanel = document.createElement('div');
       inputPanel.className = 'codex-input-panel';
@@ -201,6 +203,9 @@ Gerrit.install(plugin => {
       output.className = 'codex-output';
       output.setAttribute('role', 'log');
       output.setAttribute('aria-live', 'polite');
+
+      outputPanel.appendChild(output);
+      outputPanel.appendChild(status);
 
       const changeDialogOverlay = document.createElement('div');
       changeDialogOverlay.className = 'codex-change-dialog-overlay hidden';
@@ -310,7 +315,7 @@ Gerrit.install(plugin => {
       inputPanel.appendChild(footer);
 
       wrapper.appendChild(header);
-      wrapper.appendChild(output);
+      wrapper.appendChild(outputPanel);
       wrapper.appendChild(inputPanel);
       wrapper.appendChild(mentionDropdown);
       wrapper.appendChild(changeDialogOverlay);
