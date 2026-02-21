@@ -145,9 +145,13 @@ Gerrit.install(plugin => {
       codespacesContainer.appendChild(codespacesLabel);
       codespacesContainer.appendChild(codespacesSelect);
 
+      const status = document.createElement('div');
+      status.className = 'codex-status';
+
       selectors.appendChild(agentContainer);
       selectors.appendChild(modelContainer);
       selectors.appendChild(codespacesContainer);
+      selectors.appendChild(status);
 
       const inputPanel = document.createElement('div');
       inputPanel.className = 'codex-input-panel';
@@ -192,9 +196,6 @@ Gerrit.install(plugin => {
       const clearButton = document.createElement('button');
       clearButton.className = 'codex-button outline';
       clearButton.textContent = 'Clear';
-
-      const status = document.createElement('div');
-      status.className = 'codex-status';
 
       const output = document.createElement('div');
       output.className = 'codex-output';
@@ -312,7 +313,6 @@ Gerrit.install(plugin => {
       wrapper.appendChild(output);
       wrapper.appendChild(inputPanel);
       wrapper.appendChild(mentionDropdown);
-      wrapper.appendChild(status);
       wrapper.appendChild(changeDialogOverlay);
       wrapper.appendChild(workspaceRootDialogOverlay);
 

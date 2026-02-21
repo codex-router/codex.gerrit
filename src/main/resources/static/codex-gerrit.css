@@ -189,8 +189,10 @@
 }
 
 .codex-status {
-  margin-top: 10px;
-  padding-left: 10px;
+  margin-left: 4px;
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
   font-size: 12px;
   color: #5a5a5a;
 }
