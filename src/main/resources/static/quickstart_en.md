@@ -1,4 +1,4 @@
-# 💬 Codex Chat Quickstart
+# Codex Chat Quickstart
 
 ## 🚀 Open the Chat Panel
 
@@ -6,14 +6,14 @@
 2. Scroll to the bottom.
 3. Find the **Codex Chat** panel.
 
-## 🎛️ Selector Row Controls
+## 🎛️ Dropdown Selection
 
-- **Agent**: Loaded from `codex.serve` `GET /agents`.
-	- First returned item is selected by default.
-	- If loading fails, fallback is `codex`.
-- **Model**: Loaded from `codex.serve` `GET /models`.
-	- First returned item is selected by default.
-	- Selected model is sent to backend as `--model`.
+- **Agent**:
+	- By default, the first item in the returned list is selected.
+	- If loading fails, it falls back to `codex`.
+- **Model**:
+	- By default, the first item in the returned list is selected.
+	- The selected model is passed to the backend via `--model`.
 - **Codespaces -> Open in Browser**:
 	- Currently coming soon.
 
@@ -30,20 +30,19 @@
 
 - **Help**:
 	- Located at the right side of the chat header.
-	- Opens the Quickstart popup dialog.
-	- Supports language switch between `English` and `中文`.
+	- Click to open the Quickstart popup.
+	- Supports language switching between `English` and `中文`.
 - **📎 Attach**:
 	- Add local files as extra context.
-	- Files appear as removable chips above input.
-	- Files are sent with the next request and then cleared.
+	- Files appear as removable chips above the input box.
+	- Files are sent with the next request and then automatically cleared.
 	- Browser-side file size limit is 512 KB per file.
 - **Stop Chat**:
 	- Interrupts the currently running chat session.
-	- Plugin forwards stop request to `POST /sessions/{sessionId}/stop`.
 - **Clear**:
-	- Clears messages, input text, and pending review state.
+	- Clears messages, input content, and pending review state.
 
-## 📎 `@` File Context Behavior
+## 📎 Uploaded File Context
 
 - Patchset files are **not** included automatically.
 - Only explicit `@` mentions are sent as patchset-file context.
@@ -53,7 +52,7 @@
 
 ## 🔍 Review Popup Behavior
 
-- If response includes unified diff content, review popup opens.
+- If the response includes unified diff content, the review popup opens.
 - Use **Keep** or **Undo** per file.
-- If diff headers are missing, fallback can still map changes using `@` file context.
-- For a single `@` file, fenced code-only replies can be converted into a synthesized unified diff preview.
+- If diff headers are missing, fallback mapping can still be done using `@` file context.
+- If only one `@` file is mentioned and the reply contains only a code block, a synthesized unified diff preview can still be generated.

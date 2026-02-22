@@ -1,4 +1,4 @@
-# 💬 Codex Chat 快速上手
+# Codex Chat 快速上手
 
 ## 🚀 打开聊天面板
 
@@ -6,18 +6,18 @@
 2. 滚动到页面底部。
 3. 找到 **Codex Chat** 面板。
 
-## 🎛️ 选择器行控件
+## 🎛️ 选择下拉框
 
-- **智能体（Agent）**：从 `codex.serve` 的 `GET /agents` 加载。
+- **智能体（Agent）**：
 	- 默认选择返回列表中的第一项。
 	- 若加载失败，回退为 `codex`。
-- **模型（Model）**：从 `codex.serve` 的 `GET /models` 加载。
+- **模型（Model）**：
 	- 默认选择返回列表中的第一项。
 	- 所选模型会通过 `--model` 传给后端。
 - **Codespaces -> Open in Browser**：
 	- 当前为即将推出（coming soon）。
 
-## ⌨️ Prompt（提示词）命令
+## ⌨️ 提示词命令
 
 - 输入提示词后按 `Enter` 发送。
 - 按 `Ctrl+Enter` 在输入框中换行。
@@ -39,11 +39,10 @@
 	- 浏览器侧单文件大小限制为 512 KB。
 - **Stop Chat**：
 	- 中断当前正在执行的聊天会话（session）。
-	- 插件会将停止请求转发到 `POST /sessions/{sessionId}/stop`。
 - **Clear**：
 	- 清空消息、输入内容与待审阅（pending review）状态。
 
-## 📎 `@` 文件上下文行为
+## 📎 上传文件的上下文
 
 - 补丁集文件**不会**自动包含。
 - 仅显式 `@` 提及的文件会作为补丁集上下文发送。
