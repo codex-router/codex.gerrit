@@ -47,6 +47,9 @@ Gerrit.install(plugin => {
       this.fileChangeSequence = 0;
       /** @type {Array<{name: string, content?: string, base64Content?: string}>} Files attached by the user in this session. */
       this.attachedFiles = [];
+      this.quickstartDocs = null;
+      this.quickstartDocsPromise = null;
+      this.quickstartLanguage = 'en';
     }
 
     connectedCallback() {
@@ -66,7 +69,10 @@ Gerrit.install(plugin => {
       wrapper.className = 'codex-chat';
 
       const header = document.createElement('div');
-      header.className = 'codex-header';
+      header.className = 'codex-header engcodex-header';
+
+      const headerLeft = document.createElement('div');
+      headerLeft.className = 'codex-header-left';
 
       const headerTitle = document.createElement('span');
       headerTitle.className = 'codex-header-title';
@@ -75,8 +81,15 @@ Gerrit.install(plugin => {
       const headerVersion = document.createElement('span');
       headerVersion.className = 'codex-header-version';
 
-      header.appendChild(headerTitle);
-      header.appendChild(headerVersion);
+      const helpButton = document.createElement('button');
+      helpButton.type = 'button';
+      helpButton.className = 'codex-button outline codex-small-button codex-help-button';
+      helpButton.textContent = 'Help';
+
+      headerLeft.appendChild(headerTitle);
+      headerLeft.appendChild(headerVersion);
+      header.appendChild(headerLeft);
+      header.appendChild(helpButton);
 
       const selectors = document.createElement('div');
       selectors.className = 'codex-selectors';
@@ -233,6 +246,54 @@ Gerrit.install(plugin => {
       changeDialog.appendChild(changeDialogBody);
       changeDialogOverlay.appendChild(changeDialog);
 
+      const quickstartDialogOverlay = document.createElement('div');
+      quickstartDialogOverlay.className = 'codex-quickstart-dialog-overlay hidden';
+
+      const quickstartDialog = document.createElement('div');
+      quickstartDialog.className = 'codex-quickstart-dialog';
+      quickstartDialog.setAttribute('role', 'dialog');
+      quickstartDialog.setAttribute('aria-modal', 'true');
+      quickstartDialog.addEventListener('click', event => event.stopPropagation());
+
+      const quickstartDialogHeader = document.createElement('div');
+      quickstartDialogHeader.className = 'codex-change-dialog-header';
+
+      const quickstartDialogTitle = document.createElement('div');
+      quickstartDialogTitle.className = 'codex-change-dialog-title';
+      quickstartDialogTitle.textContent = 'Codex Chat Quickstart';
+
+      const quickstartDialogClose = document.createElement('button');
+      quickstartDialogClose.type = 'button';
+      quickstartDialogClose.className = 'codex-button outline codex-dialog-close';
+      quickstartDialogClose.textContent = 'Close';
+
+      quickstartDialogHeader.appendChild(quickstartDialogTitle);
+      quickstartDialogHeader.appendChild(quickstartDialogClose);
+
+      const quickstartLanguageSwitch = document.createElement('div');
+      quickstartLanguageSwitch.className = 'codex-quickstart-language-switch';
+
+      const quickstartEnglishButton = document.createElement('button');
+      quickstartEnglishButton.type = 'button';
+      quickstartEnglishButton.className = 'codex-button outline codex-small-button active';
+      quickstartEnglishButton.textContent = 'English';
+
+      const quickstartChineseButton = document.createElement('button');
+      quickstartChineseButton.type = 'button';
+      quickstartChineseButton.className = 'codex-button outline codex-small-button';
+      quickstartChineseButton.textContent = '中文';
+
+      quickstartLanguageSwitch.appendChild(quickstartEnglishButton);
+      quickstartLanguageSwitch.appendChild(quickstartChineseButton);
+
+      const quickstartDialogBody = document.createElement('div');
+      quickstartDialogBody.className = 'codex-quickstart-dialog-body';
+
+      quickstartDialog.appendChild(quickstartDialogHeader);
+      quickstartDialog.appendChild(quickstartLanguageSwitch);
+      quickstartDialog.appendChild(quickstartDialogBody);
+      quickstartDialogOverlay.appendChild(quickstartDialog);
+
         const workspaceRootDialogOverlay = document.createElement('div');
         workspaceRootDialogOverlay.className = 'codex-workspace-root-dialog-overlay hidden';
 
@@ -314,6 +375,7 @@ Gerrit.install(plugin => {
       wrapper.appendChild(inputPanel);
       wrapper.appendChild(mentionDropdown);
       wrapper.appendChild(changeDialogOverlay);
+      wrapper.appendChild(quickstartDialogOverlay);
       wrapper.appendChild(workspaceRootDialogOverlay);
 
       const style = document.createElement('link');
@@ -339,8 +401,17 @@ Gerrit.install(plugin => {
       });
       changeDialogClose.addEventListener('click', () => this.closeFileChangesDialog());
       changeDialogOverlay.addEventListener('click', () => this.closeFileChangesDialog());
+      helpButton.addEventListener('click', () => this.openQuickstartDialog(this.quickstartLanguage));
+      quickstartDialogClose.addEventListener('click', () => this.closeQuickstartDialog());
+      quickstartDialogOverlay.addEventListener('click', () => this.closeQuickstartDialog());
+      quickstartEnglishButton.addEventListener('click', () => this.setQuickstartLanguage('en'));
+      quickstartChineseButton.addEventListener('click', () => this.setQuickstartLanguage('cn'));
 
       this.shadowRoot.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && this.isQuickstartDialogVisible()) {
+          this.closeQuickstartDialog();
+          return;
+        }
         if (event.key === 'Escape' && this.isFileChangesDialogVisible()) {
           this.closeFileChangesDialog();
         }
@@ -358,6 +429,10 @@ Gerrit.install(plugin => {
       this.headerVersion = headerVersion;
       this.changeDialogOverlay = changeDialogOverlay;
       this.changeDialogBody = changeDialogBody;
+      this.quickstartDialogOverlay = quickstartDialogOverlay;
+      this.quickstartDialogBody = quickstartDialogBody;
+      this.quickstartEnglishButton = quickstartEnglishButton;
+      this.quickstartChineseButton = quickstartChineseButton;
       this.workspaceRootDialogOverlay = workspaceRootDialogOverlay;
       this.workspaceRootDialogInput = workspaceRootDialogInput;
       this.workspaceRootDialogBrowse = workspaceRootDialogBrowse;
@@ -1810,6 +1885,102 @@ Gerrit.install(plugin => {
 
     isFileChangesDialogVisible() {
       return !!(this.changeDialogOverlay && !this.changeDialogOverlay.classList.contains('hidden'));
+    }
+
+    isQuickstartDialogVisible() {
+      return !!(this.quickstartDialogOverlay && !this.quickstartDialogOverlay.classList.contains('hidden'));
+    }
+
+    async openQuickstartDialog(language) {
+      if (!this.quickstartDialogOverlay) {
+        return;
+      }
+      await this.ensureQuickstartDocsLoaded();
+      this.setQuickstartLanguage(language || this.quickstartLanguage || 'en');
+      this.quickstartDialogOverlay.classList.remove('hidden');
+    }
+
+    closeQuickstartDialog() {
+      if (this.quickstartDialogOverlay) {
+        this.quickstartDialogOverlay.classList.add('hidden');
+      }
+    }
+
+    setQuickstartLanguage(language) {
+      const normalizedLanguage = language === 'cn' ? 'cn' : 'en';
+      this.quickstartLanguage = normalizedLanguage;
+
+      if (this.quickstartEnglishButton) {
+        this.quickstartEnglishButton.classList.toggle('active', normalizedLanguage === 'en');
+      }
+      if (this.quickstartChineseButton) {
+        this.quickstartChineseButton.classList.toggle('active', normalizedLanguage === 'cn');
+      }
+
+      this.renderQuickstartDialogContent();
+    }
+
+    renderQuickstartDialogContent() {
+      if (!this.quickstartDialogBody) {
+        return;
+      }
+      const docs = this.quickstartDocs || {};
+      const source = this.quickstartLanguage === 'cn' ? docs.cn : docs.en;
+      const markdown = source || '# Quickstart\n\nQuickstart content is currently unavailable.';
+      this.quickstartDialogBody.innerHTML = '';
+
+      const content = document.createElement('div');
+      content.className = 'codex-message assistant markdown-preview codex-quickstart-markdown';
+      content.innerHTML = this.renderMarkdown(markdown);
+
+      this.quickstartDialogBody.appendChild(content);
+      this.quickstartDialogBody.scrollTop = 0;
+    }
+
+    async ensureQuickstartDocsLoaded() {
+      if (this.quickstartDocs && this.quickstartDocs.en && this.quickstartDocs.cn) {
+        return;
+      }
+      if (this.quickstartDocsPromise) {
+        await this.quickstartDocsPromise;
+        return;
+      }
+
+      this.quickstartDocsPromise = (async () => {
+        const fetchDoc = async path => {
+          const response = await window.fetch(path, { credentials: 'same-origin' });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return await response.text();
+        };
+
+        const basePath = `/plugins/${pluginName}/static`;
+        const enPath = `${basePath}/quickstart_en.md`;
+        const cnPath = `${basePath}/quickstart_cn.md`;
+        const fallbackEn = '# Codex Chat Quickstart\n\nUnable to load quickstart content.';
+        const fallbackCn = '# Codex Chat 快速上手\n\n无法加载快速上手内容。';
+
+        const [enResult, cnResult] = await Promise.allSettled([fetchDoc(enPath), fetchDoc(cnPath)]);
+
+        if (enResult.status === 'rejected') {
+          logError('Failed to load English quickstart.', this.getErrorMessage(enResult.reason));
+        }
+        if (cnResult.status === 'rejected') {
+          logError('Failed to load Chinese quickstart.', this.getErrorMessage(cnResult.reason));
+        }
+
+        this.quickstartDocs = {
+          en: enResult.status === 'fulfilled' ? enResult.value : fallbackEn,
+          cn: cnResult.status === 'fulfilled' ? cnResult.value : fallbackCn
+        };
+      })();
+
+      try {
+        await this.quickstartDocsPromise;
+      } finally {
+        this.quickstartDocsPromise = null;
+      }
     }
 
     openFileChangesDialog() {

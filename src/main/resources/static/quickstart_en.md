@@ -29,6 +29,10 @@ This guide covers only chat panel controls, keyboard commands, and button usage 
 
 ## Buttons and Actions
 
+- **Help**:
+	- Located at the right side of the chat header.
+	- Opens the Quickstart popup dialog.
+	- Supports language switch between `English` and `中文`.
 - **📎 Attach**:
 	- Add local files as extra context.
 	- Files appear as removable chips above input.

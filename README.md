@@ -7,6 +7,10 @@ to supported AI agents for interactive chat.
 
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
 - Selector row includes `Agent`, `Model`, and `Codespaces` controls.
+- Header includes a right-side `Help` button.
+- `Help` opens a popup quickstart dialog with built-in English and Chinese guides.
+- Quickstart language can be switched between `English` and `中文` in the popup.
+- Quickstart docs are packaged inside the plugin at `static/quickstart_en.md` and `static/quickstart_cn.md`.
 - Agent selector is populated from `codex.serve` `GET /agents`.
 - The first item returned by `GET /agents` is selected by default.
 - If `GET /agents` is unavailable, the selector falls back to `codex`.
@@ -94,6 +98,8 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Use the selector row to choose `Agent` (options are loaded from `codex.serve` `GET /agents`; the first returned item is selected by default, and if unavailable it falls back to `codex`).
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
 - Use `Codespaces` → `Open in Browser` (currently coming soon).
+- Click `Help` (right side of the chat header) to open the quickstart popup.
+- In quickstart popup, switch between `English` and `中文` tabs as needed.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
 - Click the 📎 button next to the prompt input to attach local files (any text file up to 512 KB each). Attached files appear as removable chips above the input and are sent with the next request, then automatically cleared.
 - `@` file mentions are validated server-side against patchset files and are the only patchset-file context included for analysis.
