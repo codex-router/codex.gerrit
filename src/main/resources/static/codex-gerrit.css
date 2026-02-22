@@ -39,13 +39,6 @@
   white-space: nowrap;
 }
 
-.codex-header-version {
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: normal;
-  color: #5a5a5a;
-}
-
 .codex-selectors {
   display: flex;
   flex-wrap: wrap;

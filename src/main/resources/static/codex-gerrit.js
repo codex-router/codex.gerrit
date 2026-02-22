@@ -79,16 +79,12 @@ Gerrit.install(plugin => {
       headerTitle.className = 'codex-header-title';
       headerTitle.textContent = '🤖 Codex Chat';
 
-      const headerVersion = document.createElement('span');
-      headerVersion.className = 'codex-header-version';
-
       const helpButton = document.createElement('button');
       helpButton.type = 'button';
       helpButton.className = 'codex-button outline codex-small-button codex-help-button';
       helpButton.textContent = 'Help';
 
       headerLeft.appendChild(headerTitle);
-      headerLeft.appendChild(headerVersion);
       header.appendChild(headerLeft);
       header.appendChild(helpButton);
 
@@ -427,7 +423,6 @@ Gerrit.install(plugin => {
       this.status = status;
       this.stopButton = stopButton;
       this.clearButton = clearButton;
-      this.headerVersion = headerVersion;
       this.changeDialogOverlay = changeDialogOverlay;
       this.changeDialogBody = changeDialogBody;
       this.quickstartDialogOverlay = quickstartDialogOverlay;
@@ -468,13 +463,7 @@ Gerrit.install(plugin => {
         log('Loading panel config from REST API.', { path });
         const response = await plugin.restApi().get(path);
         log('Panel config REST response received.', response);
-
-        const pluginVersion = response ? response.pluginVersion || response.plugin_version : null;
         const patchsetFiles = response ? response.patchsetFiles || response.patchset_files : null;
-
-        if (pluginVersion) {
-          this.headerVersion.textContent = pluginVersion;
-        }
 
         const apiAgents = response && response.agents && response.agents.length > 0 ? response.agents : [];
         const agents = apiAgents.length > 0 ? apiAgents : fallbackAgents;
