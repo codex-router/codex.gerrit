@@ -25,6 +25,7 @@ import com.google.gerrit.extensions.common.FileInfo;
 import com.google.gerrit.extensions.restapi.BinaryResult;
 import com.google.gerrit.extensions.restapi.BadRequestException;
 import com.google.gerrit.extensions.restapi.ResourceConflictException;
+import com.google.gerrit.extensions.restapi.ResourceNotFoundException;
 import com.google.gerrit.extensions.restapi.Response;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gerrit.extensions.restapi.RestModifyView;
@@ -200,13 +201,33 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     if (files == null || files.isEmpty()) {
       return availableFiles;
     }
-    for (String file : files.keySet()) {
+    for (Map.Entry<String, FileInfo> entry : files.entrySet()) {
+      String file = entry.getKey();
       if (file == null || file.isEmpty() || file.startsWith("/")) {
+        continue;
+      }
+      if (isDeletedFile(entry.getValue())) {
         continue;
       }
       availableFiles.add(file);
     }
     return availableFiles;
+  }
+
+  private static boolean isDeletedFile(FileInfo fileInfo) {
+    if (fileInfo == null) {
+      return false;
+    }
+    try {
+      Object statusValue = FileInfo.class.getField("status").get(fileInfo);
+      if (statusValue == null) {
+        return false;
+      }
+      String status = String.valueOf(statusValue).trim();
+      return "D".equalsIgnoreCase(status) || "DELETED".equalsIgnoreCase(status);
+    } catch (NoSuchFieldException | IllegalAccessException ex) {
+      return false;
+    }
   }
 
   private static class MentionedContextFiles {
@@ -335,6 +356,8 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       try {
         String content = readRevisionFileText(changeApi, filePath);
         resolved.add(new CodexAgentClient.ContextFile(filePath, content));
+      } catch (ResourceNotFoundException ex) {
+        logger.info("Skip context file {} because content is unavailable", filePath);
       } catch (RestApiException ex) {
         logger.warn("Failed to load context file {}", filePath, ex);
       }
