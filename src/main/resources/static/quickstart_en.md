@@ -1,14 +1,14 @@
-# Codex Chat Quickstart
+# 💬 Codex Chat Quickstart
 
 This guide covers only chat panel controls, keyboard commands, and button usage on a Gerrit change page.
 
-## Open the Chat Panel
+## 🚀 Open the Chat Panel
 
 1. Open any Gerrit change page.
 2. Scroll to the bottom.
 3. Find the **Codex Chat** panel.
 
-## Selector Row Controls
+## 🎛️ Selector Row Controls
 
 - **Agent**: Loaded from `codex.serve` `GET /agents`.
 	- First returned item is selected by default.
@@ -19,7 +19,7 @@ This guide covers only chat panel controls, keyboard commands, and button usage 
 - **Codespaces -> Open in Browser**:
 	- Currently coming soon.
 
-## Prompt Commands
+## ⌨️ Prompt Commands
 
 - Type your prompt and press `Enter` to send.
 - Press `Ctrl+Enter` to insert a newline in the prompt.
@@ -28,7 +28,7 @@ This guide covers only chat panel controls, keyboard commands, and button usage 
 - Type `@` to open patchset file mention suggestions.
 - Type `@all` to include all current patchset files as context.
 
-## Buttons and Actions
+## 🔘 Buttons and Actions
 
 - **Help**:
 	- Located at the right side of the chat header.
@@ -45,7 +45,7 @@ This guide covers only chat panel controls, keyboard commands, and button usage 
 - **Clear**:
 	- Clears messages, input text, and pending review state.
 
-## `@` File Context Behavior
+## 📎 `@` File Context Behavior
 
 - Patchset files are **not** included automatically.
 - Only explicit `@` mentions are sent as patchset-file context.
@@ -53,7 +53,7 @@ This guide covers only chat panel controls, keyboard commands, and button usage 
 - Mentioned files are validated server-side against current patchset files.
 - Mentioned files include current revision content when sent to the agent.
 
-## Review Popup Behavior
+## 🔍 Review Popup Behavior
 
 - If response includes unified diff content, review popup opens.
 - Use **Keep** or **Undo** per file.
