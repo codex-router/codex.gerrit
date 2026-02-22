@@ -1,7 +1,5 @@
 # 💬 Codex Chat Quickstart
 
-This guide covers only chat panel controls, keyboard commands, and button usage on a Gerrit change page.
-
 ## 🚀 Open the Chat Panel
 
 1. Open any Gerrit change page.
