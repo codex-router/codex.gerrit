@@ -27,6 +27,7 @@ public class CodexChatInput {
   @SerializedName(value = "session_id", alternate = {"sessionId"})
   public String sessionId;
   public List<String> contextFiles;
+  public boolean selectAllContextFiles;
   /** Arbitrary files attached by the user in the chat panel UI. */
   @SerializedName(
       value = "attachedFiles",

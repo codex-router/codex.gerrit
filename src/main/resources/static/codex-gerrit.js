@@ -16,6 +16,7 @@ Gerrit.install(plugin => {
   const pluginName = plugin.getPluginName();
   const elementName = 'codex-chat-panel';
   const logPrefix = '[codex-gerrit]';
+  const mentionAllKeyword = 'all';
   const fallbackAgents = ['codex'];
   const codespacesActions = [
     { value: 'open-browser', label: 'Open in Browser' }
@@ -2414,9 +2415,13 @@ Gerrit.install(plugin => {
         end: mentionInfo.end
       };
       const query = mentionInfo.query.toLowerCase();
-      this.filteredMentionFiles = this.patchsetFiles
+      const mentionCandidates = this.patchsetFiles
           .filter(file => file.toLowerCase().includes(query))
           .slice(0, 20);
+      this.filteredMentionFiles =
+        mentionAllKeyword.includes(query) || query.includes(mentionAllKeyword)
+          ? [mentionAllKeyword, ...mentionCandidates.filter(file => file !== mentionAllKeyword)]
+          : mentionCandidates;
       if (this.filteredMentionFiles.length === 0) {
         this.hideMentionDropdown();
         return;
@@ -2657,6 +2662,7 @@ Gerrit.install(plugin => {
       const available = new Set(this.patchsetFiles);
       const selected = [];
       const seen = new Set();
+      let selectAll = false;
       const tokens = prompt.split(/\s+/);
       tokens.forEach(token => {
         if (!token || !token.startsWith('@')) {
@@ -2666,11 +2672,18 @@ Gerrit.install(plugin => {
         if (!candidate) {
           return;
         }
+        if (candidate.toLowerCase() === mentionAllKeyword) {
+          selectAll = true;
+          return;
+        }
         if (available.has(candidate) && !seen.has(candidate)) {
           seen.add(candidate);
           selected.push(candidate);
         }
       });
+      if (selectAll) {
+        return this.patchsetFiles.slice();
+      }
       return selected;
     }
 

@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class CodexChatRest implements RestModifyView<RevisionResource, CodexChatInput> {
   private static final Logger logger = LoggerFactory.getLogger(CodexChatRest.class);
+  private static final String CONTEXT_ALL_KEYWORD = "all";
   private static final int MAX_CONTEXT_FILES_TO_READ = 20;
   private static final int MAX_CONTEXT_FILE_CHARS = 12_000;
 
@@ -77,7 +78,8 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     ChangeInfo changeInfo = changeApi.get();
     Map<String, FileInfo> files = changeApi.current().files();
     CodexChatInput normalized = normalizeInput(input, files);
-    List<CodexAgentClient.ContextFile> contextFiles = loadContextFiles(changeApi, normalized.contextFiles);
+    List<CodexAgentClient.ContextFile> contextFiles =
+      loadContextFiles(changeApi, normalized.contextFiles, normalized.selectAllContextFiles);
     List<CodexAgentClient.ContextFile> attachedContextFiles = buildAttachedContextFiles(normalized.attachedFiles);
     List<CodexAgentClient.ContextFile> allContextFiles = mergeContextFileLists(contextFiles, attachedContextFiles);
 
@@ -113,8 +115,9 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     normalized.agent = config.normalizeAgentOrDefault(requestedAgent);
     normalized.model = normalizeModel(input.model);
     normalized.sessionId = normalizeSessionId(input.sessionId);
-    List<String> mentionedContextFiles = normalizeContextFilesFromPrompt(prompt, files);
-    normalized.contextFiles = mentionedContextFiles;
+    MentionedContextFiles mentionedContextFiles = normalizeContextFilesFromPrompt(prompt, files);
+    normalized.contextFiles = mentionedContextFiles.files;
+    normalized.selectAllContextFiles = mentionedContextFiles.selectAll;
     normalized.attachedFiles = normalizeAttachedFiles(input.attachedFiles);
     return normalized;
   }
@@ -159,16 +162,16 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     return normalized.isEmpty() ? null : normalized;
   }
 
-  private static List<String> normalizeContextFilesFromPrompt(String prompt, Map<String, FileInfo> files) {
+  private static MentionedContextFiles normalizeContextFilesFromPrompt(
+      String prompt, Map<String, FileInfo> files) {
     if (prompt == null || prompt.isEmpty()) {
-      return new ArrayList<>();
+      return MentionedContextFiles.none();
     }
-    Set<String> availableFiles = collectAvailableFiles(files);
-    if (availableFiles.isEmpty()) {
-      return new ArrayList<>();
-    }
+    List<String> availableFiles = collectAvailableFiles(files);
+    Set<String> availableSet = new HashSet<>(availableFiles);
     List<String> normalized = new ArrayList<>();
     Set<String> seen = new HashSet<>();
+    boolean selectAll = false;
     String[] tokens = prompt.split("\\s+");
     for (String token : tokens) {
       if (token == null || token.isEmpty() || !token.startsWith("@")) {
@@ -178,15 +181,22 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       if (candidate.isEmpty()) {
         continue;
       }
-      if (availableFiles.contains(candidate) && seen.add(candidate)) {
+      if (CONTEXT_ALL_KEYWORD.equalsIgnoreCase(candidate)) {
+        selectAll = true;
+        continue;
+      }
+      if (availableSet.contains(candidate) && seen.add(candidate)) {
         normalized.add(candidate);
       }
     }
-    return normalized;
+    if (selectAll) {
+      return MentionedContextFiles.all(availableFiles);
+    }
+    return MentionedContextFiles.selected(normalized);
   }
 
-  private static Set<String> collectAvailableFiles(Map<String, FileInfo> files) {
-    Set<String> availableFiles = new HashSet<>();
+  private static List<String> collectAvailableFiles(Map<String, FileInfo> files) {
+    List<String> availableFiles = new ArrayList<>();
     if (files == null || files.isEmpty()) {
       return availableFiles;
     }
@@ -197,6 +207,28 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
       availableFiles.add(file);
     }
     return availableFiles;
+  }
+
+  private static class MentionedContextFiles {
+    private final List<String> files;
+    private final boolean selectAll;
+
+    private MentionedContextFiles(List<String> files, boolean selectAll) {
+      this.files = files;
+      this.selectAll = selectAll;
+    }
+
+    private static MentionedContextFiles none() {
+      return new MentionedContextFiles(new ArrayList<>(), false);
+    }
+
+    private static MentionedContextFiles selected(List<String> files) {
+      return new MentionedContextFiles(files, false);
+    }
+
+    private static MentionedContextFiles all(List<String> files) {
+      return new MentionedContextFiles(files, true);
+    }
   }
 
   private static String normalizeMode(String mode) {
@@ -287,13 +319,14 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
   }
 
   private List<CodexAgentClient.ContextFile> loadContextFiles(
-      ChangeApi changeApi, List<String> selectedFiles) {
+      ChangeApi changeApi, List<String> selectedFiles, boolean selectAllContextFiles) {
     if (selectedFiles == null || selectedFiles.isEmpty()) {
       return new ArrayList<>();
     }
 
     List<CodexAgentClient.ContextFile> resolved = new ArrayList<>();
-    int limit = Math.min(selectedFiles.size(), MAX_CONTEXT_FILES_TO_READ);
+    int limit =
+        selectAllContextFiles ? selectedFiles.size() : Math.min(selectedFiles.size(), MAX_CONTEXT_FILES_TO_READ);
     for (int index = 0; index < limit; index++) {
       String filePath = selectedFiles.get(index);
       if (filePath == null || filePath.trim().isEmpty()) {

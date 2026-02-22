@@ -26,6 +26,7 @@ This guide covers only chat panel controls, keyboard commands, and button usage 
 - Press `Up` to load previous prompt from history.
 - Press `Down` to move to newer prompt history.
 - Type `@` to open patchset file mention suggestions.
+- Type `@all` to include all current patchset files as context.
 
 ## Buttons and Actions
 
@@ -48,6 +49,7 @@ This guide covers only chat panel controls, keyboard commands, and button usage 
 
 - Patchset files are **not** included automatically.
 - Only explicit `@` mentions are sent as patchset-file context.
+- `@all` includes all current patchset files as context.
 - Mentioned files are validated server-side against current patchset files.
 - Mentioned files include current revision content when sent to the agent.
 

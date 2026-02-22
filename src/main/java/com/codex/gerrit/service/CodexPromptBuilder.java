@@ -48,7 +48,7 @@ public class CodexPromptBuilder {
 
     builder.append("Patchset files are not included as default analysis context.\n");
     builder.append(
-        "Only files explicitly referenced via @<path> mentions in the user prompt are in analysis scope.\n");
+      "Only files explicitly referenced via @<path> mentions (or all patchset files via @all) in the user prompt are in analysis scope.\n");
 
     if (input.contextFiles != null && !input.contextFiles.isEmpty()) {
       builder.append("\nExplicitly referenced context files (@mentions):\n");

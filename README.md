@@ -17,8 +17,9 @@ to supported AI agents for interactive chat.
 - Model selector shows models returned by `codex.serve` `GET /models`.
 - The first item returned by `GET /models` is selected by default.
 - `@` file mention dropdown sourced from current patchset files for context selection.
+- `@all` command selects all current patchset files as context.
 - Patchset files are not included as default analysis context.
-- Backend uses only explicit `@` file mentions from prompt text when selecting patchset-file context.
+- Backend uses explicit `@` mentions from prompt text when selecting patchset-file context (`@all` selects all patchset files).
 - For `@`-mentioned files, backend reads current revision file content and forwards it as explicit context so the agent can operate on actual file text.
 - Users can attach arbitrary local files via the 📎 attach button in the chat panel; attached files are sent as inline context in each request and cleared after submission.
 - Attached file content is bounded by a 512 KB per-file browser-side limit and a 12 000-character server-side limit per file.
@@ -101,6 +102,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Click `Help` (right side of the chat header) to open the quickstart popup.
 - In quickstart popup, switch between `English` and `中文` tabs as needed.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
+- Type `@all` to include all current patchset files as context.
 - Click the 📎 button next to the prompt input to attach local files (any text file up to 512 KB each). Attached files appear as removable chips above the input and are sent with the next request, then automatically cleared.
 - `@` file mentions are validated server-side against patchset files and are the only patchset-file context included for analysis.
 - `@` file mentions now include real current-revision file content in the agent input (bounded by server-side limits).
