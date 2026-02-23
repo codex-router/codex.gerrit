@@ -139,7 +139,7 @@ public class CodexAgentClient {
     }
 
     String repoPath = normalizeRequiredPath(input.repoPath, "repoPath");
-    String outPath = normalizeRequiredPath(input.outPath, "outPath");
+    String outPath = normalizeOptionalPath(input.outPath);
 
     try {
       return runInsightOnServer(repoPath, outPath, input);
@@ -257,7 +257,9 @@ public class CodexAgentClient {
 
     JsonObject json = new JsonObject();
     json.addProperty("repoPath", repoPath);
-    json.addProperty("outPath", outPath);
+    if (outPath != null && !outPath.isEmpty()) {
+      json.addProperty("outPath", outPath);
+    }
 
     if (input.include != null && !input.include.isEmpty()) {
       json.add("include", GSON.toJsonTree(input.include));
@@ -482,6 +484,11 @@ public class CodexAgentClient {
       throw new BadRequestException(fieldName + " is required");
     }
     return normalized;
+  }
+
+  private static String normalizeOptionalPath(String value) {
+    String normalized = value == null ? "" : value.trim();
+    return normalized.isEmpty() ? null : normalized;
   }
 
   private static String getAsString(JsonObject json, String fieldName) {

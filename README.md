@@ -116,6 +116,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Ctrl+Enter` for a newline).
 - Use `#insight` to generate repository insight and open a Markdown popup dialog.
 - `#insight` supports optional flags: `--repo <path>`, `--out <path>`, and `--dry-run`.
+- If `--repo` is omitted, the panel requires repo path input in a dialog before running `#insight`.
 - In the prompt input, press `Up` to restore previous messages and `Down` to move forward to newer history entries.
 - Replies are shown in the UI using the selected agent/model.
 - If a reply contains file diffs, review them in the popup and choose `Keep` or `Undo` for each file.

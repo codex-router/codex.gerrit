@@ -67,4 +67,4 @@
 
 - On success, generated Markdown content is displayed in a popup dialog.
 - If multiple Markdown files are returned, they are merged and shown as sections in one popup.
-- If `--repo` is omitted, the panel may prompt for workspace root path.
+- If `--repo` is omitted, the panel prompts for repo path input in a dialog.

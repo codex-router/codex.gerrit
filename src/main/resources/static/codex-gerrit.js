@@ -2076,22 +2076,23 @@ Gerrit.install(plugin => {
 
       try {
         let repoPath = (command && command.repoPath ? command.repoPath : '').trim();
+        const outPath = (command && command.outPath ? command.outPath : '').trim();
         if (!repoPath) {
           repoPath = await this.getOrPromptWorkspaceRoot();
         }
         if (!repoPath) {
-          this.appendMessage('assistant', 'Insight canceled: repo path is required. Use `#insight --repo /path/to/repo` or set workspace root.');
+          this.appendMessage('assistant', 'Insight canceled: repo path is required. Use `#insight --repo /path/to/repo` or input it in the dialog.');
           this.setStatus('Insight canceled.');
           return;
         }
-
-        const outPath = (command && command.outPath ? command.outPath : '').trim() || this.joinPaths(repoPath, 'codex-insight-output');
         const path = `/changes/${changeId}/revisions/current/codex-insight`;
         const requestBody = {
-          repoPath,
-          outPath,
           dryRun: !!(command && command.dryRun)
         };
+        requestBody.repoPath = repoPath;
+        if (outPath) {
+          requestBody.outPath = outPath;
+        }
 
         this.setStatus('Running #insight...');
         log('Submitting insight request.', { path, requestBody });
