@@ -1102,7 +1102,7 @@ Gerrit.install(plugin => {
           const path = await this.pickWorkspaceRootPathFromDirectory(input.value || '');
           if (path) {
             input.value = path;
-            input.focus();
+            finish(path);
           }
         };
 
@@ -1600,6 +1600,91 @@ Gerrit.install(plugin => {
       }
     }
 
+    readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = event => {
+          const result = event && event.target ? event.target.result : '';
+          resolve(typeof result === 'string' ? result : '');
+        };
+        reader.onerror = () => reject(new Error(`Failed to read file: ${file && file.name ? file.name : 'unknown'}`));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async encodeInsightDirectoryFiles(fileList) {
+      const files = Array.isArray(fileList) ? fileList : [];
+      const encoded = [];
+      for (const file of files) {
+        if (!file) {
+          continue;
+        }
+        const relativePath = this.normalizePath(file.webkitRelativePath || file.name || '').replace(/^\/+/, '');
+        if (!relativePath) {
+          continue;
+        }
+        const dataUrl = await this.readFileAsDataUrl(file);
+        const base64Content = this.toBase64FromDataUrl(dataUrl);
+        const content = this.extractTextFromDataUrl(dataUrl);
+        if (base64Content) {
+          encoded.push({ path: relativePath, base64Content });
+        } else {
+          encoded.push({ path: relativePath, content: content || '' });
+        }
+      }
+      return encoded;
+    }
+
+    async pickInsightFilesFromDirectory() {
+      if (!document || !document.body) {
+        return [];
+      }
+
+      return new Promise(resolve => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.style.position = 'fixed';
+        input.style.left = '-9999px';
+        input.style.width = '1px';
+        input.style.height = '1px';
+        input.style.opacity = '0';
+        input.multiple = true;
+        input.setAttribute('webkitdirectory', '');
+        input.setAttribute('directory', '');
+
+        const cleanup = () => {
+          input.removeEventListener('change', onChange);
+          input.removeEventListener('cancel', onCancel);
+          if (input.parentNode) {
+            input.parentNode.removeChild(input);
+          }
+        };
+
+        const onCancel = () => {
+          cleanup();
+          resolve([]);
+        };
+
+        const onChange = async () => {
+          try {
+            const files = Array.from(input.files || []);
+            const encodedFiles = await this.encodeInsightDirectoryFiles(files);
+            cleanup();
+            resolve(encodedFiles);
+          } catch (error) {
+            cleanup();
+            warn('Failed to encode selected insight directory files.', error);
+            resolve([]);
+          }
+        };
+
+        input.addEventListener('change', onChange, { once: true });
+        input.addEventListener('cancel', onCancel, { once: true });
+        document.body.appendChild(input);
+        input.click();
+      });
+    }
+
     /**
      * Removes an attached file by name and re-renders the chips row.
      * @param {string} fileName
@@ -2075,27 +2160,29 @@ Gerrit.install(plugin => {
       this.hideMentionDropdown();
 
       try {
-        let repoPath = (command && command.repoPath ? command.repoPath : '').trim();
+        const directoryFiles = await this.pickInsightFilesFromDirectory();
         const outPath = (command && command.outPath ? command.outPath : '').trim();
-        if (!repoPath) {
-          repoPath = await this.getOrPromptWorkspaceRoot();
-        }
-        if (!repoPath) {
-          this.appendMessage('assistant', 'Insight canceled: repo path is required. Use `#insight --repo /path/to/repo` or input it in the dialog.');
+        if (!directoryFiles || directoryFiles.length === 0) {
+          this.appendMessage('assistant', 'Insight canceled: directory selection is required. Select a project directory to upload for insight.');
           this.setStatus('Insight canceled.');
           return;
         }
         const path = `/changes/${changeId}/revisions/current/codex-insight`;
         const requestBody = {
-          dryRun: !!(command && command.dryRun)
+          dryRun: !!(command && command.dryRun),
+          files: directoryFiles
         };
-        requestBody.repoPath = repoPath;
         if (outPath) {
           requestBody.outPath = outPath;
         }
 
         this.setStatus('Running #insight...');
-        log('Submitting insight request.', { path, requestBody });
+        log('Submitting insight request.', {
+          path,
+          dryRun: requestBody.dryRun,
+          outPath: requestBody.outPath || '',
+          filesCount: directoryFiles.length
+        });
         const response = await plugin.restApi().post(path, requestBody);
         const files = response && Array.isArray(response.files) ? response.files : [];
         const markdown = this.composeInsightMarkdown(files, response);

@@ -138,11 +138,13 @@ public class CodexAgentClient {
       throw new BadRequestException("input is required");
     }
 
-    String repoPath = normalizeRequiredPath(input.repoPath, "repoPath");
+    if (input.files == null || input.files.isEmpty()) {
+      throw new BadRequestException("files is required");
+    }
     String outPath = normalizeOptionalPath(input.outPath);
 
     try {
-      return runInsightOnServer(repoPath, outPath, input);
+      return runInsightOnServer(outPath, input);
     } catch (IOException e) {
       throw new BadRequestException("Failed to run insight: " + e.getMessage());
     }
@@ -244,7 +246,7 @@ public class CodexAgentClient {
     return stdout.trim();
   }
 
-  private CodexInsightResponse runInsightOnServer(String repoPath, String outPath, CodexInsightInput input)
+  private CodexInsightResponse runInsightOnServer(String outPath, CodexInsightInput input)
       throws IOException, RestApiException {
     URL url = new URL(config.getCodexServeUrl() + "/insight/run");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -256,10 +258,31 @@ public class CodexAgentClient {
     conn.setReadTimeout(RUN_READ_TIMEOUT_MS);
 
     JsonObject json = new JsonObject();
-    json.addProperty("repoPath", repoPath);
     if (outPath != null && !outPath.isEmpty()) {
       json.addProperty("outPath", outPath);
     }
+    JsonArray filesJson = new JsonArray();
+    for (CodexInsightInput.InsightFile file : input.files) {
+      if (file == null) {
+        continue;
+      }
+      String path = file.path == null ? "" : file.path.trim();
+      if (path.isEmpty()) {
+        continue;
+      }
+      JsonObject fileJson = new JsonObject();
+      fileJson.addProperty("path", path);
+      if (file.base64Content != null && !file.base64Content.isEmpty()) {
+        fileJson.addProperty("base64Content", file.base64Content);
+      } else {
+        fileJson.addProperty("content", file.content == null ? "" : file.content);
+      }
+      filesJson.add(fileJson);
+    }
+    if (filesJson.size() == 0) {
+      throw new BadRequestException("files is required");
+    }
+    json.add("files", filesJson);
 
     if (input.include != null && !input.include.isEmpty()) {
       json.add("include", GSON.toJsonTree(input.include));

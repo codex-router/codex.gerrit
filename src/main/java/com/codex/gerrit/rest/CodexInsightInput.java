@@ -19,8 +19,8 @@ import java.util.List;
 import java.util.Map;
 
 public class CodexInsightInput {
-  public String repoPath;
   public String outPath;
+  public List<InsightFile> files;
   public List<String> include;
   public List<String> exclude;
   public Integer maxFilesPerModule;
@@ -28,4 +28,10 @@ public class CodexInsightInput {
   public Boolean dryRun;
   @SerializedName(value = "env", alternate = {"environment"})
   public Map<String, String> env;
+
+  public static class InsightFile {
+    public String path;
+    public String content;
+    public String base64Content;
+  }
 }
