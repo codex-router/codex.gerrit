@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class CodexConfigRest implements RestReadView<RevisionResource> {
   private static final Logger logger = LoggerFactory.getLogger(CodexConfigRest.class);
+  private static final List<String> HASH_COMMANDS = Collections.singletonList("insight");
 
   private final CodexGerritConfig config;
   private final GerritApi gerritApi;
@@ -70,7 +71,7 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
     }
 
     return Response.ok(
-        new CodexConfigResponse(models, agents, getPluginVersion(), normalizeFiles(files)));
+      new CodexConfigResponse(models, agents, getPluginVersion(), normalizeFiles(files), HASH_COMMANDS));
   }
 
   private static List<String> normalizeFiles(Map<String, FileInfo> files) {
@@ -95,16 +96,19 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
     public List<String> agents;
     public String pluginVersion;
     public List<String> patchsetFiles;
+    public List<String> hashCommands;
 
     public CodexConfigResponse(
         List<String> models,
         List<String> agents,
         String pluginVersion,
-        List<String> patchsetFiles) {
+        List<String> patchsetFiles,
+        List<String> hashCommands) {
       this.models = models;
       this.agents = agents;
       this.pluginVersion = pluginVersion;
       this.patchsetFiles = patchsetFiles;
+      this.hashCommands = hashCommands;
     }
   }
 }

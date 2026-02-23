@@ -17,6 +17,7 @@ Gerrit.install(plugin => {
   const elementName = 'codex-chat-panel';
   const logPrefix = '[codex-gerrit]';
   const mentionAllKeyword = 'all';
+  const defaultHashCommands = ['insight'];
   const fallbackAgents = ['codex'];
   const codespacesActions = [
     { value: 'open-browser', label: 'Open in Browser' }
@@ -40,6 +41,8 @@ Gerrit.install(plugin => {
       this.filteredMentionFiles = [];
       this.activeMentionIndex = -1;
       this.currentMentionRange = null;
+      this.currentMentionTrigger = '@';
+      this.hashCommands = defaultHashCommands.slice();
       this.isBusyState = false;
       this.activeSessionId = null;
       this.promptHistory = [];
@@ -549,9 +552,37 @@ Gerrit.install(plugin => {
           this.patchsetFiles = [];
           log('No patchset files returned for @ mentions.');
         }
+
+        const configuredCommands = this.normalizeHashCommands(
+            response ? response.hashCommands || response.hash_commands || response.commands : null);
+        this.hashCommands = configuredCommands.length > 0 ? configuredCommands : defaultHashCommands.slice();
+        log('# commands loaded for dropdown.', {
+          count: this.hashCommands.length,
+          commands: this.hashCommands
+        });
       } catch (err) {
         warn('Failed to load models.', err);
       }
+    }
+
+    normalizeHashCommands(commands) {
+      if (!Array.isArray(commands) || commands.length === 0) {
+        return [];
+      }
+      const normalized = [];
+      const seen = new Set();
+      commands.forEach(command => {
+        if (typeof command !== 'string') {
+          return;
+        }
+        const trimmed = command.trim().replace(/^#+/, '');
+        if (!trimmed || seen.has(trimmed)) {
+          return;
+        }
+        seen.add(trimmed);
+        normalized.push(trimmed);
+      });
+      return normalized;
     }
 
     async submitChat() {
@@ -2615,14 +2646,25 @@ Gerrit.install(plugin => {
         start: mentionInfo.start,
         end: mentionInfo.end
       };
+      this.currentMentionTrigger = mentionInfo.trigger;
       const query = mentionInfo.query.toLowerCase();
-      const mentionCandidates = this.patchsetFiles
-          .filter(file => file.toLowerCase().includes(query))
-          .slice(0, 20);
-      this.filteredMentionFiles =
-        mentionAllKeyword.includes(query) || query.includes(mentionAllKeyword)
-          ? [mentionAllKeyword, ...mentionCandidates.filter(file => file !== mentionAllKeyword)]
-          : mentionCandidates;
+      if (mentionInfo.trigger === '@') {
+        const mentionCandidates = this.patchsetFiles
+            .filter(file => file.toLowerCase().includes(query))
+            .slice(0, 20);
+        const normalizedCandidates =
+          mentionAllKeyword.includes(query) || query.includes(mentionAllKeyword)
+            ? [mentionAllKeyword, ...mentionCandidates.filter(file => file !== mentionAllKeyword)]
+            : mentionCandidates;
+        this.filteredMentionFiles = normalizedCandidates.map(file => `@${file}`);
+      } else if (mentionInfo.trigger === '#') {
+        const commandCandidates = this.hashCommands
+            .filter(command => command.toLowerCase().includes(query))
+            .slice(0, 20);
+        this.filteredMentionFiles = commandCandidates.map(command => `#${command}`);
+      } else {
+        this.filteredMentionFiles = [];
+      }
       if (this.filteredMentionFiles.length === 0) {
         this.hideMentionDropdown();
         return;
@@ -2652,9 +2694,9 @@ Gerrit.install(plugin => {
         }
         if (event.key === 'Enter' || event.key === 'Tab') {
           event.preventDefault();
-          const selectedFile = this.filteredMentionFiles[this.activeMentionIndex];
-          if (selectedFile) {
-            this.applyMentionSelection(selectedFile);
+          const selectedItem = this.filteredMentionFiles[this.activeMentionIndex];
+          if (selectedItem) {
+            this.applyMentionSelection(selectedItem);
           }
           return;
         }
@@ -2788,21 +2830,25 @@ Gerrit.install(plugin => {
       const cursorPosition = this.input.selectionStart;
       const beforeCursor = text.substring(0, cursorPosition);
       const atIndex = beforeCursor.lastIndexOf('@');
-      if (atIndex < 0) {
+      const hashIndex = beforeCursor.lastIndexOf('#');
+      const triggerIndex = Math.max(atIndex, hashIndex);
+      if (triggerIndex < 0) {
         return null;
       }
-      const previousChar = atIndex > 0 ? beforeCursor.charAt(atIndex - 1) : '';
+      const trigger = triggerIndex === hashIndex ? '#' : '@';
+      const previousChar = triggerIndex > 0 ? beforeCursor.charAt(triggerIndex - 1) : '';
       if (previousChar && !/\s/.test(previousChar)) {
         return null;
       }
-      const mentionText = beforeCursor.substring(atIndex + 1);
+      const mentionText = beforeCursor.substring(triggerIndex + 1);
       if (/\s/.test(mentionText)) {
         return null;
       }
       return {
-        start: atIndex,
+        start: triggerIndex,
         end: cursorPosition,
-        query: mentionText
+        query: mentionText,
+        trigger
       };
     }
 
@@ -2812,21 +2858,21 @@ Gerrit.install(plugin => {
       }
       this.mentionDropdown.style.top = `${this.input.offsetTop + this.input.offsetHeight + 4}px`;
       this.mentionDropdown.innerHTML = '';
-      this.filteredMentionFiles.forEach((file, index) => {
+      this.filteredMentionFiles.forEach((itemValue, index) => {
         const item = document.createElement('button');
         item.type = 'button';
         item.className = `codex-mention-item ${index === this.activeMentionIndex ? 'active' : ''}`;
-        item.textContent = file;
+        item.textContent = itemValue;
         item.addEventListener('mousedown', event => {
           event.preventDefault();
-          this.applyMentionSelection(file);
+          this.applyMentionSelection(itemValue);
         });
         this.mentionDropdown.appendChild(item);
       });
       this.mentionDropdown.classList.remove('hidden');
     }
 
-    applyMentionSelection(file) {
+    applyMentionSelection(itemValue) {
       if (!this.input || !this.currentMentionRange) {
         this.hideMentionDropdown();
         return;
@@ -2834,7 +2880,7 @@ Gerrit.install(plugin => {
       const text = this.input.value || '';
       const before = text.substring(0, this.currentMentionRange.start);
       const after = text.substring(this.currentMentionRange.end);
-      const replacement = `@${file} `;
+      const replacement = `${itemValue} `;
       this.input.value = `${before}${replacement}${after}`;
       const nextCursor = before.length + replacement.length;
       this.input.focus();
@@ -2854,6 +2900,7 @@ Gerrit.install(plugin => {
       this.filteredMentionFiles = [];
       this.activeMentionIndex = -1;
       this.currentMentionRange = null;
+      this.currentMentionTrigger = '@';
     }
 
     extractContextFiles(prompt) {

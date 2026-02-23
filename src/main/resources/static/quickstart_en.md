@@ -25,6 +25,7 @@
 - Press `Down` to move to newer prompt history.
 - Type `@` to open patchset file mention suggestions.
 - Type `@all` to include all current patchset files as context.
+- Type `#` to open all available command suggestions (shown with the `#` prefix).
 - Type `#insight` to run insight generation and open the result in a Markdown popup dialog.
 - `#insight` optional flags:
 	- `--repo <path>`: repository path for insight.
