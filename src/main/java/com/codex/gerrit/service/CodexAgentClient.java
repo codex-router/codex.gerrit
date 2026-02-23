@@ -131,7 +131,7 @@ public class CodexAgentClient {
       String sessionId,
       List<ContextFile> contextFiles)
       throws IOException, RestApiException {
-    URL url = new URL(config.getCodexServeUrl() + "/run");
+    URL url = new URL(config.getCodexServeUrl() + "/agent/run");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
     conn.setRequestMethod("POST");
     conn.setRequestProperty("Content-Type", "application/json");

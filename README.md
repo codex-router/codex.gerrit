@@ -63,7 +63,7 @@ Add the following to `$gerrit_site/etc/gerrit.config`:
 
 ### Remote Execution (codex.serve)
 
-`codex.gerrit` executes all agents via `codex.serve` using `POST /run`.
+`codex.gerrit` executes all agents via `codex.serve` using `POST /agent/run`.
 
 ```
 [plugin "codex-gerrit"]
@@ -75,7 +75,7 @@ When enabled:
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
 - The plugin sends `agent`, `stdin`, `sessionId`, and `args` (`--model` when a specific model is selected).
 - When `@` files are used, the plugin also sends `contextFiles` with `{path, content}` entries to `codex.serve`.
-- When files are attached by the user in the chat panel, the plugin sends them as `attachedFiles` with `{name, content}` entries; `codex.serve` accepts these via the `contextFiles` field of `POST /run` using the typed `ContextFileItem` model (supports `content` for plain text or `base64Content` for binary files).
+- When files are attached by the user in the chat panel, the plugin sends them as `attachedFiles` with `{name, content}` entries; `codex.serve` accepts these via the `contextFiles` field of `POST /agent/run` using the typed `ContextFileItem` model (supports `content` for plain text or `base64Content` for binary files).
 - For compatibility with different clients and naming policies, attachment parsing also accepts common aliases: `attached_files`/`attachments`/`files` at the top level, plus `path`/`fileName`, `base64_content`/`contentBase64`, and `text`/`body` in each file item.
 - During an active chat request, the plugin can stop that session via `POST /sessions/{sessionId}/stop`.
 - The plugin fetches agent options from `codex.serve` using `GET /agents`.
@@ -118,7 +118,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Click `Clear` to remove all chat panel content (messages, input, and pending review state).
 ### Chat Session Stop Flow
 
-- Each chat request includes a generated session identifier (`sessionId`) in the request to `codex.serve` `POST /run`.
+- Each chat request includes a generated session identifier (`sessionId`) in the request to `codex.serve` `POST /agent/run`.
 - `Stop Chat` sends a plugin REST request to `codex-chat-stop`, which forwards to `codex.serve` `POST /sessions/{sessionId}/stop`.
 - If the target session is already finished, `codex.serve` may return `404` and the panel shows the failure status.
 

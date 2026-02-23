@@ -38,7 +38,7 @@ public class CodexChatInput {
   public static class AttachedFile {
     /**
      * The file name (or relative path) as provided by the client.
-     * Accepts both "name" (chat-panel payload) and "path" (/run-compatible payload).
+      * Accepts both "name" (chat-panel payload) and "path" (/agent/run-compatible payload).
      */
     @SerializedName(value = "name", alternate = {"path", "fileName", "filename"})
     public String name;
