@@ -20,6 +20,7 @@ import com.codex.gerrit.service.CodexPromptBuilder;
 import com.codex.gerrit.service.CodexReviewPoster;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.changes.ChangeApi;
+import com.google.gerrit.extensions.api.changes.RevisionApi;
 import com.google.gerrit.extensions.common.ChangeInfo;
 import com.google.gerrit.extensions.common.FileInfo;
 import com.google.gerrit.extensions.restapi.BinaryResult;
@@ -76,11 +77,12 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     String changeId = String.valueOf(resource.getChangeResource().getId().get());
 
     ChangeApi changeApi = gerritApi.changes().id(changeId);
+    RevisionApi revisionApi = resolveRevisionApi(resource, changeApi);
     ChangeInfo changeInfo = changeApi.get();
-    Map<String, FileInfo> files = changeApi.current().files();
+    Map<String, FileInfo> files = revisionApi.files();
     CodexChatInput normalized = normalizeInput(input, files);
     List<CodexAgentClient.ContextFile> contextFiles =
-      loadContextFiles(changeApi, normalized.contextFiles, normalized.selectAllContextFiles);
+      loadContextFiles(revisionApi, normalized.contextFiles, normalized.selectAllContextFiles);
     List<CodexAgentClient.ContextFile> attachedContextFiles = buildAttachedContextFiles(normalized.attachedFiles);
     List<CodexAgentClient.ContextFile> allContextFiles = mergeContextFileLists(contextFiles, attachedContextFiles);
 
@@ -340,7 +342,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
   }
 
   private List<CodexAgentClient.ContextFile> loadContextFiles(
-      ChangeApi changeApi, List<String> selectedFiles, boolean selectAllContextFiles) {
+      RevisionApi revisionApi, List<String> selectedFiles, boolean selectAllContextFiles) {
     if (selectedFiles == null || selectedFiles.isEmpty()) {
       return new ArrayList<>();
     }
@@ -354,7 +356,7 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
         continue;
       }
       try {
-        String content = readRevisionFileText(changeApi, filePath);
+        String content = readRevisionFileText(revisionApi, filePath);
         resolved.add(new CodexAgentClient.ContextFile(filePath, content));
       } catch (ResourceNotFoundException ex) {
         logger.info("Skip context file {} because content is unavailable", filePath);
@@ -365,9 +367,9 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     return resolved;
   }
 
-  private String readRevisionFileText(ChangeApi changeApi, String filePath) throws RestApiException {
+  private String readRevisionFileText(RevisionApi revisionApi, String filePath) throws RestApiException {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    try (BinaryResult binaryResult = changeApi.current().file(filePath).content()) {
+    try (BinaryResult binaryResult = revisionApi.file(filePath).content()) {
       binaryResult.writeTo(output);
     } catch (IOException ioException) {
       throw new ResourceConflictException(
@@ -380,5 +382,54 @@ public class CodexChatRest implements RestModifyView<RevisionResource, CodexChat
     }
     return text.substring(0, MAX_CONTEXT_FILE_CHARS)
         + "\n\n[truncated by codex.gerrit context limit]";
+  }
+
+  private RevisionApi resolveRevisionApi(RevisionResource resource, ChangeApi changeApi)
+      throws RestApiException {
+    String revisionId = resolveRevisionId(resource);
+    if (revisionId == null || revisionId.isEmpty()) {
+      return changeApi.current();
+    }
+    return changeApi.revision(revisionId);
+  }
+
+  private static String resolveRevisionId(RevisionResource resource) {
+    if (resource == null) {
+      return null;
+    }
+
+    Object patchSet = invokeNoArg(resource, "getPatchSet");
+    Object commitId = invokeNoArg(patchSet, "commitId");
+    String revisionFromCommit = normalizeRevisionId(invokeNoArg(commitId, "name"));
+    if (revisionFromCommit != null) {
+      return revisionFromCommit;
+    }
+
+    Object patchSetId = invokeNoArg(patchSet, "id");
+    String revisionFromPatchsetNumber = normalizeRevisionId(invokeNoArg(patchSetId, "get"));
+    if (revisionFromPatchsetNumber != null) {
+      return revisionFromPatchsetNumber;
+    }
+
+    return null;
+  }
+
+  private static Object invokeNoArg(Object target, String methodName) {
+    if (target == null || methodName == null || methodName.isEmpty()) {
+      return null;
+    }
+    try {
+      return target.getClass().getMethod(methodName).invoke(target);
+    } catch (ReflectiveOperationException ex) {
+      return null;
+    }
+  }
+
+  private static String normalizeRevisionId(Object value) {
+    if (value == null) {
+      return null;
+    }
+    String normalized = String.valueOf(value).trim();
+    return normalized.isEmpty() ? null : normalized;
   }
 }

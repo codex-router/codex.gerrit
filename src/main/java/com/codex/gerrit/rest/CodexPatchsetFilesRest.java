@@ -51,7 +51,7 @@ public class CodexPatchsetFilesRest implements RestReadView<RevisionResource> {
   public Response<CodexPatchsetFilesResponse> apply(RevisionResource resource) throws RestApiException {
     String changeId = String.valueOf(resource.getChangeResource().getId().get());
     ChangeApi changeApi = gerritApi.changes().id(changeId);
-    RevisionApi revisionApi = changeApi.current();
+    RevisionApi revisionApi = resolveRevisionApi(resource, changeApi);
     Map<String, FileInfo> files = revisionApi.files();
 
     List<String> normalizedFiles = normalizeFiles(files);
@@ -90,6 +90,55 @@ public class CodexPatchsetFilesRest implements RestReadView<RevisionResource> {
     }
     Collections.sort(result);
     return result;
+  }
+
+  private RevisionApi resolveRevisionApi(RevisionResource resource, ChangeApi changeApi)
+      throws RestApiException {
+    String revisionId = resolveRevisionId(resource);
+    if (revisionId == null || revisionId.isEmpty()) {
+      return changeApi.current();
+    }
+    return changeApi.revision(revisionId);
+  }
+
+  private static String resolveRevisionId(RevisionResource resource) {
+    if (resource == null) {
+      return null;
+    }
+
+    Object patchSet = invokeNoArg(resource, "getPatchSet");
+    Object commitId = invokeNoArg(patchSet, "commitId");
+    String revisionFromCommit = normalizeRevisionId(invokeNoArg(commitId, "name"));
+    if (revisionFromCommit != null) {
+      return revisionFromCommit;
+    }
+
+    Object patchSetId = invokeNoArg(patchSet, "id");
+    String revisionFromPatchsetNumber = normalizeRevisionId(invokeNoArg(patchSetId, "get"));
+    if (revisionFromPatchsetNumber != null) {
+      return revisionFromPatchsetNumber;
+    }
+
+    return null;
+  }
+
+  private static Object invokeNoArg(Object target, String methodName) {
+    if (target == null || methodName == null || methodName.isEmpty()) {
+      return null;
+    }
+    try {
+      return target.getClass().getMethod(methodName).invoke(target);
+    } catch (ReflectiveOperationException ex) {
+      return null;
+    }
+  }
+
+  private static String normalizeRevisionId(Object value) {
+    if (value == null) {
+      return null;
+    }
+    String normalized = String.valueOf(value).trim();
+    return normalized.isEmpty() ? null : normalized;
   }
 
   public static class CodexPatchsetFilesResponse {
