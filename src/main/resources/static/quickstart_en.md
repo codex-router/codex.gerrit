@@ -25,6 +25,11 @@
 - Press `Down` to move to newer prompt history.
 - Type `@` to open patchset file mention suggestions.
 - Type `@all` to include all current patchset files as context.
+- Type `#insight` to run insight generation and open the result in a Markdown popup dialog.
+- `#insight` optional flags:
+	- `--repo <path>`: repository path for insight.
+	- `--out <path>`: output directory for generated files.
+	- `--dry-run`: run insight in dry-run mode.
 
 ## 🔘 Buttons and Actions
 
@@ -56,3 +61,9 @@
 - Use **Keep** or **Undo** per file.
 - If diff headers are missing, fallback mapping can still be done using `@` file context.
 - If only one `@` file is mentioned and the reply contains only a code block, a synthesized unified diff preview can still be generated.
+
+## 📊 Insight Popup Behavior
+
+- On success, generated Markdown content is displayed in a popup dialog.
+- If multiple Markdown files are returned, they are merged and shown as sections in one popup.
+- If `--repo` is omitted, the panel may prompt for workspace root path.

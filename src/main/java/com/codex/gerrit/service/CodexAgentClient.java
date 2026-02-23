@@ -15,9 +15,13 @@
 package com.codex.gerrit.service;
 
 import com.codex.gerrit.config.CodexGerritConfig;
+import com.codex.gerrit.rest.CodexInsightInput;
+import com.codex.gerrit.rest.CodexInsightResponse;
 import com.google.gerrit.extensions.restapi.BadRequestException;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -32,7 +36,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Singleton
 public class CodexAgentClient {
@@ -124,7 +130,25 @@ public class CodexAgentClient {
     }
   }
 
-    private String runOnServer(
+  public CodexInsightResponse runInsight(CodexInsightInput input) throws RestApiException {
+    if (config.getCodexServeUrl().isEmpty()) {
+      throw new BadRequestException("codexServeUrl is not configured");
+    }
+    if (input == null) {
+      throw new BadRequestException("input is required");
+    }
+
+    String repoPath = normalizeRequiredPath(input.repoPath, "repoPath");
+    String outPath = normalizeRequiredPath(input.outPath, "outPath");
+
+    try {
+      return runInsightOnServer(repoPath, outPath, input);
+    } catch (IOException e) {
+      throw new BadRequestException("Failed to run insight: " + e.getMessage());
+    }
+  }
+
+  private String runOnServer(
       String prompt,
       String model,
       String agent,
@@ -218,6 +242,105 @@ public class CodexAgentClient {
     }
 
     return stdout.trim();
+  }
+
+  private CodexInsightResponse runInsightOnServer(String repoPath, String outPath, CodexInsightInput input)
+      throws IOException, RestApiException {
+    URL url = new URL(config.getCodexServeUrl() + "/insight/run");
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.setRequestMethod("POST");
+    conn.setRequestProperty("Content-Type", "application/json");
+    conn.setRequestProperty("Accept", "application/json");
+    conn.setDoOutput(true);
+    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+    conn.setReadTimeout(RUN_READ_TIMEOUT_MS);
+
+    JsonObject json = new JsonObject();
+    json.addProperty("repoPath", repoPath);
+    json.addProperty("outPath", outPath);
+
+    if (input.include != null && !input.include.isEmpty()) {
+      json.add("include", GSON.toJsonTree(input.include));
+    }
+    if (input.exclude != null && !input.exclude.isEmpty()) {
+      json.add("exclude", GSON.toJsonTree(input.exclude));
+    }
+    if (input.maxFilesPerModule != null) {
+      json.addProperty("maxFilesPerModule", input.maxFilesPerModule);
+    }
+    if (input.maxCharsPerFile != null) {
+      json.addProperty("maxCharsPerFile", input.maxCharsPerFile);
+    }
+    if (input.dryRun != null) {
+      json.addProperty("dryRun", input.dryRun);
+    }
+    if (input.env != null && !input.env.isEmpty()) {
+      Map<String, String> normalizedEnv = new LinkedHashMap<>();
+      for (Map.Entry<String, String> entry : input.env.entrySet()) {
+        String key = entry.getKey() == null ? "" : entry.getKey().trim();
+        if (key.isEmpty()) {
+          continue;
+        }
+        String value = entry.getValue();
+        normalizedEnv.put(key, value == null ? "" : value);
+      }
+      if (!normalizedEnv.isEmpty()) {
+        json.add("env", GSON.toJsonTree(normalizedEnv));
+      }
+    }
+
+    String jsonInputString = GSON.toJson(json);
+    try (OutputStream os = conn.getOutputStream()) {
+      byte[] payload = jsonInputString.getBytes(StandardCharsets.UTF_8);
+      os.write(payload, 0, payload.length);
+    }
+
+    int responseCode = conn.getResponseCode();
+    InputStream is =
+        (responseCode >= 200 && responseCode < 300) ? conn.getInputStream() : conn.getErrorStream();
+    String body = readText(is);
+
+    if (responseCode < 200 || responseCode >= 300) {
+      throw new BadRequestException("Remote server error " + responseCode + ": " + body);
+    }
+    if (body.trim().isEmpty()) {
+      throw new BadRequestException("Invalid /insight/run response from codex.serve: empty body");
+    }
+
+    JsonObject jsonBody = GSON.fromJson(body, JsonObject.class);
+    if (jsonBody == null) {
+      throw new BadRequestException("Invalid /insight/run response from codex.serve");
+    }
+
+    CodexInsightResponse response = new CodexInsightResponse();
+    response.stdout = getAsString(jsonBody, "stdout");
+    response.stderr = getAsString(jsonBody, "stderr");
+    response.outputDir = getAsString(jsonBody, "outputDir");
+    response.exitCode = getAsInt(jsonBody, "exit_code", 0);
+    if (jsonBody.has("exitCode") && jsonBody.get("exitCode").isJsonPrimitive()) {
+      response.exitCode = jsonBody.get("exitCode").getAsInt();
+    }
+
+    JsonArray files = jsonBody.has("files") && jsonBody.get("files").isJsonArray()
+        ? jsonBody.getAsJsonArray("files")
+        : new JsonArray();
+    for (JsonElement element : files) {
+      if (!element.isJsonObject()) {
+        continue;
+      }
+      JsonObject fileObj = element.getAsJsonObject();
+      String path = getAsString(fileObj, "path");
+      String content = getAsString(fileObj, "content");
+      if (path == null || path.trim().isEmpty()) {
+        continue;
+      }
+      response.files.add(new CodexInsightResponse.GeneratedFile(path, content == null ? "" : content));
+    }
+
+    response.count = jsonBody.has("count") && jsonBody.get("count").isJsonPrimitive()
+        ? jsonBody.get("count").getAsInt()
+        : response.files.size();
+    return response;
   }
 
   private void stopSessionOnServer(String sessionId) throws IOException, RestApiException {
@@ -351,6 +474,33 @@ public class CodexAgentClient {
       }
     }
     return output.toString();
+  }
+
+  private static String normalizeRequiredPath(String value, String fieldName) throws BadRequestException {
+    String normalized = value == null ? "" : value.trim();
+    if (normalized.isEmpty()) {
+      throw new BadRequestException(fieldName + " is required");
+    }
+    return normalized;
+  }
+
+  private static String getAsString(JsonObject json, String fieldName) {
+    if (json == null || !json.has(fieldName) || json.get(fieldName).isJsonNull()) {
+      return null;
+    }
+    JsonElement element = json.get(fieldName);
+    return element.isJsonPrimitive() ? element.getAsString() : null;
+  }
+
+  private static int getAsInt(JsonObject json, String fieldName, int defaultValue) {
+    if (json == null || !json.has(fieldName) || !json.get(fieldName).isJsonPrimitive()) {
+      return defaultValue;
+    }
+    try {
+      return json.get(fieldName).getAsInt();
+    } catch (RuntimeException ex) {
+      return defaultValue;
+    }
   }
 
   public static class ContextFile {

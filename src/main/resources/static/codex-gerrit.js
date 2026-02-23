@@ -51,6 +51,8 @@ Gerrit.install(plugin => {
       this.quickstartDocs = null;
       this.quickstartDocsPromise = null;
       this.quickstartLanguage = 'en';
+      this.insightDialogOverlay = null;
+      this.insightDialogBody = null;
     }
 
     connectedCallback() {
@@ -291,6 +293,37 @@ Gerrit.install(plugin => {
       quickstartDialog.appendChild(quickstartDialogBody);
       quickstartDialogOverlay.appendChild(quickstartDialog);
 
+      const insightDialogOverlay = document.createElement('div');
+      insightDialogOverlay.className = 'codex-quickstart-dialog-overlay hidden';
+
+      const insightDialog = document.createElement('div');
+      insightDialog.className = 'codex-quickstart-dialog';
+      insightDialog.setAttribute('role', 'dialog');
+      insightDialog.setAttribute('aria-modal', 'true');
+      insightDialog.addEventListener('click', event => event.stopPropagation());
+
+      const insightDialogHeader = document.createElement('div');
+      insightDialogHeader.className = 'codex-change-dialog-header';
+
+      const insightDialogTitle = document.createElement('div');
+      insightDialogTitle.className = 'codex-change-dialog-title';
+      insightDialogTitle.textContent = 'Codex Insight';
+
+      const insightDialogClose = document.createElement('button');
+      insightDialogClose.type = 'button';
+      insightDialogClose.className = 'codex-button outline codex-dialog-close';
+      insightDialogClose.textContent = 'Close';
+
+      insightDialogHeader.appendChild(insightDialogTitle);
+      insightDialogHeader.appendChild(insightDialogClose);
+
+      const insightDialogBody = document.createElement('div');
+      insightDialogBody.className = 'codex-quickstart-dialog-body';
+
+      insightDialog.appendChild(insightDialogHeader);
+      insightDialog.appendChild(insightDialogBody);
+      insightDialogOverlay.appendChild(insightDialog);
+
         const workspaceRootDialogOverlay = document.createElement('div');
         workspaceRootDialogOverlay.className = 'codex-workspace-root-dialog-overlay hidden';
 
@@ -373,6 +406,7 @@ Gerrit.install(plugin => {
       wrapper.appendChild(mentionDropdown);
       wrapper.appendChild(changeDialogOverlay);
       wrapper.appendChild(quickstartDialogOverlay);
+      wrapper.appendChild(insightDialogOverlay);
       wrapper.appendChild(workspaceRootDialogOverlay);
 
       const style = document.createElement('link');
@@ -401,6 +435,8 @@ Gerrit.install(plugin => {
       helpButton.addEventListener('click', () => this.openQuickstartDialog(this.quickstartLanguage));
       quickstartDialogClose.addEventListener('click', () => this.closeQuickstartDialog());
       quickstartDialogOverlay.addEventListener('click', () => this.closeQuickstartDialog());
+      insightDialogClose.addEventListener('click', () => this.closeInsightDialog());
+      insightDialogOverlay.addEventListener('click', () => this.closeInsightDialog());
       quickstartEnglishButton.addEventListener('click', () => this.setQuickstartLanguage('en'));
       quickstartChineseButton.addEventListener('click', () => this.setQuickstartLanguage('cn'));
 
@@ -411,6 +447,10 @@ Gerrit.install(plugin => {
         }
         if (event.key === 'Escape' && this.isFileChangesDialogVisible()) {
           this.closeFileChangesDialog();
+          return;
+        }
+        if (event.key === 'Escape' && this.isInsightDialogVisible()) {
+          this.closeInsightDialog();
         }
       });
 
@@ -429,6 +469,8 @@ Gerrit.install(plugin => {
       this.quickstartDialogBody = quickstartDialogBody;
       this.quickstartEnglishButton = quickstartEnglishButton;
       this.quickstartChineseButton = quickstartChineseButton;
+      this.insightDialogOverlay = insightDialogOverlay;
+      this.insightDialogBody = insightDialogBody;
       this.workspaceRootDialogOverlay = workspaceRootDialogOverlay;
       this.workspaceRootDialogInput = workspaceRootDialogInput;
       this.workspaceRootDialogBrowse = workspaceRootDialogBrowse;
@@ -1308,6 +1350,12 @@ Gerrit.install(plugin => {
         return;
       }
 
+      const insightCommand = this.parseInsightCommand(prompt);
+      if (insightCommand) {
+        await this.submitInsightCommand(prompt, insightCommand);
+        return;
+      }
+
       const changeId = this.getChangeId();
       if (!changeId) {
         warn('Submit blocked: unable to detect change id.', {
@@ -1428,6 +1476,7 @@ Gerrit.install(plugin => {
       this.promptHistoryIndex = -1;
       this.pendingFileChanges = [];
       this.closeFileChangesDialog();
+      this.closeInsightDialog();
       this.attachedFiles = [];
       this.renderAttachedFileChips();
       if (this.fileInput) {
@@ -1881,6 +1930,10 @@ Gerrit.install(plugin => {
       return !!(this.quickstartDialogOverlay && !this.quickstartDialogOverlay.classList.contains('hidden'));
     }
 
+    isInsightDialogVisible() {
+      return !!(this.insightDialogOverlay && !this.insightDialogOverlay.classList.contains('hidden'));
+    }
+
     async openQuickstartDialog(language) {
       if (!this.quickstartDialogOverlay) {
         return;
@@ -1894,6 +1947,165 @@ Gerrit.install(plugin => {
       if (this.quickstartDialogOverlay) {
         this.quickstartDialogOverlay.classList.add('hidden');
       }
+    }
+
+    openInsightDialog(markdown) {
+      if (!this.insightDialogOverlay || !this.insightDialogBody) {
+        return;
+      }
+      const normalizedMarkdown = (markdown || '').trim() || '# Insight\n\nNo markdown content generated.';
+      this.insightDialogBody.innerHTML = '';
+
+      const content = document.createElement('div');
+      content.className = 'codex-message assistant markdown-preview codex-quickstart-markdown';
+      content.innerHTML = this.renderMarkdown(normalizedMarkdown);
+
+      this.insightDialogBody.appendChild(content);
+      this.insightDialogBody.scrollTop = 0;
+      this.insightDialogOverlay.classList.remove('hidden');
+    }
+
+    closeInsightDialog() {
+      if (this.insightDialogOverlay) {
+        this.insightDialogOverlay.classList.add('hidden');
+      }
+    }
+
+    parseInsightCommand(prompt) {
+      const trimmed = String(prompt || '').trim();
+      if (!/^#insight(?:\s|$)/i.test(trimmed)) {
+        return null;
+      }
+
+      const argsPart = trimmed.replace(/^#insight\s*/i, '');
+      const tokens = this.tokenizeCommandArgs(argsPart);
+      const command = {
+        repoPath: '',
+        outPath: '',
+        dryRun: false
+      };
+
+      for (let i = 0; i < tokens.length; i += 1) {
+        const token = tokens[i];
+        if (token === '--dry-run') {
+          command.dryRun = true;
+          continue;
+        }
+        if (token === '--repo') {
+          command.repoPath = i + 1 < tokens.length ? tokens[i + 1] : '';
+          i += 1;
+          continue;
+        }
+        if (token === '--out') {
+          command.outPath = i + 1 < tokens.length ? tokens[i + 1] : '';
+          i += 1;
+        }
+      }
+
+      return command;
+    }
+
+    tokenizeCommandArgs(source) {
+      const text = String(source || '').trim();
+      if (!text) {
+        return [];
+      }
+      const tokens = [];
+      const tokenPattern = /"([^"]*)"|'([^']*)'|(\S+)/g;
+      let match;
+      while ((match = tokenPattern.exec(text)) !== null) {
+        tokens.push(match[1] || match[2] || match[3] || '');
+      }
+      return tokens.filter(token => !!token);
+    }
+
+    async submitInsightCommand(originalPrompt, command) {
+      if (this.isBusyState) {
+        this.setStatus('A request is already running.');
+        return;
+      }
+
+      if (!(await this.ensureAuthenticated())) {
+        this.setStatus('Sign in to Gerrit before using Codex Chat.');
+        return;
+      }
+
+      const changeId = this.getChangeId();
+      if (!changeId) {
+        this.setStatus('Unable to detect change id.');
+        return;
+      }
+
+      this.setBusy(true);
+      this.pushPromptHistory(originalPrompt);
+      this.appendMessage('user', originalPrompt);
+      this.input.value = '';
+      this.promptHistoryIndex = -1;
+      this.hideMentionDropdown();
+
+      try {
+        let repoPath = (command && command.repoPath ? command.repoPath : '').trim();
+        if (!repoPath) {
+          repoPath = await this.getOrPromptWorkspaceRoot();
+        }
+        if (!repoPath) {
+          this.appendMessage('assistant', 'Insight canceled: repo path is required. Use `#insight --repo /path/to/repo` or set workspace root.');
+          this.setStatus('Insight canceled.');
+          return;
+        }
+
+        const outPath = (command && command.outPath ? command.outPath : '').trim() || this.joinPaths(repoPath, 'codex-insight-output');
+        const path = `/changes/${changeId}/revisions/current/codex-insight`;
+        const requestBody = {
+          repoPath,
+          outPath,
+          dryRun: !!(command && command.dryRun)
+        };
+
+        this.setStatus('Running #insight...');
+        log('Submitting insight request.', { path, requestBody });
+        const response = await plugin.restApi().post(path, requestBody);
+        const files = response && Array.isArray(response.files) ? response.files : [];
+        const markdown = this.composeInsightMarkdown(files, response);
+        this.openInsightDialog(markdown);
+        const fileCount = files.length;
+        this.appendMessage('assistant', `Insight generated (${fileCount} file${fileCount === 1 ? '' : 's'}). Opened in popup dialog.`);
+        this.setStatus(`Insight generated (${fileCount} file${fileCount === 1 ? '' : 's'}).`);
+      } catch (error) {
+        logError('Insight request failed.', error);
+        const message = this.getErrorMessage(error);
+        this.appendMessage('assistant', `Insight failed: ${message}`);
+        this.setStatus(`Insight failed: ${message}`);
+      } finally {
+        this.setBusy(false);
+      }
+    }
+
+    composeInsightMarkdown(files, response) {
+      const safeFiles = Array.isArray(files) ? files : [];
+      if (safeFiles.length === 0) {
+        const stderr = response && response.stderr ? String(response.stderr).trim() : '';
+        const stdout = response && response.stdout ? String(response.stdout).trim() : '';
+        if (stderr) {
+          return `# Insight\n\nNo markdown files were returned.\n\n## stderr\n\n\`\`\`text\n${stderr}\n\`\`\``;
+        }
+        if (stdout) {
+          return `# Insight\n\nNo markdown files were returned.\n\n## stdout\n\n\`\`\`text\n${stdout}\n\`\`\``;
+        }
+        return '# Insight\n\nNo markdown files were returned.';
+      }
+
+      if (safeFiles.length === 1) {
+        const only = safeFiles[0];
+        return (only && only.content ? String(only.content) : '# Insight\n\nGenerated file is empty.').trim();
+      }
+
+      const sections = safeFiles.map(file => {
+        const path = file && file.path ? String(file.path) : 'Insight';
+        const content = file && file.content ? String(file.content) : '';
+        return `## ${path}\n\n${content}`.trim();
+      });
+      return sections.join('\n\n---\n\n');
     }
 
     setQuickstartLanguage(language) {

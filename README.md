@@ -8,6 +8,8 @@ to supported AI agents for interactive chat.
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
 - Selector row includes `Agent`, `Model`, and `Codespaces` controls.
 - Header includes a right-side `Help` button.
+- Supports `#insight` command in chat to trigger insight generation.
+- `#insight` response is shown in a popup dialog rendered as Markdown.
 - `Help` opens a popup quickstart dialog with built-in English and Chinese guides.
 - Quickstart language can be switched between `English` and `中文` in the popup.
 - Quickstart docs are packaged inside the plugin at `static/quickstart_en.md` and `static/quickstart_cn.md`.
@@ -78,6 +80,7 @@ When enabled:
 - When files are attached by the user in the chat panel, the plugin sends them as `attachedFiles` with `{name, content}` entries; `codex.serve` accepts these via the `contextFiles` field of `POST /agent/run` using the typed `ContextFileItem` model (supports `content` for plain text or `base64Content` for binary files).
 - For compatibility with different clients and naming policies, attachment parsing also accepts common aliases: `attached_files`/`attachments`/`files` at the top level, plus `path`/`fileName`, `base64_content`/`contentBase64`, and `text`/`body` in each file item.
 - During an active chat request, the plugin can stop that session via `POST /sessions/{sessionId}/stop`.
+- Insight generation requests are proxied to `codex.serve` via `POST /insight/run`.
 - The plugin fetches agent options from `codex.serve` using `GET /agents`.
 - The first item returned by `GET /agents` is selected by default.
 - If `GET /agents` fails, the UI falls back to `codex`.
@@ -111,6 +114,8 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Even if the returned diff block does not include `diff --git` / `---` / `+++`, review fallback can still use `@` file context to enable the dialog.
 - For single-file `@` prompts, a plain fenced code suggestion can still be shown in the review dialog via synthesized unified diff output.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Ctrl+Enter` for a newline).
+- Use `#insight` to generate repository insight and open a Markdown popup dialog.
+- `#insight` supports optional flags: `--repo <path>`, `--out <path>`, and `--dry-run`.
 - In the prompt input, press `Up` to restore previous messages and `Down` to move forward to newer history entries.
 - Replies are shown in the UI using the selected agent/model.
 - If a reply contains file diffs, review them in the popup and choose `Keep` or `Undo` for each file.
