@@ -2065,20 +2065,72 @@ Gerrit.install(plugin => {
       }
     }
 
-    openInsightDialog(markdown) {
+    openInsightDialog(files, response) {
       if (!this.insightDialogOverlay || !this.insightDialogBody) {
-        return;
+        return 0;
       }
-      const normalizedMarkdown = (markdown || '').trim() || '# Insight\n\nNo markdown content generated.';
+      const insightFiles = this.normalizeInsightFiles(files, response);
+      let activeIndex = 0;
       this.insightDialogBody.innerHTML = '';
 
-      const content = document.createElement('div');
-      content.className = 'codex-message assistant markdown-preview codex-quickstart-markdown';
-      content.innerHTML = this.renderMarkdown(normalizedMarkdown);
+      const toolbar = document.createElement('div');
+      toolbar.className = 'codex-insight-toolbar';
 
+      const filename = document.createElement('div');
+      filename.className = 'codex-insight-filename';
+
+      const downloadButton = document.createElement('button');
+      downloadButton.type = 'button';
+      downloadButton.className = 'codex-button outline codex-small-button';
+      downloadButton.textContent = 'Download';
+
+      toolbar.appendChild(filename);
+      toolbar.appendChild(downloadButton);
+
+      const tabs = document.createElement('div');
+      tabs.className = 'codex-insight-tabs';
+
+      const content = document.createElement('div');
+      content.className = 'codex-message assistant markdown-preview codex-quickstart-markdown codex-insight-content';
+
+      const renderActiveFile = () => {
+        const activeFile = insightFiles[activeIndex] || insightFiles[0];
+        const markdown = activeFile && activeFile.content
+            ? String(activeFile.content).trim()
+            : '# Insight\n\nGenerated file is empty.';
+        filename.textContent = activeFile ? activeFile.path : 'Insight.md';
+        content.innerHTML = this.renderMarkdown(markdown);
+        Array.from(tabs.children).forEach((tabButton, index) => {
+          tabButton.classList.toggle('active', index === activeIndex);
+        });
+      };
+
+      insightFiles.forEach((file, index) => {
+        const tabButton = document.createElement('button');
+        tabButton.type = 'button';
+        tabButton.className = `codex-insight-tab${index === 0 ? ' active' : ''}`;
+        tabButton.textContent = file.label;
+        tabButton.title = file.path;
+        tabButton.addEventListener('click', () => {
+          activeIndex = index;
+          renderActiveFile();
+        });
+        tabs.appendChild(tabButton);
+      });
+
+      downloadButton.addEventListener('click', () => {
+        const activeFile = insightFiles[activeIndex] || insightFiles[0];
+        this.downloadInsightFile(activeFile, activeIndex);
+      });
+
+      renderActiveFile();
+
+      this.insightDialogBody.appendChild(toolbar);
+      this.insightDialogBody.appendChild(tabs);
       this.insightDialogBody.appendChild(content);
       this.insightDialogBody.scrollTop = 0;
       this.insightDialogOverlay.classList.remove('hidden');
+      return insightFiles.length;
     }
 
     closeInsightDialog() {
@@ -2185,8 +2237,7 @@ Gerrit.install(plugin => {
         });
         const response = await plugin.restApi().post(path, requestBody);
         const files = response && Array.isArray(response.files) ? response.files : [];
-        const markdown = this.composeInsightMarkdown(files, response);
-        this.openInsightDialog(markdown);
+        this.openInsightDialog(files, response);
         const fileCount = files.length;
         this.appendMessage('assistant', `Insight generated (${fileCount} file${fileCount === 1 ? '' : 's'}). Opened in popup dialog.`);
         this.setStatus(`Insight generated (${fileCount} file${fileCount === 1 ? '' : 's'}).`);
@@ -2200,31 +2251,79 @@ Gerrit.install(plugin => {
       }
     }
 
-    composeInsightMarkdown(files, response) {
+    normalizeInsightFiles(files, response) {
       const safeFiles = Array.isArray(files) ? files : [];
-      if (safeFiles.length === 0) {
-        const stderr = response && response.stderr ? String(response.stderr).trim() : '';
-        const stdout = response && response.stdout ? String(response.stdout).trim() : '';
-        if (stderr) {
-          return `# Insight\n\nNo markdown files were returned.\n\n## stderr\n\n\`\`\`text\n${stderr}\n\`\`\``;
-        }
-        if (stdout) {
-          return `# Insight\n\nNo markdown files were returned.\n\n## stdout\n\n\`\`\`text\n${stdout}\n\`\`\``;
-        }
-        return '# Insight\n\nNo markdown files were returned.';
+      const markdownFiles = safeFiles.filter(file => this.isMarkdownInsightFile(file));
+      const candidates = markdownFiles.length > 0 ? markdownFiles : safeFiles;
+
+      if (candidates.length > 0) {
+        return candidates.map((file, index) => {
+          const rawPath = file && file.path ? String(file.path).trim() : '';
+          const path = rawPath || `Insight-${index + 1}.md`;
+          const label = this.getInsightFileLabel(path, index);
+          const content = file && file.content ? String(file.content) : '';
+          return { path, label, content };
+        });
       }
 
-      if (safeFiles.length === 1) {
-        const only = safeFiles[0];
-        return (only && only.content ? String(only.content) : '# Insight\n\nGenerated file is empty.').trim();
+      const stderr = response && response.stderr ? String(response.stderr).trim() : '';
+      const stdout = response && response.stdout ? String(response.stdout).trim() : '';
+      let fallback = '# Insight\n\nNo markdown files were returned.';
+      if (stderr) {
+        fallback = `# Insight\n\nNo markdown files were returned.\n\n## stderr\n\n\`\`\`text\n${stderr}\n\`\`\``;
+      } else if (stdout) {
+        fallback = `# Insight\n\nNo markdown files were returned.\n\n## stdout\n\n\`\`\`text\n${stdout}\n\`\`\``;
       }
 
-      const sections = safeFiles.map(file => {
-        const path = file && file.path ? String(file.path) : 'Insight';
-        const content = file && file.content ? String(file.content) : '';
-        return `## ${path}\n\n${content}`.trim();
-      });
-      return sections.join('\n\n---\n\n');
+      return [{
+        path: 'Insight.md',
+        label: 'Insight.md',
+        content: fallback
+      }];
+    }
+
+    isMarkdownInsightFile(file) {
+      if (!file || !file.path) {
+        return true;
+      }
+      const path = String(file.path).trim().toLowerCase();
+      if (!path) {
+        return true;
+      }
+      return path.endsWith('.md') || path.endsWith('.markdown');
+    }
+
+    getInsightFileLabel(path, index) {
+      const normalizedPath = this.normalizePath(path || '').replace(/^\/+/, '');
+      if (!normalizedPath) {
+        return `Insight-${index + 1}.md`;
+      }
+      const parts = normalizedPath.split('/').filter(part => part && part.length > 0);
+      return parts.length > 0 ? parts[parts.length - 1] : normalizedPath;
+    }
+
+    downloadInsightFile(file, index) {
+      if (!file) {
+        return;
+      }
+      const content = file.content ? String(file.content) : '';
+      const path = file.path ? String(file.path) : `Insight-${(index || 0) + 1}.md`;
+      let downloadName = this.toBrowserDownloadName(path);
+      if (!downloadName) {
+        downloadName = `Insight-${(index || 0) + 1}.md`;
+      }
+      if (!/\.(md|markdown)$/i.test(downloadName)) {
+        downloadName = `${downloadName}.md`;
+      }
+
+      const objectUrl = window.URL.createObjectURL(new Blob([content], { type: 'text/markdown;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = downloadName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
     }
 
     setQuickstartLanguage(language) {

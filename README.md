@@ -9,7 +9,8 @@ to supported AI agents for interactive chat.
 - Selector row includes `Agent`, `Model`, and `Codespaces` controls.
 - Header includes a right-side `Help` button.
 - Supports `#insight` command in chat to trigger insight generation.
-- `#insight` response is shown in a popup dialog rendered as Markdown.
+- `#insight` response is shown in a popup dialog rendered as Markdown, with one tab per generated Markdown file.
+- Insight popup supports downloading the currently active generated Markdown file.
 - `Help` opens a popup quickstart dialog with built-in English and Chinese guides.
 - Quickstart language can be switched between `English` and `中文` in the popup.
 - Quickstart docs are packaged inside the plugin at `static/quickstart_en.md` and `static/quickstart_cn.md`.
@@ -115,6 +116,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - For single-file `@` prompts, a plain fenced code suggestion can still be shown in the review dialog via synthesized unified diff output.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Ctrl+Enter` for a newline).
 - Use `#insight` to generate repository insight and open a Markdown popup dialog.
+- In the Insight popup, switch between generated Markdown files via tabs and download the active file.
 - `#insight` supports optional flags: `--repo <path>`, `--out <path>`, and `--dry-run`.
 - If `--repo` is omitted, the panel requires repo path input in a dialog before running `#insight`.
 - In the prompt input, press `Up` to restore previous messages and `Down` to move forward to newer history entries.

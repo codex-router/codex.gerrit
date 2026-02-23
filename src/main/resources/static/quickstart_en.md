@@ -66,5 +66,6 @@
 ## 📊 Insight Popup Behavior
 
 - On success, generated Markdown content is displayed in a popup dialog.
-- If multiple Markdown files are returned, they are merged and shown as sections in one popup.
+- If multiple Markdown files are returned, each file is shown in its own tab in the popup.
+- You can switch tabs to view each generated file and download the currently active file.
 - If `--repo` is omitted, the panel prompts for repo path input in a dialog.
