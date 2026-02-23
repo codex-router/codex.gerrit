@@ -1612,9 +1612,45 @@ Gerrit.install(plugin => {
       });
     }
 
+    readFileAsArrayBuffer(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = event => {
+          const result = event && event.target ? event.target.result : null;
+          resolve(result instanceof ArrayBuffer ? result : null);
+        };
+        reader.onerror = () => reject(new Error(`Failed to read file: ${file && file.name ? file.name : 'unknown'}`));
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    toBase64FromBytes(bytes) {
+      if (!bytes || bytes.length === 0) {
+        return '';
+      }
+      const chunkSize = 0x8000;
+      let binary = '';
+      for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+        const chunk = bytes.subarray(offset, offset + chunkSize);
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      return btoa(binary);
+    }
+
+    decodeUtf8FromBytes(bytes) {
+      if (!bytes || bytes.length === 0) {
+        return '';
+      }
+      try {
+        return new TextDecoder('utf-8').decode(bytes);
+      } catch (error) {
+        return '';
+      }
+    }
+
     async encodeInsightDirectoryFiles(fileList) {
       const files = Array.isArray(fileList) ? fileList : [];
-      const encoded = [];
+      const pending = [];
       for (const file of files) {
         if (!file) {
           continue;
@@ -1623,16 +1659,97 @@ Gerrit.install(plugin => {
         if (!relativePath) {
           continue;
         }
-        const dataUrl = await this.readFileAsDataUrl(file);
-        const base64Content = this.toBase64FromDataUrl(dataUrl);
-        const content = this.extractTextFromDataUrl(dataUrl);
-        if (base64Content) {
-          encoded.push({ path: relativePath, base64Content });
-        } else {
-          encoded.push({ path: relativePath, content: content || '' });
+        let base64Content = '';
+        let content = '';
+
+        try {
+          if (file && typeof file.arrayBuffer === 'function') {
+            const arrayBuffer = await file.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer || new ArrayBuffer(0));
+            base64Content = this.toBase64FromBytes(bytes);
+            if (typeof file.text === 'function') {
+              content = await file.text();
+            } else {
+              content = this.decodeUtf8FromBytes(bytes);
+            }
+          } else {
+            const arrayBuffer = await this.readFileAsArrayBuffer(file);
+            if (arrayBuffer) {
+              const bytes = new Uint8Array(arrayBuffer);
+              base64Content = this.toBase64FromBytes(bytes);
+              content = this.decodeUtf8FromBytes(bytes);
+            }
+          }
+        } catch (error) {
+          warn('Failed to read insight file via File API, falling back to DataURL.', {
+            path: relativePath,
+            message: this.getErrorMessage(error)
+          });
         }
+
+        if (!base64Content && !content) {
+          const dataUrl = await this.readFileAsDataUrl(file);
+          base64Content = this.toBase64FromDataUrl(dataUrl) || '';
+          content = this.extractTextFromDataUrl(dataUrl) || '';
+        }
+
+        if (!base64Content && !content && file && file.size > 0) {
+          warn('Insight file encoded as empty despite non-zero size.', {
+            path: relativePath,
+            size: file.size,
+            type: file.type || ''
+          });
+        }
+
+        log('Encoded insight file.', {
+          path: relativePath,
+          size: file && typeof file.size === 'number' ? file.size : 0,
+          contentLen: content ? content.length : 0,
+          base64Len: base64Content ? base64Content.length : 0
+        });
+
+        pending.push({ relativePath, base64Content, content });
       }
+
+      const normalizedPaths = this.stripSharedInsightRootPrefix(
+          pending.map(item => item.relativePath));
+      const encoded = [];
+      pending.forEach((item, index) => {
+        const normalizedPath = normalizedPaths[index] || item.relativePath;
+        if (item.base64Content) {
+          encoded.push({ path: normalizedPath, base64Content: item.base64Content });
+        } else {
+          encoded.push({ path: normalizedPath, content: item.content || '' });
+        }
+      });
       return encoded;
+    }
+
+    stripSharedInsightRootPrefix(paths) {
+      const normalized = (Array.isArray(paths) ? paths : []).map(path =>
+        this.normalizePath(path || '').replace(/^\/+/, '')).filter(path => !!path);
+      if (normalized.length === 0) {
+        return [];
+      }
+
+      const firstSegments = normalized
+          .map(path => path.split('/').filter(part => !!part))
+          .filter(parts => parts.length > 0);
+      if (firstSegments.length !== normalized.length) {
+        return normalized;
+      }
+
+      const root = firstSegments[0][0];
+      if (!root) {
+        return normalized;
+      }
+
+      const canStrip = firstSegments.every(parts => parts.length > 1 && parts[0] === root);
+      if (!canStrip) {
+        return normalized;
+      }
+
+      return firstSegments.map(parts => parts.slice(1).join('/'));
     }
 
     async pickInsightFilesFromDirectory() {
@@ -2213,27 +2330,61 @@ Gerrit.install(plugin => {
 
       try {
         const directoryFiles = await this.pickInsightFilesFromDirectory();
+        const validFiles = (directoryFiles || []).filter(file => {
+          if (!file || !file.path) {
+            return false;
+          }
+          const contentLen = file.content ? String(file.content).length : 0;
+          const base64Len = file.base64Content ? String(file.base64Content).length : 0;
+          return contentLen > 0 || base64Len > 0;
+        });
+
         const outPath = (command && command.outPath ? command.outPath : '').trim();
         if (!directoryFiles || directoryFiles.length === 0) {
           this.appendMessage('assistant', 'Insight canceled: directory selection is required. Select a project directory to upload for insight.');
           this.setStatus('Insight canceled.');
           return;
         }
+        if (validFiles.length === 0) {
+          this.appendMessage(
+              'assistant',
+              'Insight canceled: selected files were encoded as empty content. Please reselect a directory with readable source files.');
+          this.setStatus('Insight canceled: selected files are empty.');
+          warn('Insight request aborted because all encoded files are empty.', {
+            selectedFiles: directoryFiles.length,
+            preview: (directoryFiles || []).slice(0, 5).map(file => ({
+              path: file && file.path ? file.path : '',
+              contentLen: file && file.content ? String(file.content).length : 0,
+              base64Len: file && file.base64Content ? String(file.base64Content).length : 0
+            }))
+          });
+          return;
+        }
+
+        if (validFiles.length < directoryFiles.length) {
+          warn('Dropping insight files with empty encoded payload.', {
+            selectedFiles: directoryFiles.length,
+            validFiles: validFiles.length
+          });
+        }
+
         const path = `/changes/${changeId}/revisions/current/codex-insight`;
         const requestBody = {
           dryRun: !!(command && command.dryRun),
-          files: directoryFiles
+          files: validFiles
         };
         if (outPath) {
           requestBody.outPath = outPath;
         }
 
         this.setStatus('Running #insight...');
+        const filePathPreview = validFiles.slice(0, 3).map(file => (file && file.path ? file.path : ''));
         log('Submitting insight request.', {
           path,
           dryRun: requestBody.dryRun,
           outPath: requestBody.outPath || '',
-          filesCount: directoryFiles.length
+          filesCount: validFiles.length,
+          filePathPreview
         });
         const response = await plugin.restApi().post(path, requestBody);
         const files = response && Array.isArray(response.files) ? response.files : [];

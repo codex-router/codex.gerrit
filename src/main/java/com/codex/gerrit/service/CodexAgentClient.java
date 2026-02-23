@@ -39,14 +39,17 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 @Singleton
 public class CodexAgentClient {
   private static final int MAX_OUTPUT_CHARS = 20000;
+  private static final int DEBUG_FILE_PREVIEW_LIMIT = 5;
   private static final int CONNECT_TIMEOUT_MS = 10_000;
   private static final int RUN_READ_TIMEOUT_MS = 300_000;
   private static final int CONTROL_READ_TIMEOUT_MS = 15_000;
   private static final Gson GSON = new Gson();
+  private static final Logger LOGGER = Logger.getLogger(CodexAgentClient.class.getName());
 
   private final CodexGerritConfig config;
 
@@ -142,6 +145,17 @@ public class CodexAgentClient {
       throw new BadRequestException("files is required");
     }
     String outPath = normalizeOptionalPath(input.outPath);
+
+    LOGGER.info(
+      String.format(
+        "Insight request received: files=%d, dryRun=%s, outPath=%s, include=%d, exclude=%d, envKeys=%s, filePreview=%s",
+        input.files == null ? 0 : input.files.size(),
+        input.dryRun,
+        outPath == null ? "" : outPath,
+        input.include == null ? 0 : input.include.size(),
+        input.exclude == null ? 0 : input.exclude.size(),
+        input.env == null ? "[]" : input.env.keySet().toString(),
+        summarizeInsightInputFiles(input.files)));
 
     try {
       return runInsightOnServer(outPath, input);
@@ -365,7 +379,74 @@ public class CodexAgentClient {
     response.count = jsonBody.has("count") && jsonBody.get("count").isJsonPrimitive()
         ? jsonBody.get("count").getAsInt()
         : response.files.size();
+
+    LOGGER.info(
+        String.format(
+            "Insight response received: httpStatus=%d, exitCode=%d, count=%d, outputDir=%s, stderrLen=%d, stdoutLen=%d, filePreview=%s",
+            responseCode,
+            response.exitCode,
+            response.count,
+            response.outputDir == null ? "" : response.outputDir,
+            safeLength(response.stderr),
+            safeLength(response.stdout),
+            summarizeGeneratedFiles(response.files)));
+
     return response;
+  }
+
+  private static int safeLength(String value) {
+    return value == null ? 0 : value.length();
+  }
+
+  private static String summarizeInsightInputFiles(List<CodexInsightInput.InsightFile> files) {
+    if (files == null || files.isEmpty()) {
+      return "[]";
+    }
+    StringBuilder preview = new StringBuilder("[");
+    int limit = Math.min(files.size(), DEBUG_FILE_PREVIEW_LIMIT);
+    for (int i = 0; i < limit; i++) {
+      CodexInsightInput.InsightFile file = files.get(i);
+      if (i > 0) {
+        preview.append(", ");
+      }
+      String path = file == null || file.path == null ? "" : file.path;
+      String content = file == null ? null : file.content;
+      String base64Content = file == null ? null : file.base64Content;
+      preview
+          .append(path)
+          .append("{contentLen=")
+          .append(safeLength(content))
+          .append(",base64Len=")
+          .append(safeLength(base64Content))
+          .append("}");
+    }
+    if (files.size() > limit) {
+      preview.append(", ...+").append(files.size() - limit);
+    }
+    preview.append("]");
+    return preview.toString();
+  }
+
+  private static String summarizeGeneratedFiles(List<CodexInsightResponse.GeneratedFile> files) {
+    if (files == null || files.isEmpty()) {
+      return "[]";
+    }
+    StringBuilder preview = new StringBuilder("[");
+    int limit = Math.min(files.size(), DEBUG_FILE_PREVIEW_LIMIT);
+    for (int i = 0; i < limit; i++) {
+      CodexInsightResponse.GeneratedFile file = files.get(i);
+      if (i > 0) {
+        preview.append(", ");
+      }
+      String path = file == null || file.path == null ? "" : file.path;
+      String content = file == null ? null : file.content;
+      preview.append(path).append("{contentLen=").append(safeLength(content)).append("}");
+    }
+    if (files.size() > limit) {
+      preview.append(", ...+").append(files.size() - limit);
+    }
+    preview.append("]");
+    return preview.toString();
   }
 
   private void stopSessionOnServer(String sessionId) throws IOException, RestApiException {

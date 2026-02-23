@@ -31,7 +31,9 @@ public class CodexInsightInput {
 
   public static class InsightFile {
     public String path;
+    @SerializedName(value = "content", alternate = {"fileContent", "file_content"})
     public String content;
+    @SerializedName(value = "base64Content", alternate = {"base64_content", "base64"})
     public String base64Content;
   }
 }
