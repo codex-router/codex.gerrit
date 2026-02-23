@@ -2994,13 +2994,13 @@ Gerrit.install(plugin => {
         event.code === 'ArrowDown' || event.key === 'ArrowDown' || event.key === 'Down' || event.keyCode === 40;
 
       if (this.isMentionDropdownVisible()) {
-        if (event.key === 'ArrowDown') {
+        if (isArrowDown) {
           event.preventDefault();
           this.activeMentionIndex = (this.activeMentionIndex + 1) % this.filteredMentionFiles.length;
           this.renderMentionDropdown();
           return;
         }
-        if (event.key === 'ArrowUp') {
+        if (isArrowUp) {
           event.preventDefault();
           this.activeMentionIndex = (this.activeMentionIndex - 1 + this.filteredMentionFiles.length) % this.filteredMentionFiles.length;
           this.renderMentionDropdown();
