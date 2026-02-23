@@ -1701,13 +1701,6 @@ Gerrit.install(plugin => {
           });
         }
 
-        log('Encoded insight file.', {
-          path: relativePath,
-          size: file && typeof file.size === 'number' ? file.size : 0,
-          contentLen: content ? content.length : 0,
-          base64Len: base64Content ? base64Content.length : 0
-        });
-
         pending.push({ relativePath, base64Content, content });
       }
 
@@ -2350,22 +2343,7 @@ Gerrit.install(plugin => {
               'assistant',
               'Insight canceled: selected files were encoded as empty content. Please reselect a directory with readable source files.');
           this.setStatus('Insight canceled: selected files are empty.');
-          warn('Insight request aborted because all encoded files are empty.', {
-            selectedFiles: directoryFiles.length,
-            preview: (directoryFiles || []).slice(0, 5).map(file => ({
-              path: file && file.path ? file.path : '',
-              contentLen: file && file.content ? String(file.content).length : 0,
-              base64Len: file && file.base64Content ? String(file.base64Content).length : 0
-            }))
-          });
           return;
-        }
-
-        if (validFiles.length < directoryFiles.length) {
-          warn('Dropping insight files with empty encoded payload.', {
-            selectedFiles: directoryFiles.length,
-            validFiles: validFiles.length
-          });
         }
 
         const path = `/changes/${changeId}/revisions/current/codex-insight`;
@@ -2378,13 +2356,11 @@ Gerrit.install(plugin => {
         }
 
         this.setStatus('Running #insight...');
-        const filePathPreview = validFiles.slice(0, 3).map(file => (file && file.path ? file.path : ''));
         log('Submitting insight request.', {
           path,
           dryRun: requestBody.dryRun,
           outPath: requestBody.outPath || '',
-          filesCount: validFiles.length,
-          filePathPreview
+          filesCount: validFiles.length
         });
         const response = await plugin.restApi().post(path, requestBody);
         const files = response && Array.isArray(response.files) ? response.files : [];
