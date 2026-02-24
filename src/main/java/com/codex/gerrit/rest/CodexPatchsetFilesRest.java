@@ -101,20 +101,20 @@ public class CodexPatchsetFilesRest implements RestReadView<RevisionResource> {
     return changeApi.revision(revisionId);
   }
 
-  private static String resolveRevisionId(RevisionResource resource) {
+  private String resolveRevisionId(RevisionResource resource) {
     if (resource == null) {
       return null;
     }
 
-    Object patchSet = invokeNoArg(resource, "getPatchSet");
-    Object commitId = invokeNoArg(patchSet, "commitId");
-    String revisionFromCommit = normalizeRevisionId(invokeNoArg(commitId, "name"));
+    Object patchSet = invokeNoArg(resource, "getPatchSet", "patchSet");
+    Object commitId = invokeNoArg(patchSet, "commitId", "getCommitId");
+    String revisionFromCommit = normalizeRevisionId(invokeNoArg(commitId, "name", "getName"));
     if (revisionFromCommit != null) {
       return revisionFromCommit;
     }
 
-    Object patchSetId = invokeNoArg(patchSet, "id");
-    String revisionFromPatchsetNumber = normalizeRevisionId(invokeNoArg(patchSetId, "get"));
+    Object patchSetId = invokeNoArg(patchSet, "id", "getId");
+    String revisionFromPatchsetNumber = normalizeRevisionId(invokeNoArg(patchSetId, "get", "id", "getId"));
     if (revisionFromPatchsetNumber != null) {
       return revisionFromPatchsetNumber;
     }
@@ -122,15 +122,41 @@ public class CodexPatchsetFilesRest implements RestReadView<RevisionResource> {
     return null;
   }
 
-  private static Object invokeNoArg(Object target, String methodName) {
-    if (target == null || methodName == null || methodName.isEmpty()) {
+  private static Object invokeNoArg(Object target, String... methodNames) {
+    if (target == null || methodNames == null || methodNames.length == 0) {
       return null;
     }
+
+    for (String methodName : methodNames) {
+      if (methodName == null || methodName.isEmpty()) {
+        continue;
+      }
+      Object result = invokeNoArgSingle(target, methodName);
+      if (result != null) {
+        return result;
+      }
+    }
+    return null;
+  }
+
+  private static Object invokeNoArgSingle(Object target, String methodName) {
     try {
       return target.getClass().getMethod(methodName).invoke(target);
-    } catch (ReflectiveOperationException ex) {
-      return null;
+    } catch (ReflectiveOperationException ignored) {
+      // Fall through and retry declared methods.
     }
+
+    Class<?> currentClass = target.getClass();
+    while (currentClass != null) {
+      try {
+        java.lang.reflect.Method declaredMethod = currentClass.getDeclaredMethod(methodName);
+        declaredMethod.setAccessible(true);
+        return declaredMethod.invoke(target);
+      } catch (ReflectiveOperationException | RuntimeException ignored) {
+        currentClass = currentClass.getSuperclass();
+      }
+    }
+    return null;
   }
 
   private static String normalizeRevisionId(Object value) {

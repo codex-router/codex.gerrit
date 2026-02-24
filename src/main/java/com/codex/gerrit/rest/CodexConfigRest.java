@@ -18,6 +18,7 @@ import com.codex.gerrit.config.CodexGerritConfig;
 import com.codex.gerrit.service.CodexAgentClient;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.changes.ChangeApi;
+import com.google.gerrit.extensions.api.changes.RevisionApi;
 import com.google.gerrit.extensions.common.FileInfo;
 import com.google.gerrit.extensions.restapi.Response;
 import com.google.gerrit.extensions.restapi.RestApiException;
@@ -52,7 +53,8 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
   public Response<CodexConfigResponse> apply(RevisionResource resource) throws RestApiException {
     String changeId = String.valueOf(resource.getChangeResource().getId().get());
     ChangeApi changeApi = gerritApi.changes().id(changeId);
-    Map<String, FileInfo> files = changeApi.current().files();
+    RevisionApi revisionApi = resolveRevisionApi(resource, changeApi);
+    Map<String, FileInfo> files = revisionApi.files();
 
     List<String> models;
     try {
@@ -89,6 +91,81 @@ public class CodexConfigRest implements RestReadView<RevisionResource> {
   private String getPluginVersion() {
     String implementationVersion = getClass().getPackage().getImplementationVersion();
     return implementationVersion == null ? "" : implementationVersion;
+  }
+
+  private RevisionApi resolveRevisionApi(RevisionResource resource, ChangeApi changeApi)
+      throws RestApiException {
+    String revisionId = resolveRevisionId(resource);
+    if (revisionId == null || revisionId.isEmpty()) {
+      return changeApi.current();
+    }
+    return changeApi.revision(revisionId);
+  }
+
+  private String resolveRevisionId(RevisionResource resource) {
+    if (resource == null) {
+      return null;
+    }
+
+    Object patchSet = invokeNoArg(resource, "getPatchSet", "patchSet");
+    Object commitId = invokeNoArg(patchSet, "commitId", "getCommitId");
+    String revisionFromCommit = normalizeRevisionId(invokeNoArg(commitId, "name", "getName"));
+    if (revisionFromCommit != null) {
+      return revisionFromCommit;
+    }
+
+    Object patchSetId = invokeNoArg(patchSet, "id", "getId");
+    String revisionFromPatchsetNumber = normalizeRevisionId(invokeNoArg(patchSetId, "get", "id", "getId"));
+    if (revisionFromPatchsetNumber != null) {
+      return revisionFromPatchsetNumber;
+    }
+
+    return null;
+  }
+
+  private static Object invokeNoArg(Object target, String... methodNames) {
+    if (target == null || methodNames == null || methodNames.length == 0) {
+      return null;
+    }
+
+    for (String methodName : methodNames) {
+      if (methodName == null || methodName.isEmpty()) {
+        continue;
+      }
+      Object result = invokeNoArgSingle(target, methodName);
+      if (result != null) {
+        return result;
+      }
+    }
+    return null;
+  }
+
+  private static Object invokeNoArgSingle(Object target, String methodName) {
+    try {
+      return target.getClass().getMethod(methodName).invoke(target);
+    } catch (ReflectiveOperationException ignored) {
+      // Fall through and retry declared methods.
+    }
+
+    Class<?> currentClass = target.getClass();
+    while (currentClass != null) {
+      try {
+        java.lang.reflect.Method declaredMethod = currentClass.getDeclaredMethod(methodName);
+        declaredMethod.setAccessible(true);
+        return declaredMethod.invoke(target);
+      } catch (ReflectiveOperationException | RuntimeException ignored) {
+        currentClass = currentClass.getSuperclass();
+      }
+    }
+    return null;
+  }
+
+  private static String normalizeRevisionId(Object value) {
+    if (value == null) {
+      return null;
+    }
+    String normalized = String.valueOf(value).trim();
+    return normalized.isEmpty() ? null : normalized;
   }
 
   public static class CodexConfigResponse {

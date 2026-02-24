@@ -495,6 +495,7 @@ Gerrit.install(plugin => {
 
     async loadConfig() {
       const changeId = this.getChangeId();
+      const revision = this.getRevisionId();
       if (!changeId) {
         warn('loadConfig skipped: could not detect change id.', {
           pathname: window.location.pathname,
@@ -504,7 +505,7 @@ Gerrit.install(plugin => {
       }
 
       try {
-        const path = `/changes/${changeId}/revisions/current/codex-config`;
+        const path = this.buildRevisionRestPath(changeId, revision, 'codex-config');
         log('Loading panel config from REST API.', { path });
         const response = await plugin.restApi().get(path);
         log('Panel config REST response received.', response);
@@ -639,7 +640,8 @@ Gerrit.install(plugin => {
     }
 
     async fetchLatestPatchsetFiles(changeId) {
-      const path = `/changes/${changeId}/revisions/current/codex-patchset-files`;
+      const revision = this.getRevisionId();
+      const path = this.buildRevisionRestPath(changeId, revision, 'codex-patchset-files');
       const response = await plugin.restApi().get(path);
       return response && response.files ? response.files : [];
     }
@@ -1388,6 +1390,7 @@ Gerrit.install(plugin => {
       }
 
       const changeId = this.getChangeId();
+      const revision = this.getRevisionId();
       if (!changeId) {
         warn('Submit blocked: unable to detect change id.', {
           pathname: window.location.pathname,
@@ -1421,7 +1424,7 @@ Gerrit.install(plugin => {
       this.activeSessionId = sessionId;
 
       try {
-        const path = `/changes/${changeId}/revisions/current/codex-chat`;
+        const path = this.buildRevisionRestPath(changeId, revision, 'codex-chat');
         log('Submitting chat request.', { mode, postAsReview, agent, model, sessionId, contextFilesCount: contextFiles.length, attachedFilesCount: attachedFiles.length, path });
         const response = await plugin.restApi().post(path, {
           prompt,
@@ -1468,12 +1471,13 @@ Gerrit.install(plugin => {
       }
 
       const changeId = this.getChangeId();
+      const revision = this.getRevisionId();
       if (!changeId) {
         this.setStatus('Unable to detect change id.');
         return;
       }
 
-      const path = `/changes/${changeId}/revisions/current/codex-chat-stop`;
+      const path = this.buildRevisionRestPath(changeId, revision, 'codex-chat-stop');
       const sessionId = this.activeSessionId;
       this.setStatus('Stopping chat...');
 
@@ -3276,6 +3280,42 @@ Gerrit.install(plugin => {
         hash: window.location.hash
       });
       return '';
+    }
+
+    getRevisionId() {
+      const pathMatch = window.location.pathname.match(/\/\+\/\d+\/([^/?#]+)/);
+      if (pathMatch && pathMatch[1]) {
+        const decoded = this.safeDecodeURIComponent(pathMatch[1]);
+        log('Detected revision via pathname.', decoded);
+        return decoded;
+      }
+
+      const hashMatch = window.location.hash.match(/\/\+\/\d+\/([^/?#]+)/);
+      if (hashMatch && hashMatch[1]) {
+        const decoded = this.safeDecodeURIComponent(hashMatch[1]);
+        log('Detected revision via hash.', decoded);
+        return decoded;
+      }
+
+      log('Falling back to current revision.');
+      return 'current';
+    }
+
+    buildRevisionRestPath(changeId, revision, endpoint) {
+      const normalizedRevision = revision && String(revision).trim() ? String(revision).trim() : 'current';
+      const encodedRevision = encodeURIComponent(normalizedRevision);
+      return `/changes/${changeId}/revisions/${encodedRevision}/${endpoint}`;
+    }
+
+    safeDecodeURIComponent(value) {
+      if (typeof value !== 'string' || !value) {
+        return '';
+      }
+      try {
+        return decodeURIComponent(value);
+      } catch (decodeError) {
+        return value;
+      }
     }
   }
 
