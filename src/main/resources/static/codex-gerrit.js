@@ -2313,6 +2313,7 @@ Gerrit.install(plugin => {
       }
 
       const changeId = this.getChangeId();
+      const revision = this.getRevisionId();
       if (!changeId) {
         this.setStatus('Unable to detect change id.');
         return;
@@ -2350,7 +2351,7 @@ Gerrit.install(plugin => {
           return;
         }
 
-        const path = `/changes/${changeId}/revisions/current/codex-insight`;
+        const path = this.buildRevisionRestPath(changeId, revision, 'codex-insight');
         const requestBody = {
           dryRun: !!(command && command.dryRun),
           files: validFiles
