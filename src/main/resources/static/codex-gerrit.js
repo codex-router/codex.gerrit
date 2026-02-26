@@ -2492,7 +2492,6 @@ Gerrit.install(plugin => {
         }
 
         const path = this.buildRevisionRestPath(changeId, revision, 'codex-graph');
-        const model = this.modelSelect && this.modelSelect.value ? String(this.modelSelect.value).trim() : '';
         const requestBody = {
           code: codeChunks.join('\n\n'),
           file_paths: filePaths
@@ -2501,17 +2500,13 @@ Gerrit.install(plugin => {
         if (frameworkHint) {
           requestBody.framework_hint = frameworkHint;
         }
-        if (model) {
-          requestBody.env = { LITELLM_MODEL: model };
-        }
 
         this.setStatus('Running #graph...');
         log('Submitting graph request.', {
           path,
           filesCount: filePaths.length,
           codeChars: requestBody.code.length,
-          frameworkHint: requestBody.framework_hint || '',
-          model
+          frameworkHint: requestBody.framework_hint || ''
         });
         const response = await plugin.restApi().post(path, requestBody);
         const graphDialogFiles = this.buildGraphDialogFiles(response, filePaths.length, requestBody.code.length);
