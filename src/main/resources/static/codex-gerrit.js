@@ -2667,6 +2667,7 @@ Gerrit.install(plugin => {
           requestBody.framework_hint = frameworkHint;
         }
 
+        this.activeGraphAbortController = new AbortController();
         this.setStatus('Running #graph...');
         log('Submitting graph request.', {
           path,
@@ -2674,7 +2675,7 @@ Gerrit.install(plugin => {
           codeChars: requestBody.code.length,
           frameworkHint: requestBody.framework_hint || ''
         });
-        const response = await plugin.restApi().post(path, requestBody);
+        const response = await this.postJsonToGerrit(path, requestBody, this.activeGraphAbortController.signal);
         ensureGraphNotStopped();
         const graphDialogFiles = this.buildGraphDialogFiles(response, filePaths.length, requestBody.code.length);
         const dialogFileCount = this.openInsightDialog(graphDialogFiles, null);
