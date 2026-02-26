@@ -45,6 +45,9 @@ Gerrit.install(plugin => {
       this.hashCommands = defaultHashCommands.slice();
       this.isBusyState = false;
       this.activeSessionId = null;
+      this.activeGraphAbortController = null;
+      this.isGraphRequestActive = false;
+      this.graphStopRequested = false;
       this.promptHistory = [];
       this.promptHistoryIndex = -1;
       this.pendingFileChanges = [];
@@ -796,6 +799,9 @@ Gerrit.install(plugin => {
       try {
         return await window.fetch(path, Object.assign({ credentials: 'same-origin' }, options || { method: 'GET' }));
       } catch (fetchError) {
+        if (fetchError && fetchError.name === 'AbortError') {
+          throw fetchError;
+        }
         logError('window.fetch failed for candidate path.', { path, error: this.getErrorMessage(fetchError) });
         return null;
       }
@@ -813,6 +819,22 @@ Gerrit.install(plugin => {
       const bodyText = await response.text();
       const sanitized = bodyText.replace(/^\)\]\}'\n/, '');
       return sanitized ? JSON.parse(sanitized) : null;
+    }
+
+    async postJsonToGerrit(path, payload, signal) {
+      const response = await this.fetchFromGerrit(
+          path,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload || {}),
+            signal
+          },
+          true);
+      return await this.parseGerritJsonResponse(response);
     }
 
 
@@ -1471,6 +1493,15 @@ Gerrit.install(plugin => {
     }
 
     async stopChat() {
+      if (this.isGraphRequestActive) {
+        this.graphStopRequested = true;
+        if (this.activeGraphAbortController) {
+          this.activeGraphAbortController.abort();
+        }
+        this.setStatus('Stopping #graph...');
+        return;
+      }
+
       if (!this.isBusyState || !this.activeSessionId) {
         this.setStatus('No active chat session to stop.');
         return;
@@ -1914,6 +1945,9 @@ Gerrit.install(plugin => {
     getErrorMessage(err) {
       if (!err) {
         return 'Unknown error';
+      }
+      if (err && err.name === 'AbortError') {
+        return 'Canceled by user';
       }
       if (typeof err === 'string') {
         return err;
@@ -2424,14 +2458,23 @@ Gerrit.install(plugin => {
       }
 
       this.setBusy(true);
+      this.isGraphRequestActive = true;
+      this.graphStopRequested = false;
       this.pushPromptHistory(originalPrompt);
       this.appendMessage('user', originalPrompt);
       this.input.value = '';
       this.promptHistoryIndex = -1;
       this.hideMentionDropdown();
 
+      const ensureGraphNotStopped = () => {
+        if (this.graphStopRequested) {
+          throw new Error('Graph request canceled by user.');
+        }
+      };
+
       try {
         const selectedFiles = await this.pickGraphFilesForCommand(command);
+        ensureGraphNotStopped();
         const validFiles = (selectedFiles || []).filter(file => {
           if (!file || !file.path) {
             return false;
@@ -2458,6 +2501,9 @@ Gerrit.install(plugin => {
         const maxCodeChars = 500000;
         let currentCodeChars = 0;
         validFiles.forEach(file => {
+          if (this.graphStopRequested) {
+            return;
+          }
           const filePath = this.normalizePath(file.path || '').replace(/^\/+/, '');
           if (!filePath) {
             return;
@@ -2484,6 +2530,7 @@ Gerrit.install(plugin => {
           codeChunks.push(chunk);
           currentCodeChars += chunk.length;
         });
+        ensureGraphNotStopped();
 
         if (filePaths.length === 0 || codeChunks.length === 0) {
           this.appendMessage('assistant', 'Graph canceled: patchset files could not be decoded into text content.');
@@ -2508,7 +2555,10 @@ Gerrit.install(plugin => {
           codeChars: requestBody.code.length,
           frameworkHint: requestBody.framework_hint || ''
         });
-        const response = await plugin.restApi().post(path, requestBody);
+        const controller = new AbortController();
+        this.activeGraphAbortController = controller;
+        const response = await this.postJsonToGerrit(path, requestBody, controller.signal);
+        ensureGraphNotStopped();
         const graphDialogFiles = this.buildGraphDialogFiles(response, filePaths.length, requestBody.code.length);
         const dialogFileCount = this.openInsightDialog(graphDialogFiles, null);
         this.appendMessage(
@@ -2516,6 +2566,16 @@ Gerrit.install(plugin => {
             `Graph generated (${dialogFileCount} file${dialogFileCount === 1 ? '' : 's'}). Opened in popup dialog.`);
         this.setStatus(`Graph generated (${dialogFileCount} file${dialogFileCount === 1 ? '' : 's'}).`);
       } catch (error) {
+        const aborted =
+            (error && error.name === 'AbortError') ||
+            this.graphStopRequested ||
+            /canceled by user/i.test(this.getErrorMessage(error));
+        if (aborted) {
+          this.appendMessage('assistant', 'Graph stopped by user.');
+          this.setStatus('Graph stopped.');
+          return;
+        }
+
         logError('Graph request failed.', error);
         const message = this.getErrorMessage(error);
         const lowered = String(message || '').toLowerCase();
@@ -2533,6 +2593,9 @@ Gerrit.install(plugin => {
         this.appendMessage('assistant', `Graph failed: ${message}`);
         this.setStatus(`Graph failed: ${message}`);
       } finally {
+        this.activeGraphAbortController = null;
+        this.graphStopRequested = false;
+        this.isGraphRequestActive = false;
         this.setBusy(false);
       }
     }
