@@ -361,7 +361,8 @@ public class CodexAgentClient {
     String body = readText(is);
 
     if (responseCode < 200 || responseCode >= 300) {
-      throw new BadRequestException("Remote server error " + responseCode + ": " + body);
+      throw new BadRequestException(
+          "Remote server error " + responseCode + ": " + extractRemoteErrorDetail(body));
     }
     if (body.trim().isEmpty()) {
       throw new BadRequestException("Invalid /insight/run response from codex.serve: empty body");
@@ -455,7 +456,8 @@ public class CodexAgentClient {
     String body = readText(is);
 
     if (responseCode < 200 || responseCode >= 300) {
-      throw new BadRequestException("Remote server error " + responseCode + ": " + body);
+      throw new BadRequestException(
+          "Remote server error " + responseCode + ": " + extractRemoteErrorDetail(body));
     }
     if (body.trim().isEmpty()) {
       throw new BadRequestException("Invalid /graph/run response from codex.serve: empty body");
@@ -636,6 +638,52 @@ public class CodexAgentClient {
     } catch (RuntimeException ex) {
       return defaultValue;
     }
+  }
+
+  private static String extractRemoteErrorDetail(String body) {
+    String normalized = body == null ? "" : body.trim();
+    if (normalized.isEmpty()) {
+      return "(empty response body)";
+    }
+
+    JsonElement current = null;
+    try {
+      current = GSON.fromJson(normalized, JsonElement.class);
+    } catch (RuntimeException ignored) {
+      return normalized;
+    }
+
+    for (int i = 0; i < 3 && current != null; i++) {
+      if (current.isJsonObject() && current.getAsJsonObject().has("detail")) {
+        current = current.getAsJsonObject().get("detail");
+        continue;
+      }
+
+      if (current.isJsonPrimitive() && current.getAsJsonPrimitive().isString()) {
+        String value = current.getAsString();
+        String trimmed = value == null ? "" : value.trim();
+        if (trimmed.isEmpty()) {
+          return "(empty error detail)";
+        }
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+          try {
+            current = GSON.fromJson(trimmed, JsonElement.class);
+            continue;
+          } catch (RuntimeException ignored) {
+            return trimmed;
+          }
+        }
+        return trimmed;
+      }
+
+      if (current.isJsonNull()) {
+        return "(empty error detail)";
+      }
+
+      return current.toString();
+    }
+
+    return current == null ? "(empty error detail)" : current.toString();
   }
 
   public static class ContextFile {
