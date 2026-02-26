@@ -59,6 +59,12 @@ Gerrit.install(plugin => {
       this.quickstartLanguage = 'en';
       this.insightDialogOverlay = null;
       this.insightDialogBody = null;
+      this.graphSelectionDialogOverlay = null;
+      this.graphSelectionDialogFolderButton = null;
+      this.graphSelectionDialogFileButton = null;
+      this.graphSelectionDialogCancelButton = null;
+      this.graphSelectionDialogPromise = null;
+      this.graphSelectionDialogFinish = null;
     }
 
     connectedCallback() {
@@ -330,6 +336,61 @@ Gerrit.install(plugin => {
       insightDialog.appendChild(insightDialogBody);
       insightDialogOverlay.appendChild(insightDialog);
 
+        const graphSelectionDialogOverlay = document.createElement('div');
+        graphSelectionDialogOverlay.className = 'codex-quickstart-dialog-overlay hidden';
+
+        const graphSelectionDialog = document.createElement('div');
+        graphSelectionDialog.className = 'codex-workspace-root-dialog';
+        graphSelectionDialog.setAttribute('role', 'dialog');
+        graphSelectionDialog.setAttribute('aria-modal', 'true');
+        graphSelectionDialog.addEventListener('click', event => event.stopPropagation());
+
+        const graphSelectionDialogHeader = document.createElement('div');
+        graphSelectionDialogHeader.className = 'codex-change-dialog-header';
+
+        const graphSelectionDialogTitle = document.createElement('div');
+        graphSelectionDialogTitle.className = 'codex-change-dialog-title';
+        graphSelectionDialogTitle.textContent = 'Select #graph Source';
+
+        graphSelectionDialogHeader.appendChild(graphSelectionDialogTitle);
+
+        const graphSelectionDialogBody = document.createElement('div');
+        graphSelectionDialogBody.className = 'codex-workspace-root-dialog-body';
+
+        const graphSelectionDialogDescription = document.createElement('div');
+        graphSelectionDialogDescription.className = 'codex-workspace-root-dialog-description';
+        graphSelectionDialogDescription.textContent =
+          'Choose whether #graph should use one folder or one or more files.';
+
+        const graphSelectionDialogActions = document.createElement('div');
+        graphSelectionDialogActions.className = 'codex-workspace-root-dialog-actions codex-graph-selection-dialog-actions';
+
+        const graphSelectionDialogCancel = document.createElement('button');
+        graphSelectionDialogCancel.type = 'button';
+        graphSelectionDialogCancel.className = 'codex-button outline codex-small-button';
+        graphSelectionDialogCancel.textContent = 'Cancel';
+
+        const graphSelectionDialogFile = document.createElement('button');
+        graphSelectionDialogFile.type = 'button';
+        graphSelectionDialogFile.className = 'codex-button outline codex-small-button';
+        graphSelectionDialogFile.textContent = 'Select Files';
+
+        const graphSelectionDialogFolder = document.createElement('button');
+        graphSelectionDialogFolder.type = 'button';
+        graphSelectionDialogFolder.className = 'codex-button codex-small-button';
+        graphSelectionDialogFolder.textContent = 'Select Folder';
+
+        graphSelectionDialogActions.appendChild(graphSelectionDialogCancel);
+        graphSelectionDialogActions.appendChild(graphSelectionDialogFile);
+        graphSelectionDialogActions.appendChild(graphSelectionDialogFolder);
+
+        graphSelectionDialogBody.appendChild(graphSelectionDialogDescription);
+        graphSelectionDialogBody.appendChild(graphSelectionDialogActions);
+
+        graphSelectionDialog.appendChild(graphSelectionDialogHeader);
+        graphSelectionDialog.appendChild(graphSelectionDialogBody);
+        graphSelectionDialogOverlay.appendChild(graphSelectionDialog);
+
         const workspaceRootDialogOverlay = document.createElement('div');
         workspaceRootDialogOverlay.className = 'codex-workspace-root-dialog-overlay hidden';
 
@@ -413,6 +474,7 @@ Gerrit.install(plugin => {
       wrapper.appendChild(changeDialogOverlay);
       wrapper.appendChild(quickstartDialogOverlay);
       wrapper.appendChild(insightDialogOverlay);
+      wrapper.appendChild(graphSelectionDialogOverlay);
       wrapper.appendChild(workspaceRootDialogOverlay);
 
       const style = document.createElement('link');
@@ -457,6 +519,10 @@ Gerrit.install(plugin => {
         }
         if (event.key === 'Escape' && this.isInsightDialogVisible()) {
           this.closeInsightDialog();
+          return;
+        }
+        if (event.key === 'Escape' && this.isGraphSelectionDialogVisible()) {
+          this.closeGraphSelectionDialog();
         }
       });
 
@@ -477,6 +543,10 @@ Gerrit.install(plugin => {
       this.quickstartChineseButton = quickstartChineseButton;
       this.insightDialogOverlay = insightDialogOverlay;
       this.insightDialogBody = insightDialogBody;
+      this.graphSelectionDialogOverlay = graphSelectionDialogOverlay;
+      this.graphSelectionDialogFolderButton = graphSelectionDialogFolder;
+      this.graphSelectionDialogFileButton = graphSelectionDialogFile;
+      this.graphSelectionDialogCancelButton = graphSelectionDialogCancel;
       this.workspaceRootDialogOverlay = workspaceRootDialogOverlay;
       this.workspaceRootDialogInput = workspaceRootDialogInput;
       this.workspaceRootDialogBrowse = workspaceRootDialogBrowse;
@@ -2252,6 +2322,10 @@ Gerrit.install(plugin => {
       return !!(this.insightDialogOverlay && !this.insightDialogOverlay.classList.contains('hidden'));
     }
 
+    isGraphSelectionDialogVisible() {
+      return !!(this.graphSelectionDialogOverlay && !this.graphSelectionDialogOverlay.classList.contains('hidden'));
+    }
+
     async openQuickstartDialog(language) {
       if (!this.quickstartDialogOverlay) {
         return;
@@ -2339,6 +2413,68 @@ Gerrit.install(plugin => {
       if (this.insightDialogOverlay) {
         this.insightDialogOverlay.classList.add('hidden');
       }
+    }
+
+    closeGraphSelectionDialog() {
+      if (typeof this.graphSelectionDialogFinish === 'function') {
+        this.graphSelectionDialogFinish('');
+      }
+    }
+
+    promptGraphSelectionDialog() {
+      if (this.graphSelectionDialogPromise) {
+        return this.graphSelectionDialogPromise;
+      }
+
+      this.graphSelectionDialogPromise = new Promise(resolve => {
+        const overlay = this.graphSelectionDialogOverlay;
+        const folderButton = this.graphSelectionDialogFolderButton;
+        const fileButton = this.graphSelectionDialogFileButton;
+        const cancelButton = this.graphSelectionDialogCancelButton;
+        if (!overlay || !folderButton || !fileButton || !cancelButton) {
+          this.graphSelectionDialogPromise = null;
+          resolve('');
+          return;
+        }
+
+        let done = false;
+        const cleanup = () => {
+          overlay.removeEventListener('click', onOverlayClick);
+          folderButton.removeEventListener('click', onFolderClick);
+          fileButton.removeEventListener('click', onFileClick);
+          cancelButton.removeEventListener('click', onCancelClick);
+          this.graphSelectionDialogFinish = null;
+        };
+        const finish = mode => {
+          if (done) {
+            return;
+          }
+          done = true;
+          cleanup();
+          overlay.classList.add('hidden');
+          this.graphSelectionDialogPromise = null;
+          resolve(mode || '');
+        };
+
+        this.graphSelectionDialogFinish = finish;
+
+        const onOverlayClick = () => finish('');
+        const onFolderClick = () => finish('folder');
+        const onFileClick = () => finish('file');
+        const onCancelClick = () => finish('');
+
+        overlay.addEventListener('click', onOverlayClick);
+        folderButton.addEventListener('click', onFolderClick);
+        fileButton.addEventListener('click', onFileClick);
+        cancelButton.addEventListener('click', onCancelClick);
+
+        overlay.classList.remove('hidden');
+        window.setTimeout(() => {
+          folderButton.focus();
+        }, 0);
+      });
+
+      return this.graphSelectionDialogPromise;
     }
 
     parseGraphCommand(prompt) {
@@ -2430,13 +2566,14 @@ Gerrit.install(plugin => {
         return await this.pickInsightFilesFromDirectory();
       }
 
-      if (typeof window.confirm === 'function') {
-        const useFolder = window.confirm(
-            'Use folder selection for #graph?\n\nOK = select a folder\nCancel = select one or more files');
-        return useFolder ? await this.pickInsightFilesFromDirectory() : await this.pickInsightFilesFromFiles();
+      const selectedMode = await this.promptGraphSelectionDialog();
+      if (selectedMode === 'file') {
+        return await this.pickInsightFilesFromFiles();
       }
-
-      return await this.pickInsightFilesFromDirectory();
+      if (selectedMode === 'folder') {
+        return await this.pickInsightFilesFromDirectory();
+      }
+      return [];
     }
 
     async submitGraphCommand(originalPrompt, command) {

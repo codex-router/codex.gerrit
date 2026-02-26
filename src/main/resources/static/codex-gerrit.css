@@ -536,6 +536,10 @@
   justify-content: flex-end;
 }
 
+.codex-graph-selection-dialog-actions {
+  justify-content: flex-end;
+}
+
 .codex-change-dialog {
   width: min(1020px, 94vw);
   max-height: 82vh;
