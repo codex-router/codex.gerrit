@@ -859,7 +859,19 @@ Gerrit.install(plugin => {
 
     async tryFetchGerritCandidate(path, options) {
       try {
-        return await window.fetch(path, Object.assign({ credentials: 'same-origin' }, options || { method: 'GET' }));
+        const requestOptions = Object.assign({ credentials: 'same-origin' }, options || { method: 'GET' });
+        const method = requestOptions.method ? String(requestOptions.method).toUpperCase() : 'GET';
+        if (method !== 'GET' && method !== 'HEAD') {
+          const authToken = this.getGerritAuthToken();
+          if (authToken) {
+            const headers = Object.assign({}, requestOptions.headers || {});
+            if (!headers['X-Gerrit-Auth'] && !headers['x-gerrit-auth']) {
+              headers['X-Gerrit-Auth'] = authToken;
+            }
+            requestOptions.headers = headers;
+          }
+        }
+        return await window.fetch(path, requestOptions);
       } catch (fetchError) {
         if (fetchError && fetchError.name === 'AbortError') {
           throw fetchError;
@@ -867,6 +879,35 @@ Gerrit.install(plugin => {
         logError('window.fetch failed for candidate path.', { path, error: this.getErrorMessage(fetchError) });
         return null;
       }
+    }
+
+    getGerritAuthToken() {
+      const token = this.getCookieValue('XSRF_TOKEN');
+      return token ? token : '';
+    }
+
+    getCookieValue(name) {
+      if (!name || typeof document === 'undefined' || !document.cookie) {
+        return '';
+      }
+      const cookieName = `${name}=`;
+      const cookies = document.cookie.split(';');
+      for (const rawCookie of cookies) {
+        const cookie = rawCookie.trim();
+        if (!cookie || !cookie.startsWith(cookieName)) {
+          continue;
+        }
+        const value = cookie.substring(cookieName.length);
+        if (!value) {
+          return '';
+        }
+        try {
+          return decodeURIComponent(value);
+        } catch (decodeError) {
+          return value;
+        }
+      }
+      return '';
     }
 
     getGerritRestCandidates(path) {
