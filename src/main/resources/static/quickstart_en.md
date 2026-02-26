@@ -34,6 +34,8 @@
 	- `--dry-run`: run insight in dry-run mode.
 - `#graph` optional flags:
 	- `--framework <name>` (or `--framework-hint <name>`): framework hint forwarded to graph analysis.
+	- `--folder`: choose a project folder as graph input.
+	- `--file` (or `--files`): choose one or more files as graph input.
 
 ## 🔘 Buttons and Actions
 
@@ -72,3 +74,9 @@
 - If multiple Markdown files are returned, each file is shown in its own tab in the popup.
 - You can switch tabs to view each generated file and download the currently active file.
 - If `--repo` is omitted, the panel prompts for repo path input in a dialog.
+
+## 🕸️ Graph Popup Behavior
+
+- On `#graph` success, graph result files are displayed in the same popup dialog style.
+- The popup includes tabs (for example summary and response payload).
+- You can switch tabs to inspect details and download the currently active graph result file.

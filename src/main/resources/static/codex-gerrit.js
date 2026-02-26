@@ -1805,6 +1805,54 @@ Gerrit.install(plugin => {
       });
     }
 
+    async pickInsightFilesFromFiles() {
+      if (!document || !document.body) {
+        return [];
+      }
+
+      return new Promise(resolve => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.style.position = 'fixed';
+        input.style.left = '-9999px';
+        input.style.width = '1px';
+        input.style.height = '1px';
+        input.style.opacity = '0';
+        input.multiple = true;
+
+        const cleanup = () => {
+          input.removeEventListener('change', onChange);
+          input.removeEventListener('cancel', onCancel);
+          if (input.parentNode) {
+            input.parentNode.removeChild(input);
+          }
+        };
+
+        const onCancel = () => {
+          cleanup();
+          resolve([]);
+        };
+
+        const onChange = async () => {
+          try {
+            const files = Array.from(input.files || []);
+            const encodedFiles = await this.encodeInsightDirectoryFiles(files);
+            cleanup();
+            resolve(encodedFiles);
+          } catch (error) {
+            cleanup();
+            warn('Failed to encode selected files for graph command.', error);
+            resolve([]);
+          }
+        };
+
+        input.addEventListener('change', onChange, { once: true });
+        input.addEventListener('cancel', onCancel, { once: true });
+        document.body.appendChild(input);
+        input.click();
+      });
+    }
+
     /**
      * Removes an attached file by name and re-renders the chips row.
      * @param {string} fileName
@@ -2268,7 +2316,8 @@ Gerrit.install(plugin => {
       const argsPart = trimmed.replace(/^#graph\s*/i, '');
       const tokens = this.tokenizeCommandArgs(argsPart);
       const command = {
-        frameworkHint: ''
+        frameworkHint: '',
+        selectMode: ''
       };
 
       for (let i = 0; i < tokens.length; i += 1) {
@@ -2276,6 +2325,14 @@ Gerrit.install(plugin => {
         if (token === '--framework' || token === '--framework-hint') {
           command.frameworkHint = i + 1 < tokens.length ? tokens[i + 1] : '';
           i += 1;
+          continue;
+        }
+        if (token === '--file' || token === '--files') {
+          command.selectMode = 'file';
+          continue;
+        }
+        if (token === '--folder' || token === '--dir' || token === '--directory') {
+          command.selectMode = 'folder';
         }
       }
 
@@ -2330,6 +2387,24 @@ Gerrit.install(plugin => {
       return tokens.filter(token => !!token);
     }
 
+    async pickGraphFilesForCommand(command) {
+      const mode = command && command.selectMode ? String(command.selectMode).trim().toLowerCase() : '';
+      if (mode === 'file') {
+        return await this.pickInsightFilesFromFiles();
+      }
+      if (mode === 'folder') {
+        return await this.pickInsightFilesFromDirectory();
+      }
+
+      if (typeof window.confirm === 'function') {
+        const useFolder = window.confirm(
+            'Use folder selection for #graph?\n\nOK = select a folder\nCancel = select one or more files');
+        return useFolder ? await this.pickInsightFilesFromDirectory() : await this.pickInsightFilesFromFiles();
+      }
+
+      return await this.pickInsightFilesFromDirectory();
+    }
+
     async submitGraphCommand(originalPrompt, command) {
       if (this.isBusyState) {
         this.setStatus('A request is already running.');
@@ -2356,11 +2431,25 @@ Gerrit.install(plugin => {
       this.hideMentionDropdown();
 
       try {
-        const files = await this.fetchLatestPatchsetFiles(changeId);
-        const normalizedFiles = Array.isArray(files) ? files.filter(file => file && file.path) : [];
-        if (normalizedFiles.length === 0) {
-          this.appendMessage('assistant', 'Graph canceled: no patchset files found for this revision.');
-          this.setStatus('Graph canceled: no patchset files.');
+        const selectedFiles = await this.pickGraphFilesForCommand(command);
+        const validFiles = (selectedFiles || []).filter(file => {
+          if (!file || !file.path) {
+            return false;
+          }
+          const contentLen = file.content ? String(file.content).length : 0;
+          const base64Len = file.base64Content ? String(file.base64Content).length : 0;
+          return contentLen > 0 || base64Len > 0;
+        });
+
+        if (!selectedFiles || selectedFiles.length === 0) {
+          this.appendMessage('assistant', 'Graph canceled: file or folder selection is required.');
+          this.setStatus('Graph canceled.');
+          return;
+        }
+
+        if (validFiles.length === 0) {
+          this.appendMessage('assistant', 'Graph canceled: selected files were encoded as empty content.');
+          this.setStatus('Graph canceled: selected files are empty.');
           return;
         }
 
@@ -2368,13 +2457,22 @@ Gerrit.install(plugin => {
         const codeChunks = [];
         const maxCodeChars = 500000;
         let currentCodeChars = 0;
-        normalizedFiles.forEach(file => {
+        validFiles.forEach(file => {
           const filePath = this.normalizePath(file.path || '').replace(/^\/+/, '');
           if (!filePath) {
             return;
           }
-          const bytes = this.base64ToUint8Array(file.contentBase64 || '');
-          const content = this.decodeUtf8FromBytes(bytes);
+          let content = '';
+          if (file.base64Content) {
+            try {
+              const bytes = this.base64ToUint8Array(file.base64Content || '');
+              content = this.decodeUtf8FromBytes(bytes);
+            } catch (decodeError) {
+              content = '';
+            }
+          } else {
+            content = file.content ? String(file.content) : '';
+          }
           if (!content) {
             return;
           }
@@ -2416,17 +2514,81 @@ Gerrit.install(plugin => {
           model
         });
         const response = await plugin.restApi().post(path, requestBody);
-        const summary = this.formatGraphResponseSummary(response, filePaths.length, requestBody.code.length);
-        this.appendMessage('assistant', summary);
-        this.setStatus('Graph generated.');
+        const graphDialogFiles = this.buildGraphDialogFiles(response, filePaths.length, requestBody.code.length);
+        const dialogFileCount = this.openInsightDialog(graphDialogFiles, null);
+        this.appendMessage(
+            'assistant',
+            `Graph generated (${dialogFileCount} file${dialogFileCount === 1 ? '' : 's'}). Opened in popup dialog.`);
+        this.setStatus(`Graph generated (${dialogFileCount} file${dialogFileCount === 1 ? '' : 's'}).`);
       } catch (error) {
         logError('Graph request failed.', error);
         const message = this.getErrorMessage(error);
+        const lowered = String(message || '').toLowerCase();
+        const endpointNotFound =
+            lowered.includes('not found') ||
+            lowered.includes('http 404') ||
+            lowered.includes('404');
+        if (endpointNotFound) {
+          const hint =
+              'Graph endpoint not found: codex-gerrit REST `codex-graph` is unavailable. Rebuild and reload the codex.gerrit plugin version that includes #graph backend support.';
+          this.appendMessage('assistant', hint);
+          this.setStatus('Graph failed: codex-graph endpoint not found.');
+          return;
+        }
         this.appendMessage('assistant', `Graph failed: ${message}`);
         this.setStatus(`Graph failed: ${message}`);
       } finally {
         this.setBusy(false);
       }
+    }
+
+    buildGraphDialogFiles(response, filesCount, codeChars) {
+      const graph = response && response.graph && typeof response.graph === 'object' ? response.graph : null;
+      const nodesCount = graph && Array.isArray(graph.nodes) ? graph.nodes.length : 0;
+      const edgesCount = graph && Array.isArray(graph.edges) ? graph.edges.length : 0;
+      const workflowsCount = graph && Array.isArray(graph.workflows) ? graph.workflows.length : 0;
+      const llms = graph && Array.isArray(graph.llms_detected)
+        ? graph.llms_detected.filter(item => !!item).map(item => String(item).trim()).filter(item => !!item)
+        : [];
+
+      const summaryLines = [
+        '# Graph Result',
+        '',
+        `- Source files: ${filesCount}`,
+        `- Source chars: ${codeChars}`,
+        `- Nodes: ${nodesCount}`,
+        `- Edges: ${edgesCount}`,
+        `- Workflows: ${workflowsCount}`
+      ];
+      if (llms.length > 0) {
+        summaryLines.push(`- LLMs detected: ${llms.join(', ')}`);
+      }
+
+      let payloadText = '';
+      try {
+        payloadText = JSON.stringify(response || {}, null, 2);
+      } catch (error) {
+        payloadText = '{}';
+      }
+
+      const payloadMarkdown = [
+        '# Graph Payload',
+        '',
+        '```json',
+        payloadText || '{}',
+        '```'
+      ].join('\n');
+
+      return [
+        {
+          path: 'Graph-Summary.md',
+          content: summaryLines.join('\n')
+        },
+        {
+          path: 'Graph-Response.md',
+          content: payloadMarkdown
+        }
+      ];
     }
 
     formatGraphResponseSummary(response, filesCount, codeChars) {

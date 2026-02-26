@@ -11,6 +11,7 @@ to supported AI agents for interactive chat.
 - Supports `#insight` command in chat to trigger insight generation.
 - Supports `#graph` command in chat to trigger code-graph generation via `codex.serve` `POST /graph/run`.
 - `#insight` response is shown in a popup dialog rendered as Markdown, with one tab per generated Markdown file.
+- `#graph` response is shown in the same popup dialog style, with tabs for summary/payload and per-tab download.
 - Insight popup supports downloading the currently active generated Markdown file.
 - `Help` opens a popup quickstart dialog with built-in English and Chinese guides.
 - Quickstart language can be switched between `English` and `中文` in the popup.
@@ -119,7 +120,8 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Ctrl+Enter` for a newline).
 - Use `#insight` to generate repository insight and open a Markdown popup dialog.
 - Use `#graph` to generate a code graph from the current patchset files.
-- `#graph` supports optional flags: `--framework <name>` (alias: `--framework-hint <name>`).
+- Use `#graph` to generate a code graph from selected folder/files in the chat panel.
+- `#graph` supports optional flags: `--framework <name>` (alias: `--framework-hint <name>`), `--folder`, and `--file` (alias: `--files`).
 - In the Insight popup, switch between generated Markdown files via tabs and download the active file.
 - `#insight` supports optional flags: `--repo <path>`, `--out <path>`, and `--dry-run`.
 - If `--repo` is omitted, the panel requires repo path input in a dialog before running `#insight`.
