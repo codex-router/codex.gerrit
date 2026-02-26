@@ -80,3 +80,6 @@
 - `#graph` uses a file picker dialog and supports selecting one or more files only.
 - The popup includes tabs (for example summary and response payload).
 - You can switch tabs to inspect details and download the currently active graph result file.
+- For graph payload tabs (for example `Graph-Response.md`), a `Visualize` button appears in the toolbar.
+- Click `Visualize` to render the graph JSON into a node-edge diagram with workflow and LLM summary pills.
+- Click the same button again (shown as `Markdown`) to return to the original Markdown payload view.

@@ -2380,6 +2380,7 @@ Gerrit.install(plugin => {
       }
       const insightFiles = this.normalizeInsightFiles(files, response);
       let activeIndex = 0;
+      let visualizeMode = false;
       this.insightDialogBody.innerHTML = '';
 
       const toolbar = document.createElement('div');
@@ -2388,13 +2389,24 @@ Gerrit.install(plugin => {
       const filename = document.createElement('div');
       filename.className = 'codex-insight-filename';
 
+      const actions = document.createElement('div');
+      actions.className = 'codex-insight-actions';
+
+      const visualizeButton = document.createElement('button');
+      visualizeButton.type = 'button';
+      visualizeButton.className = 'codex-button outline codex-small-button';
+      visualizeButton.textContent = 'Visualize';
+      visualizeButton.hidden = true;
+
       const downloadButton = document.createElement('button');
       downloadButton.type = 'button';
       downloadButton.className = 'codex-button outline codex-small-button';
       downloadButton.textContent = 'Download';
 
       toolbar.appendChild(filename);
-      toolbar.appendChild(downloadButton);
+      actions.appendChild(visualizeButton);
+      actions.appendChild(downloadButton);
+      toolbar.appendChild(actions);
 
       const tabs = document.createElement('div');
       tabs.className = 'codex-insight-tabs';
@@ -2404,11 +2416,29 @@ Gerrit.install(plugin => {
 
       const renderActiveFile = () => {
         const activeFile = insightFiles[activeIndex] || insightFiles[0];
+        const graphPayload = this.extractGraphPayloadForVisualization(activeFile);
+        const canVisualize = !!graphPayload;
+        if (!canVisualize) {
+          visualizeMode = false;
+        }
+
         const markdown = activeFile && activeFile.content
             ? String(activeFile.content).trim()
             : '# Insight\n\nGenerated file is empty.';
         filename.textContent = activeFile ? activeFile.path : 'Insight.md';
-        content.innerHTML = this.renderMarkdown(markdown);
+        visualizeButton.hidden = !canVisualize;
+        visualizeButton.disabled = !canVisualize;
+        visualizeButton.textContent = visualizeMode ? 'Markdown' : 'Visualize';
+        visualizeButton.classList.toggle('active', visualizeMode);
+
+        if (visualizeMode && graphPayload) {
+          content.classList.remove('markdown-preview');
+          this.renderGraphVisualization(content, graphPayload);
+        } else {
+          content.classList.add('markdown-preview');
+          content.innerHTML = this.renderMarkdown(markdown);
+        }
+
         Array.from(tabs.children).forEach((tabButton, index) => {
           tabButton.classList.toggle('active', index === activeIndex);
         });
@@ -2422,9 +2452,15 @@ Gerrit.install(plugin => {
         tabButton.title = file.path;
         tabButton.addEventListener('click', () => {
           activeIndex = index;
+          visualizeMode = false;
           renderActiveFile();
         });
         tabs.appendChild(tabButton);
+      });
+
+      visualizeButton.addEventListener('click', () => {
+        visualizeMode = !visualizeMode;
+        renderActiveFile();
       });
 
       downloadButton.addEventListener('click', () => {
@@ -3000,6 +3036,357 @@ Gerrit.install(plugin => {
       link.click();
       link.remove();
       window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
+    }
+
+    extractGraphPayloadForVisualization(file) {
+      if (!file) {
+        return null;
+      }
+
+      const content = file.content ? String(file.content) : '';
+      const normalized = content.replace(/\r\n?/g, '\n').trim();
+      if (!normalized) {
+        return null;
+      }
+
+      let jsonText = '';
+      const jsonFenceMatch = normalized.match(/```json\s*([\s\S]*?)```/i);
+      if (jsonFenceMatch && jsonFenceMatch[1]) {
+        jsonText = jsonFenceMatch[1].trim();
+      } else {
+        const anyFenceMatch = normalized.match(/```\s*([\s\S]*?)```/);
+        if (anyFenceMatch && anyFenceMatch[1]) {
+          jsonText = anyFenceMatch[1].trim();
+        } else if (normalized.startsWith('{') || normalized.startsWith('[')) {
+          jsonText = normalized;
+        }
+      }
+
+      if (!jsonText) {
+        return null;
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonText);
+      } catch (error) {
+        return null;
+      }
+
+      let graph = null;
+      if (parsed && parsed.graph && typeof parsed.graph === 'object') {
+        graph = parsed.graph;
+      } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.nodes) && Array.isArray(parsed.edges)) {
+        graph = parsed;
+      }
+
+      if (!graph) {
+        return null;
+      }
+
+      return {
+        graph,
+        payload: parsed
+      };
+    }
+
+    renderGraphVisualization(container, graphPayload) {
+      container.innerHTML = '';
+
+      const graph = graphPayload && graphPayload.graph ? graphPayload.graph : null;
+      const nodes = graph && Array.isArray(graph.nodes) ? graph.nodes.filter(node => node && node.id) : [];
+      const nodeIds = new Set(nodes.map(node => String(node.id)));
+      const edges = graph && Array.isArray(graph.edges)
+        ? graph.edges.filter(edge => edge && nodeIds.has(String(edge.source)) && nodeIds.has(String(edge.target)))
+        : [];
+      const workflows = graph && Array.isArray(graph.workflows) ? graph.workflows : [];
+      const llms = graph && Array.isArray(graph.llms_detected)
+        ? graph.llms_detected.filter(item => !!item).map(item => String(item).trim()).filter(item => !!item)
+        : [];
+
+      const summary = document.createElement('div');
+      summary.className = 'codex-graph-summary';
+      const summaryItems = [
+        `Nodes: ${nodes.length}`,
+        `Edges: ${edges.length}`,
+        `Workflows: ${workflows.length}`
+      ];
+      if (llms.length > 0) {
+        summaryItems.push(`LLMs: ${llms.join(', ')}`);
+      }
+      summaryItems.forEach(item => {
+        const pill = document.createElement('span');
+        pill.className = 'codex-graph-pill';
+        pill.textContent = item;
+        summary.appendChild(pill);
+      });
+
+      container.appendChild(summary);
+
+      if (nodes.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'codex-graph-empty';
+        empty.textContent = 'No graph nodes were found in this payload.';
+        container.appendChild(empty);
+        return;
+      }
+
+      const layout = this.buildGraphVisualizationLayout(nodes, edges);
+      const nodeWidth = layout.nodeWidth;
+      const nodeHeight = layout.nodeHeight;
+
+      const svgWrap = document.createElement('div');
+      svgWrap.className = 'codex-graph-canvas-wrap';
+
+      const svgNs = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(svgNs, 'svg');
+      svg.setAttribute('class', 'codex-graph-svg');
+      svg.setAttribute('viewBox', `0 0 ${layout.width} ${layout.height}`);
+      svg.setAttribute('width', String(layout.width));
+      svg.setAttribute('height', String(layout.height));
+
+      const defs = document.createElementNS(svgNs, 'defs');
+      const marker = document.createElementNS(svgNs, 'marker');
+      marker.setAttribute('id', 'codex-graph-arrow');
+      marker.setAttribute('viewBox', '0 0 10 10');
+      marker.setAttribute('refX', '9');
+      marker.setAttribute('refY', '5');
+      marker.setAttribute('markerWidth', '7');
+      marker.setAttribute('markerHeight', '7');
+      marker.setAttribute('orient', 'auto-start-reverse');
+      const markerPath = document.createElementNS(svgNs, 'path');
+      markerPath.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+      markerPath.setAttribute('fill', '#8f8f8f');
+      marker.appendChild(markerPath);
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+
+      edges.forEach(edge => {
+        const sourceKey = String(edge.source);
+        const targetKey = String(edge.target);
+        const sourcePos = layout.positions.get(sourceKey);
+        const targetPos = layout.positions.get(targetKey);
+        if (!sourcePos || !targetPos) {
+          return;
+        }
+
+        const sourceX = sourcePos.x + nodeWidth / 2;
+        const sourceY = sourcePos.y + nodeHeight;
+        const targetX = targetPos.x + nodeWidth / 2;
+        const targetY = targetPos.y;
+        const bendY = sourceY + Math.max(16, (targetY - sourceY) / 2);
+        const pathDef = `M ${sourceX} ${sourceY} L ${sourceX} ${bendY} L ${targetX} ${bendY} L ${targetX} ${targetY - 4}`;
+
+        const path = document.createElementNS(svgNs, 'path');
+        path.setAttribute('d', pathDef);
+        path.setAttribute('class', 'codex-graph-edge');
+        path.setAttribute('marker-end', 'url(#codex-graph-arrow)');
+        svg.appendChild(path);
+
+        const edgeLabel = edge.label ? String(edge.label).trim() : '';
+        if (edgeLabel) {
+          const label = document.createElementNS(svgNs, 'text');
+          label.setAttribute('x', String((sourceX + targetX) / 2));
+          label.setAttribute('y', String(bendY - 6));
+          label.setAttribute('class', 'codex-graph-edge-label');
+          label.textContent = this.truncateGraphLabel(edgeLabel, 42);
+          svg.appendChild(label);
+        }
+      });
+
+      nodes.forEach(node => {
+        const nodeId = String(node.id);
+        const position = layout.positions.get(nodeId);
+        if (!position) {
+          return;
+        }
+
+        const group = document.createElementNS(svgNs, 'g');
+        group.setAttribute('transform', `translate(${position.x}, ${position.y})`);
+
+        const nodeType = node.type ? String(node.type).toLowerCase() : 'step';
+        const isDecision = nodeType === 'decision';
+        const isLlm = nodeType === 'llm';
+
+        if (isDecision) {
+          const polygon = document.createElementNS(svgNs, 'polygon');
+          polygon.setAttribute('points', `${nodeWidth * 0.12},${nodeHeight / 2} ${nodeWidth * 0.28},0 ${nodeWidth * 0.72},0 ${nodeWidth * 0.88},${nodeHeight / 2} ${nodeWidth * 0.72},${nodeHeight} ${nodeWidth * 0.28},${nodeHeight}`);
+          polygon.setAttribute('class', 'codex-graph-node codex-graph-node-decision');
+          group.appendChild(polygon);
+        } else {
+          const rect = document.createElementNS(svgNs, 'rect');
+          rect.setAttribute('x', '0');
+          rect.setAttribute('y', '0');
+          rect.setAttribute('rx', '10');
+          rect.setAttribute('ry', '10');
+          rect.setAttribute('width', String(nodeWidth));
+          rect.setAttribute('height', String(nodeHeight));
+          rect.setAttribute('class', `codex-graph-node ${isLlm ? 'codex-graph-node-llm' : 'codex-graph-node-step'}`);
+          group.appendChild(rect);
+        }
+
+        const title = document.createElementNS(svgNs, 'title');
+        const tooltip = [
+          node.label ? String(node.label) : nodeId,
+          `Type: ${nodeType || 'step'}`,
+          `Id: ${nodeId}`
+        ];
+        if (node.source && node.source.file) {
+          const sourceLine = typeof node.source.line === 'number' ? `:${node.source.line}` : '';
+          tooltip.push(`Source: ${node.source.file}${sourceLine}`);
+        }
+        if (node.model) {
+          tooltip.push(`Model: ${String(node.model)}`);
+        }
+        title.textContent = tooltip.join('\n');
+        group.appendChild(title);
+
+        const label = document.createElementNS(svgNs, 'text');
+        label.setAttribute('x', String(nodeWidth / 2));
+        label.setAttribute('y', String(nodeHeight / 2 - 2));
+        label.setAttribute('class', `codex-graph-node-label ${isLlm ? 'codex-graph-node-label-inverted' : ''}`);
+        label.textContent = this.truncateGraphLabel(node.label ? String(node.label) : nodeId, 30);
+        group.appendChild(label);
+
+        const meta = document.createElementNS(svgNs, 'text');
+        meta.setAttribute('x', String(nodeWidth / 2));
+        meta.setAttribute('y', String(nodeHeight / 2 + 16));
+        meta.setAttribute('class', `codex-graph-node-meta ${isLlm ? 'codex-graph-node-meta-inverted' : ''}`);
+        const metaText = node.source && node.source.file
+          ? `${node.source.file}${typeof node.source.line === 'number' ? `:${node.source.line}` : ''}`
+          : nodeId;
+        meta.textContent = this.truncateGraphLabel(metaText, 34);
+        group.appendChild(meta);
+
+        svg.appendChild(group);
+      });
+
+      svgWrap.appendChild(svg);
+      container.appendChild(svgWrap);
+    }
+
+    buildGraphVisualizationLayout(nodes, edges) {
+      const nodeWidth = 220;
+      const nodeHeight = 60;
+      const xGap = 70;
+      const yGap = 88;
+      const padding = 36;
+
+      const nodeKeys = nodes.map(node => String(node.id));
+      const outgoing = new Map();
+      const indegree = new Map();
+
+      nodeKeys.forEach(id => {
+        outgoing.set(id, []);
+        indegree.set(id, 0);
+      });
+
+      edges.forEach(edge => {
+        const source = String(edge.source);
+        const target = String(edge.target);
+        if (!outgoing.has(source) || !indegree.has(target)) {
+          return;
+        }
+        outgoing.get(source).push(target);
+        indegree.set(target, (indegree.get(target) || 0) + 1);
+      });
+
+      const levelById = new Map();
+      const queue = [];
+      nodeKeys.forEach(id => {
+        if ((indegree.get(id) || 0) === 0) {
+          queue.push(id);
+          levelById.set(id, 0);
+        }
+      });
+
+      if (queue.length === 0 && nodeKeys.length > 0) {
+        queue.push(nodeKeys[0]);
+        levelById.set(nodeKeys[0], 0);
+      }
+
+      let queueIndex = 0;
+      while (queueIndex < queue.length) {
+        const currentId = queue[queueIndex];
+        queueIndex += 1;
+        const currentLevel = levelById.get(currentId) || 0;
+        const nextTargets = outgoing.get(currentId) || [];
+        nextTargets.forEach(targetId => {
+          const prevLevel = levelById.has(targetId) ? levelById.get(targetId) : -1;
+          const nextLevel = Math.max(prevLevel, currentLevel + 1);
+          levelById.set(targetId, nextLevel);
+          indegree.set(targetId, Math.max(0, (indegree.get(targetId) || 0) - 1));
+          if ((indegree.get(targetId) || 0) === 0) {
+            queue.push(targetId);
+          }
+        });
+      }
+
+      let fallbackLevel = 0;
+      nodeKeys.forEach(id => {
+        if (!levelById.has(id)) {
+          levelById.set(id, fallbackLevel);
+          fallbackLevel += 1;
+        }
+      });
+
+      const levels = new Map();
+      nodes.forEach(node => {
+        const id = String(node.id);
+        const level = levelById.get(id) || 0;
+        if (!levels.has(level)) {
+          levels.set(level, []);
+        }
+        levels.get(level).push(node);
+      });
+
+      const sortedLevelKeys = Array.from(levels.keys()).sort((a, b) => a - b);
+      sortedLevelKeys.forEach(level => {
+        const levelNodes = levels.get(level) || [];
+        levelNodes.sort((left, right) => {
+          const leftLabel = left.label ? String(left.label) : String(left.id);
+          const rightLabel = right.label ? String(right.label) : String(right.id);
+          return leftLabel.localeCompare(rightLabel);
+        });
+      });
+
+      const maxColumns = sortedLevelKeys.reduce((maxValue, level) => {
+        return Math.max(maxValue, (levels.get(level) || []).length);
+      }, 1);
+
+      const width = Math.max(760, padding * 2 + maxColumns * nodeWidth + (maxColumns - 1) * xGap);
+      const height = Math.max(320, padding * 2 + sortedLevelKeys.length * nodeHeight + Math.max(0, sortedLevelKeys.length - 1) * yGap);
+      const positions = new Map();
+
+      sortedLevelKeys.forEach((level, rowIndex) => {
+        const levelNodes = levels.get(level) || [];
+        const rowWidth = levelNodes.length * nodeWidth + Math.max(0, levelNodes.length - 1) * xGap;
+        let x = Math.max(padding, (width - rowWidth) / 2);
+        const y = padding + rowIndex * (nodeHeight + yGap);
+        levelNodes.forEach(node => {
+          positions.set(String(node.id), { x, y });
+          x += nodeWidth + xGap;
+        });
+      });
+
+      return {
+        nodeWidth,
+        nodeHeight,
+        width,
+        height,
+        positions
+      };
+    }
+
+    truncateGraphLabel(value, maxLength) {
+      const text = String(value || '').trim();
+      if (!text) {
+        return '';
+      }
+      if (text.length <= maxLength) {
+        return text;
+      }
+      return `${text.substring(0, Math.max(0, maxLength - 1)).trim()}…`;
     }
 
     setQuickstartLanguage(language) {
