@@ -27,14 +27,13 @@
 - Type `@all` to include all current patchset files as context.
 - Type `#` to open all available command suggestions (shown with the `#` prefix).
 - Type `#insight` to run insight generation and open the result in a Markdown popup dialog.
-- Type `#graph` to run graph generation from current patchset files.
+- Type `#graph` to run graph generation from selected files.
 - `#insight` optional flags:
 	- `--repo <path>`: repository path for insight.
 	- `--out <path>`: output directory for generated files.
 	- `--dry-run`: run insight in dry-run mode.
 - `#graph` optional flags:
 	- `--framework <name>` (or `--framework-hint <name>`): framework hint forwarded to graph analysis.
-	- `--folder`: choose a project folder as graph input.
 	- `--file` (or `--files`): choose one or more files as graph input.
 
 ## 🔘 Buttons and Actions
@@ -78,5 +77,6 @@
 ## 🕸️ Graph Popup Behavior
 
 - On `#graph` success, graph result files are displayed in the same popup dialog style.
+- `#graph` uses a file picker dialog and supports selecting one or more files only.
 - The popup includes tabs (for example summary and response payload).
 - You can switch tabs to inspect details and download the currently active graph result file.
