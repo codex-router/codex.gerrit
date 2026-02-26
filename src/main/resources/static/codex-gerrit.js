@@ -2692,9 +2692,7 @@ Gerrit.install(plugin => {
           codeChars: requestBody.code.length,
           frameworkHint: requestBody.framework_hint || ''
         });
-        const controller = new AbortController();
-        this.activeGraphAbortController = controller;
-        const response = await this.postJsonToGerrit(path, requestBody, controller.signal);
+        const response = await plugin.restApi().post(path, requestBody);
         ensureGraphNotStopped();
         const graphDialogFiles = this.buildGraphDialogFiles(response, filePaths.length, requestBody.code.length);
         const dialogFileCount = this.openInsightDialog(graphDialogFiles, null);
