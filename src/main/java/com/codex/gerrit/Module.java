@@ -19,6 +19,7 @@ import static com.google.gerrit.server.change.RevisionResource.REVISION_KIND;
 import com.codex.gerrit.rest.CodexChatRest;
 import com.codex.gerrit.rest.CodexChatStopRest;
 import com.codex.gerrit.rest.CodexConfigRest;
+import com.codex.gerrit.rest.CodexGraphRest;
 import com.codex.gerrit.rest.CodexInsightRest;
 import com.codex.gerrit.rest.CodexPatchsetFilesRest;
 import com.google.gerrit.extensions.registration.DynamicSet;
@@ -39,6 +40,7 @@ public class Module extends AbstractModule {
           protected void configure() {
             post(REVISION_KIND, "codex-chat").to(CodexChatRest.class);
             post(REVISION_KIND, "codex-chat-stop").to(CodexChatStopRest.class);
+            post(REVISION_KIND, "codex-graph").to(CodexGraphRest.class);
             post(REVISION_KIND, "codex-insight").to(CodexInsightRest.class);
             get(REVISION_KIND, "codex-config").to(CodexConfigRest.class);
             get(REVISION_KIND, "codex-patchset-files").to(CodexPatchsetFilesRest.class);

@@ -9,6 +9,7 @@ to supported AI agents for interactive chat.
 - Selector row includes `Agent`, `Model`, and `Codespaces` controls.
 - Header includes a right-side `Help` button.
 - Supports `#insight` command in chat to trigger insight generation.
+- Supports `#graph` command in chat to trigger code-graph generation via `codex.serve` `POST /graph/run`.
 - `#insight` response is shown in a popup dialog rendered as Markdown, with one tab per generated Markdown file.
 - Insight popup supports downloading the currently active generated Markdown file.
 - `Help` opens a popup quickstart dialog with built-in English and Chinese guides.
@@ -82,6 +83,7 @@ When enabled:
 - For compatibility with different clients and naming policies, attachment parsing also accepts common aliases: `attached_files`/`attachments`/`files` at the top level, plus `path`/`fileName`, `base64_content`/`contentBase64`, and `text`/`body` in each file item.
 - During an active chat request, the plugin can stop that session via `POST /sessions/{sessionId}/stop`.
 - Insight generation requests are proxied to `codex.serve` via `POST /insight/run`.
+- Graph generation requests are proxied to `codex.serve` via `POST /graph/run`.
 - The plugin fetches agent options from `codex.serve` using `GET /agents`.
 - The first item returned by `GET /agents` is selected by default.
 - If `GET /agents` fails, the UI falls back to `codex`.
@@ -116,6 +118,8 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - For single-file `@` prompts, a plain fenced code suggestion can still be shown in the review dialog via synthesized unified diff output.
 - Enter a prompt and press `Enter` to send in default chat mode to the agent selected in `Agent` (or use `Ctrl+Enter` for a newline).
 - Use `#insight` to generate repository insight and open a Markdown popup dialog.
+- Use `#graph` to generate a code graph from the current patchset files.
+- `#graph` supports optional flags: `--framework <name>` (alias: `--framework-hint <name>`).
 - In the Insight popup, switch between generated Markdown files via tabs and download the active file.
 - `#insight` supports optional flags: `--repo <path>`, `--out <path>`, and `--dry-run`.
 - If `--repo` is omitted, the panel requires repo path input in a dialog before running `#insight`.

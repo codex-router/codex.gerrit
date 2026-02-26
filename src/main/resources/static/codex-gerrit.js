@@ -17,7 +17,7 @@ Gerrit.install(plugin => {
   const elementName = 'codex-chat-panel';
   const logPrefix = '[codex-gerrit]';
   const mentionAllKeyword = 'all';
-  const defaultHashCommands = ['insight'];
+  const defaultHashCommands = ['insight', 'graph'];
   const fallbackAgents = ['codex'];
   const codespacesActions = [
     { value: 'open-browser', label: 'Open in Browser' }
@@ -1383,6 +1383,12 @@ Gerrit.install(plugin => {
         return;
       }
 
+      const graphCommand = this.parseGraphCommand(prompt);
+      if (graphCommand) {
+        await this.submitGraphCommand(prompt, graphCommand);
+        return;
+      }
+
       const insightCommand = this.parseInsightCommand(prompt);
       if (insightCommand) {
         await this.submitInsightCommand(prompt, insightCommand);
@@ -2253,6 +2259,29 @@ Gerrit.install(plugin => {
       }
     }
 
+    parseGraphCommand(prompt) {
+      const trimmed = String(prompt || '').trim();
+      if (!/^#graph(?:\s|$)/i.test(trimmed)) {
+        return null;
+      }
+
+      const argsPart = trimmed.replace(/^#graph\s*/i, '');
+      const tokens = this.tokenizeCommandArgs(argsPart);
+      const command = {
+        frameworkHint: ''
+      };
+
+      for (let i = 0; i < tokens.length; i += 1) {
+        const token = tokens[i];
+        if (token === '--framework' || token === '--framework-hint') {
+          command.frameworkHint = i + 1 < tokens.length ? tokens[i + 1] : '';
+          i += 1;
+        }
+      }
+
+      return command;
+    }
+
     parseInsightCommand(prompt) {
       const trimmed = String(prompt || '').trim();
       if (!/^#insight(?:\s|$)/i.test(trimmed)) {
@@ -2299,6 +2328,142 @@ Gerrit.install(plugin => {
         tokens.push(match[1] || match[2] || match[3] || '');
       }
       return tokens.filter(token => !!token);
+    }
+
+    async submitGraphCommand(originalPrompt, command) {
+      if (this.isBusyState) {
+        this.setStatus('A request is already running.');
+        return;
+      }
+
+      if (!(await this.ensureAuthenticated())) {
+        this.setStatus('Sign in to Gerrit before using Codex Chat.');
+        return;
+      }
+
+      const changeId = this.getChangeId();
+      const revision = this.getRevisionId();
+      if (!changeId) {
+        this.setStatus('Unable to detect change id.');
+        return;
+      }
+
+      this.setBusy(true);
+      this.pushPromptHistory(originalPrompt);
+      this.appendMessage('user', originalPrompt);
+      this.input.value = '';
+      this.promptHistoryIndex = -1;
+      this.hideMentionDropdown();
+
+      try {
+        const files = await this.fetchLatestPatchsetFiles(changeId);
+        const normalizedFiles = Array.isArray(files) ? files.filter(file => file && file.path) : [];
+        if (normalizedFiles.length === 0) {
+          this.appendMessage('assistant', 'Graph canceled: no patchset files found for this revision.');
+          this.setStatus('Graph canceled: no patchset files.');
+          return;
+        }
+
+        const filePaths = [];
+        const codeChunks = [];
+        const maxCodeChars = 500000;
+        let currentCodeChars = 0;
+        normalizedFiles.forEach(file => {
+          const filePath = this.normalizePath(file.path || '').replace(/^\/+/, '');
+          if (!filePath) {
+            return;
+          }
+          const bytes = this.base64ToUint8Array(file.contentBase64 || '');
+          const content = this.decodeUtf8FromBytes(bytes);
+          if (!content) {
+            return;
+          }
+          const chunk = `// FILE: ${filePath}\n${content}`;
+          if (currentCodeChars + chunk.length > maxCodeChars) {
+            return;
+          }
+          filePaths.push(filePath);
+          codeChunks.push(chunk);
+          currentCodeChars += chunk.length;
+        });
+
+        if (filePaths.length === 0 || codeChunks.length === 0) {
+          this.appendMessage('assistant', 'Graph canceled: patchset files could not be decoded into text content.');
+          this.setStatus('Graph canceled: no decodable patchset content.');
+          return;
+        }
+
+        const path = this.buildRevisionRestPath(changeId, revision, 'codex-graph');
+        const model = this.modelSelect && this.modelSelect.value ? String(this.modelSelect.value).trim() : '';
+        const requestBody = {
+          code: codeChunks.join('\n\n'),
+          file_paths: filePaths
+        };
+        const frameworkHint = command && command.frameworkHint ? String(command.frameworkHint).trim() : '';
+        if (frameworkHint) {
+          requestBody.framework_hint = frameworkHint;
+        }
+        if (model) {
+          requestBody.env = { LITELLM_MODEL: model };
+        }
+
+        this.setStatus('Running #graph...');
+        log('Submitting graph request.', {
+          path,
+          filesCount: filePaths.length,
+          codeChars: requestBody.code.length,
+          frameworkHint: requestBody.framework_hint || '',
+          model
+        });
+        const response = await plugin.restApi().post(path, requestBody);
+        const summary = this.formatGraphResponseSummary(response, filePaths.length, requestBody.code.length);
+        this.appendMessage('assistant', summary);
+        this.setStatus('Graph generated.');
+      } catch (error) {
+        logError('Graph request failed.', error);
+        const message = this.getErrorMessage(error);
+        this.appendMessage('assistant', `Graph failed: ${message}`);
+        this.setStatus(`Graph failed: ${message}`);
+      } finally {
+        this.setBusy(false);
+      }
+    }
+
+    formatGraphResponseSummary(response, filesCount, codeChars) {
+      const graph = response && response.graph && typeof response.graph === 'object' ? response.graph : null;
+      const nodesCount = graph && Array.isArray(graph.nodes) ? graph.nodes.length : 0;
+      const edgesCount = graph && Array.isArray(graph.edges) ? graph.edges.length : 0;
+      const workflowsCount = graph && Array.isArray(graph.workflows) ? graph.workflows.length : 0;
+      const llms = graph && Array.isArray(graph.llms_detected)
+        ? graph.llms_detected.filter(item => !!item).map(item => String(item).trim()).filter(item => !!item)
+        : [];
+
+      const lines = [
+        `Graph generated from ${filesCount} file${filesCount === 1 ? '' : 's'} (${codeChars} chars).`,
+        `Nodes: ${nodesCount}, Edges: ${edgesCount}, Workflows: ${workflowsCount}.`
+      ];
+      if (llms.length > 0) {
+        lines.push(`LLMs detected: ${llms.join(', ')}.`);
+      }
+
+      let payloadText = '';
+      try {
+        payloadText = JSON.stringify(response || {}, null, 2);
+      } catch (error) {
+        payloadText = '';
+      }
+      if (payloadText) {
+        const maxPayloadChars = 12000;
+        const safePayload = payloadText.length > maxPayloadChars
+          ? `${payloadText.substring(0, maxPayloadChars)}\n... [truncated]`
+          : payloadText;
+        lines.push('');
+        lines.push('```json');
+        lines.push(safePayload);
+        lines.push('```');
+      }
+
+      return lines.join('\n');
     }
 
     async submitInsightCommand(originalPrompt, command) {

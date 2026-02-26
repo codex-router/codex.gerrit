@@ -15,6 +15,8 @@
 package com.codex.gerrit.service;
 
 import com.codex.gerrit.config.CodexGerritConfig;
+import com.codex.gerrit.rest.CodexGraphInput;
+import com.codex.gerrit.rest.CodexGraphResponse;
 import com.codex.gerrit.rest.CodexInsightInput;
 import com.codex.gerrit.rest.CodexInsightResponse;
 import com.google.gerrit.extensions.restapi.BadRequestException;
@@ -147,6 +149,39 @@ public class CodexAgentClient {
       return runInsightOnServer(outPath, input);
     } catch (IOException e) {
       throw new BadRequestException("Failed to run insight: " + e.getMessage());
+    }
+  }
+
+  public CodexGraphResponse runGraph(CodexGraphInput input) throws RestApiException {
+    if (config.getCodexServeUrl().isEmpty()) {
+      throw new BadRequestException("codexServeUrl is not configured");
+    }
+    if (input == null) {
+      throw new BadRequestException("input is required");
+    }
+
+    String code = input.code == null ? "" : input.code.trim();
+    if (code.isEmpty()) {
+      throw new BadRequestException("code is required");
+    }
+
+    List<String> normalizedFilePaths = new ArrayList<>();
+    if (input.filePaths != null) {
+      for (String filePath : input.filePaths) {
+        String normalizedPath = normalizeOptionalPath(filePath);
+        if (normalizedPath != null) {
+          normalizedFilePaths.add(normalizedPath);
+        }
+      }
+    }
+    if (normalizedFilePaths.isEmpty()) {
+      throw new BadRequestException("file_paths is required");
+    }
+
+    try {
+      return runGraphOnServer(code, normalizedFilePaths, input);
+    } catch (IOException e) {
+      throw new BadRequestException("Failed to run graph: " + e.getMessage());
     }
   }
 
@@ -365,6 +400,76 @@ public class CodexAgentClient {
     response.count = jsonBody.has("count") && jsonBody.get("count").isJsonPrimitive()
         ? jsonBody.get("count").getAsInt()
         : response.files.size();
+    return response;
+  }
+
+  private CodexGraphResponse runGraphOnServer(String code, List<String> filePaths, CodexGraphInput input)
+      throws IOException, RestApiException {
+    URL url = new URL(config.getCodexServeUrl() + "/graph/run");
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.setRequestMethod("POST");
+    conn.setRequestProperty("Content-Type", "application/json");
+    conn.setRequestProperty("Accept", "application/json");
+    conn.setDoOutput(true);
+    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+    conn.setReadTimeout(RUN_READ_TIMEOUT_MS);
+
+    JsonObject json = new JsonObject();
+    json.addProperty("code", code);
+    json.add("file_paths", GSON.toJsonTree(filePaths));
+
+    String frameworkHint = normalizeOptionalPath(input.frameworkHint);
+    if (frameworkHint != null) {
+      json.addProperty("framework_hint", frameworkHint);
+    }
+    if (input.metadata != null && !input.metadata.isJsonNull()) {
+      json.add("metadata", input.metadata);
+    }
+    if (input.httpConnections != null && !input.httpConnections.isJsonNull()) {
+      json.add("http_connections", input.httpConnections);
+    }
+    if (input.env != null && !input.env.isEmpty()) {
+      Map<String, String> normalizedEnv = new LinkedHashMap<>();
+      for (Map.Entry<String, String> entry : input.env.entrySet()) {
+        String key = entry.getKey() == null ? "" : entry.getKey().trim();
+        if (key.isEmpty()) {
+          continue;
+        }
+        String value = entry.getValue();
+        normalizedEnv.put(key, value == null ? "" : value);
+      }
+      if (!normalizedEnv.isEmpty()) {
+        json.add("env", GSON.toJsonTree(normalizedEnv));
+      }
+    }
+
+    String jsonInputString = GSON.toJson(json);
+    try (OutputStream os = conn.getOutputStream()) {
+      byte[] payload = jsonInputString.getBytes(StandardCharsets.UTF_8);
+      os.write(payload, 0, payload.length);
+    }
+
+    int responseCode = conn.getResponseCode();
+    InputStream is =
+        (responseCode >= 200 && responseCode < 300) ? conn.getInputStream() : conn.getErrorStream();
+    String body = readText(is);
+
+    if (responseCode < 200 || responseCode >= 300) {
+      throw new BadRequestException("Remote server error " + responseCode + ": " + body);
+    }
+    if (body.trim().isEmpty()) {
+      throw new BadRequestException("Invalid /graph/run response from codex.serve: empty body");
+    }
+
+    JsonObject jsonBody = GSON.fromJson(body, JsonObject.class);
+    if (jsonBody == null) {
+      throw new BadRequestException("Invalid /graph/run response from codex.serve");
+    }
+
+    CodexGraphResponse response = new CodexGraphResponse();
+    response.graph = jsonBody.has("graph") ? jsonBody.get("graph") : null;
+    response.usage = jsonBody.has("usage") ? jsonBody.get("usage") : null;
+    response.cost = jsonBody.has("cost") ? jsonBody.get("cost") : null;
     return response;
   }
 

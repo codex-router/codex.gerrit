@@ -27,10 +27,13 @@
 - Type `@all` to include all current patchset files as context.
 - Type `#` to open all available command suggestions (shown with the `#` prefix).
 - Type `#insight` to run insight generation and open the result in a Markdown popup dialog.
+- Type `#graph` to run graph generation from current patchset files.
 - `#insight` optional flags:
 	- `--repo <path>`: repository path for insight.
 	- `--out <path>`: output directory for generated files.
 	- `--dry-run`: run insight in dry-run mode.
+- `#graph` optional flags:
+	- `--framework <name>` (or `--framework-hint <name>`): framework hint forwarded to graph analysis.
 
 ## 🔘 Buttons and Actions
 

@@ -27,10 +27,13 @@
 - 输入 `@all` 可将当前补丁集全部文件作为上下文。
 - 输入 `#` 可打开所有可用命令建议（建议项会保留 `#` 前缀）。
 - 输入 `#insight` 可触发 insight 生成，并以 Markdown 弹窗展示结果。
+- 输入 `#graph` 可基于当前补丁集文件触发代码图谱生成。
 - `#insight` 可选参数：
 	- `--repo <path>`：指定 insight 的仓库路径。
 	- `--out <path>`：指定生成文件输出目录。
 	- `--dry-run`：以 dry-run 模式执行 insight。
+- `#graph` 可选参数：
+	- `--framework <name>`（或 `--framework-hint <name>`）：向图谱分析透传框架提示。
 
 ## 🔘 按钮与操作
 

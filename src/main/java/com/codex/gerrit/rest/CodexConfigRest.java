@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 @Singleton
 public class CodexConfigRest implements RestReadView<RevisionResource> {
   private static final Logger logger = LoggerFactory.getLogger(CodexConfigRest.class);
-  private static final List<String> HASH_COMMANDS = Collections.singletonList("insight");
+  private static final List<String> HASH_COMMANDS = List.of("insight", "graph");
 
   private final CodexGerritConfig config;
   private final GerritApi gerritApi;
