@@ -58,6 +58,7 @@ Gerrit.install(plugin => {
       this.quickstartDocsPromise = null;
       this.quickstartLanguage = 'en';
       this.insightDialogOverlay = null;
+      this.insightDialogTitle = null;
       this.insightDialogBody = null;
       this.graphSelectionDialogOverlay = null;
       this.graphSelectionDialogFileButton = null;
@@ -318,7 +319,7 @@ Gerrit.install(plugin => {
 
       const insightDialogTitle = document.createElement('div');
       insightDialogTitle.className = 'codex-change-dialog-title';
-      insightDialogTitle.textContent = 'Codex Insight';
+      insightDialogTitle.textContent = 'Codex Insight & Graph';
 
       const insightDialogClose = document.createElement('button');
       insightDialogClose.type = 'button';
@@ -535,6 +536,7 @@ Gerrit.install(plugin => {
       this.quickstartEnglishButton = quickstartEnglishButton;
       this.quickstartChineseButton = quickstartChineseButton;
       this.insightDialogOverlay = insightDialogOverlay;
+      this.insightDialogTitle = insightDialogTitle;
       this.insightDialogBody = insightDialogBody;
       this.graphSelectionDialogOverlay = graphSelectionDialogOverlay;
       this.graphSelectionDialogFileButton = graphSelectionDialogFile;
@@ -2374,9 +2376,12 @@ Gerrit.install(plugin => {
       }
     }
 
-    openInsightDialog(files, response) {
+    openInsightDialog(files, response, dialogTitle) {
       if (!this.insightDialogOverlay || !this.insightDialogBody) {
         return 0;
+      }
+      if (this.insightDialogTitle) {
+        this.insightDialogTitle.textContent = (dialogTitle && String(dialogTitle).trim()) || 'Codex Insight & Graph';
       }
       const insightFiles = this.normalizeInsightFiles(files, response);
       let activeIndex = 0;
@@ -2755,7 +2760,7 @@ Gerrit.install(plugin => {
         const response = await this.postJsonToGerrit(path, requestBody, this.activeGraphAbortController.signal);
         ensureGraphNotStopped();
         const graphDialogFiles = this.buildGraphDialogFiles(response, filePaths.length, requestBody.code.length);
-        const dialogFileCount = this.openInsightDialog(graphDialogFiles, null);
+        const dialogFileCount = this.openInsightDialog(graphDialogFiles, null, 'Codex Insight & Graph');
         this.appendMessage(
             'assistant',
             `Graph generated (${dialogFileCount} file${dialogFileCount === 1 ? '' : 's'}). Opened in popup dialog.`);
