@@ -7,6 +7,7 @@ to supported AI agents for interactive chat.
 
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
 - Selector row includes `Agent`, `Model`, and `Codespaces` controls.
+- Selector row also includes a queue status indicator showing `idle`, `request active`, `waiting`, `full`, or `wait timeout`.
 - Header includes a right-side `Help` button.
 - Supports `#insight` command in chat to trigger insight generation.
 - Supports `#graph` command in chat to trigger code-graph generation from selected files via `codex.serve` `POST /graph/run`.
@@ -131,6 +132,13 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - If a reply contains file diffs, review them in the popup and choose `Keep` or `Undo` for each file.
 - While a chat request is running, click `Stop Chat` to interrupt the current session.
 - Click `Clear` to remove all chat panel content (messages, input, and pending review state).
+- Watch the queue indicator to understand backend capacity:
+	- `Queue: idle` means no pending request.
+	- `Queue: request active` means request is accepted and running.
+	- `Queue: waiting for slot` means backend is busy and the request is waiting.
+	- `Queue: full` means server pending queue is saturated; retry after a short delay.
+	- `Queue: wait timeout` means queue wait timed out; retry after a short delay.
+
 ### Chat Session Stop Flow
 
 - Each chat request includes a generated session identifier (`sessionId`) in the request to `codex.serve` `POST /agent/run`.

@@ -77,6 +77,48 @@
   outline: none;
 }
 
+.codex-queue-status {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 170px;
+  padding: 4px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4f4f4f;
+}
+
+.codex-queue-status-value {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.codex-queue-status-detail {
+  font-size: 11px;
+  line-height: 1.25;
+  opacity: 0.9;
+}
+
+.codex-queue-status.is-idle {
+  border-color: #d9d9d9;
+}
+
+.codex-queue-status.is-active,
+.codex-queue-status.is-waiting {
+  border-color: #b65a2a;
+  color: #7c3d1c;
+}
+
+.codex-queue-status.is-full,
+.codex-queue-status.is-timeout,
+.codex-queue-status.is-error {
+  border-color: #c45a5a;
+  color: #8d2e2e;
+  background: #fff7f7;
+}
+
 .codex-footer {
   margin-top: 10px;
   display: flex;

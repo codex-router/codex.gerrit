@@ -65,6 +65,10 @@ Gerrit.install(plugin => {
       this.graphSelectionDialogCancelButton = null;
       this.graphSelectionDialogPromise = null;
       this.graphSelectionDialogFinish = null;
+      this.queueStatusContainer = null;
+      this.queueStatusValue = null;
+      this.queueStatusDetail = null;
+      this.queuePendingTimer = null;
     }
 
     connectedCallback() {
@@ -171,6 +175,21 @@ Gerrit.install(plugin => {
 
       const status = document.createElement('div');
       status.className = 'codex-status';
+
+      const queueStatusContainer = document.createElement('div');
+      queueStatusContainer.className = 'codex-queue-status is-idle';
+
+      const queueStatusValue = document.createElement('span');
+      queueStatusValue.className = 'codex-queue-status-value';
+      queueStatusValue.textContent = 'Queue: idle';
+
+      const queueStatusDetail = document.createElement('span');
+      queueStatusDetail.className = 'codex-queue-status-detail';
+      queueStatusDetail.textContent = 'No pending requests';
+
+      queueStatusContainer.appendChild(queueStatusValue);
+      queueStatusContainer.appendChild(queueStatusDetail);
+      selectors.appendChild(queueStatusContainer);
 
       selectors.appendChild(agentContainer);
       selectors.appendChild(modelContainer);
@@ -548,6 +567,11 @@ Gerrit.install(plugin => {
       this.workspaceRootDialogSave = workspaceRootDialogSave;
       this.fileInput = fileInput;
       this.attachedFilesRow = attachedFilesRow;
+      this.queueStatusContainer = queueStatusContainer;
+      this.queueStatusValue = queueStatusValue;
+      this.queueStatusDetail = queueStatusDetail;
+
+      this.setQueueStatus('idle');
 
       this.showWelcomeMessage();
       this.loadConfig();
@@ -1586,8 +1610,17 @@ Gerrit.install(plugin => {
         }
       } catch (err) {
         logError('Chat request failed.', err);
-        this.appendMessage('assistant', `Request failed: ${this.getErrorMessage(err)}`);
-        this.setStatus(`Request failed: ${this.getErrorMessage(err)}`);
+        const errorMessage = this.getErrorMessage(err);
+        const queueErrorType = this.getQueueErrorType(errorMessage);
+        if (queueErrorType === 'full') {
+          this.setQueueStatus('full', 'Server queue is full. Retry shortly.');
+        } else if (queueErrorType === 'timeout') {
+          this.setQueueStatus('timeout', 'Queue wait timeout. Retry shortly.');
+        } else {
+          this.setQueueStatus('error', 'Last request failed.');
+        }
+        this.appendMessage('assistant', `Request failed: ${errorMessage}`);
+        this.setStatus(`Request failed: ${errorMessage}`);
       } finally {
         this.activeSessionId = null;
         this.setBusy(false);
@@ -1659,6 +1692,7 @@ Gerrit.install(plugin => {
       if (this.fileInput) {
         this.fileInput.value = '';
       }
+      this.setQueueStatus('idle');
       this.setStatus('Chat panel cleared.');
     }
 
@@ -2057,6 +2091,16 @@ Gerrit.install(plugin => {
       if (typeof err === 'string') {
         return err;
       }
+      if (err && typeof err.response === 'string' && err.response.trim()) {
+        try {
+          const parsed = JSON.parse(err.response);
+          if (parsed && typeof parsed.detail === 'string' && parsed.detail.trim()) {
+            return parsed.detail.trim();
+          }
+        } catch (_ignored) {
+          return err.response.trim();
+        }
+      }
       if (err.message && String(err.message).trim()) {
         return String(err.message);
       }
@@ -2069,10 +2113,89 @@ Gerrit.install(plugin => {
       return String(err);
     }
 
+    getQueueErrorType(errorMessage) {
+      const text = (errorMessage || '').toLowerCase();
+      if (!text) {
+        return '';
+      }
+      if (text.includes('queue is full') || text.includes('max pending')) {
+        return 'full';
+      }
+      if (text.includes('queue wait timeout')) {
+        return 'timeout';
+      }
+      return '';
+    }
+
+    setQueueStatus(state, detailText) {
+      if (!this.queueStatusContainer || !this.queueStatusValue || !this.queueStatusDetail) {
+        return;
+      }
+
+      const normalizedState = state || 'idle';
+      this.queueStatusContainer.classList.remove(
+          'is-idle',
+          'is-active',
+          'is-waiting',
+          'is-full',
+          'is-timeout',
+          'is-error');
+      this.queueStatusContainer.classList.add(`is-${normalizedState}`);
+
+      const labels = {
+        idle: 'Queue: idle',
+        active: 'Queue: request active',
+        waiting: 'Queue: waiting for slot',
+        full: 'Queue: full',
+        timeout: 'Queue: wait timeout',
+        error: 'Queue: unavailable'
+      };
+      const details = {
+        idle: 'No pending requests',
+        active: 'Request accepted by server',
+        waiting: 'Waiting for backend capacity',
+        full: 'Please retry in a few seconds',
+        timeout: 'Please retry in a few seconds',
+        error: 'Check server status and retry'
+      };
+
+      this.queueStatusValue.textContent = labels[normalizedState] || labels.idle;
+      this.queueStatusDetail.textContent = detailText || details[normalizedState] || details.idle;
+    }
+
+    scheduleQueueWaitingHint() {
+      if (this.queuePendingTimer) {
+        window.clearTimeout(this.queuePendingTimer);
+      }
+      this.queuePendingTimer = window.setTimeout(() => {
+        if (this.isBusyState) {
+          this.setQueueStatus('waiting', 'Waiting for backend capacity');
+        }
+        this.queuePendingTimer = null;
+      }, 1500);
+    }
+
     setBusy(isBusy) {
       this.isBusyState = isBusy;
       if (this.stopButton) {
         this.stopButton.disabled = !isBusy;
+      }
+      if (isBusy) {
+        this.setQueueStatus('active');
+        this.scheduleQueueWaitingHint();
+      } else {
+        if (this.queuePendingTimer) {
+          window.clearTimeout(this.queuePendingTimer);
+          this.queuePendingTimer = null;
+        }
+        const hasQueueErrorState =
+            this.queueStatusContainer
+            && (this.queueStatusContainer.classList.contains('is-full')
+              || this.queueStatusContainer.classList.contains('is-timeout')
+              || this.queueStatusContainer.classList.contains('is-error'));
+        if (!hasQueueErrorState) {
+          this.setQueueStatus('idle');
+        }
       }
     }
 

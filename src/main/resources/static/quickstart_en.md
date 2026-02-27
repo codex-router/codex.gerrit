@@ -52,6 +52,16 @@
 - **Clear**:
 	- Clears messages, input content, and pending review state.
 
+## 🚦 Queue Status Indicator
+
+- The selector row shows a queue status card for chat requests.
+- `Queue: idle` means no pending request.
+- `Queue: request active` means your request is accepted and running.
+- `Queue: waiting for slot` means backend capacity is busy and your request is waiting.
+- `Queue: full` means server queue is saturated; retry after a short delay.
+- `Queue: wait timeout` means queue wait exceeded server timeout; retry after a short delay.
+- When queue backpressure happens, chat failure messages may include queue details from server `503` responses.
+
 ## 📎 Uploaded File Context
 
 - Patchset files are **not** included automatically.
