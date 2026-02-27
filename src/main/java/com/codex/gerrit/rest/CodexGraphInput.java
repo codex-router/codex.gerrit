@@ -23,7 +23,6 @@ public class CodexGraphInput {
   public String code;
   @SerializedName(value = "file_paths", alternate = {"filePaths"})
   public List<String> filePaths;
-  public List<GraphFile> files;
   @SerializedName(value = "framework_hint", alternate = {"frameworkHint"})
   public String frameworkHint;
   public JsonElement metadata;
@@ -31,12 +30,4 @@ public class CodexGraphInput {
   public JsonElement httpConnections;
   @SerializedName(value = "env", alternate = {"environment"})
   public Map<String, String> env;
-
-  public static class GraphFile {
-    public String path;
-    @SerializedName(value = "content", alternate = {"fileContent", "file_content"})
-    public String content;
-    @SerializedName(value = "base64Content", alternate = {"base64_content", "base64"})
-    public String base64Content;
-  }
 }

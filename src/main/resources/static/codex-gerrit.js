@@ -2697,42 +2697,52 @@ Gerrit.install(plugin => {
           return;
         }
 
-        const graphFiles = validFiles
-            .map(file => {
-              const filePath = this.normalizePath(file.path || '').replace(/^\/+/, '');
-              if (!filePath) {
-                return null;
-              }
-              if (file.base64Content) {
-                return {
-                  path: filePath,
-                  base64Content: String(file.base64Content)
-                };
-              }
-              return {
-                path: filePath,
-                content: file.content ? String(file.content) : ''
-              };
-            })
-            .filter(file => {
-              if (!file) {
-                return false;
-              }
-              const contentLen = file.content ? file.content.length : 0;
-              const base64Len = file.base64Content ? file.base64Content.length : 0;
-              return contentLen > 0 || base64Len > 0;
-            });
+        const filePaths = [];
+        const codeChunks = [];
+        const maxCodeChars = 500000;
+        let currentCodeChars = 0;
+        validFiles.forEach(file => {
+          if (this.graphStopRequested) {
+            return;
+          }
+          const filePath = this.normalizePath(file.path || '').replace(/^\/+/, '');
+          if (!filePath) {
+            return;
+          }
+          let content = '';
+          if (file.base64Content) {
+            try {
+              const bytes = this.base64ToUint8Array(file.base64Content || '');
+              content = this.decodeUtf8FromBytes(bytes);
+            } catch (decodeError) {
+              content = '';
+            }
+          } else {
+            content = file.content ? String(file.content) : '';
+          }
+          if (!content) {
+            return;
+          }
+          const chunk = `// FILE: ${filePath}\n${content}`;
+          if (currentCodeChars + chunk.length > maxCodeChars) {
+            return;
+          }
+          filePaths.push(filePath);
+          codeChunks.push(chunk);
+          currentCodeChars += chunk.length;
+        });
         ensureGraphNotStopped();
 
-        if (graphFiles.length === 0) {
-          this.appendMessage('assistant', 'Graph canceled: selected files are missing file paths or content.');
-          this.setStatus('Graph canceled: no valid selected files.');
+        if (filePaths.length === 0 || codeChunks.length === 0) {
+          this.appendMessage('assistant', 'Graph canceled: patchset files could not be decoded into text content.');
+          this.setStatus('Graph canceled: no decodable patchset content.');
           return;
         }
 
         const path = this.buildRevisionRestPath(changeId, revision, 'codex-graph');
         const requestBody = {
-          files: graphFiles
+          code: codeChunks.join('\n\n'),
+          file_paths: filePaths
         };
         const frameworkHint = command && command.frameworkHint ? String(command.frameworkHint).trim() : '';
         if (frameworkHint) {
@@ -2743,16 +2753,13 @@ Gerrit.install(plugin => {
         this.setStatus('Running #graph...');
         log('Submitting graph request.', {
           path,
-          filesCount: graphFiles.length,
-          sourceCharsEstimate: this.estimateGraphFilesSourceChars(graphFiles),
+          filesCount: filePaths.length,
+          codeChars: requestBody.code.length,
           frameworkHint: requestBody.framework_hint || ''
         });
         const response = await this.postJsonToGerrit(path, requestBody, this.activeGraphAbortController.signal);
         ensureGraphNotStopped();
-        const graphDialogFiles = this.buildGraphDialogFiles(
-            response,
-            graphFiles.length,
-            this.estimateGraphFilesSourceChars(graphFiles));
+        const graphDialogFiles = this.buildGraphDialogFiles(response, filePaths.length, requestBody.code.length);
         const dialogFileCount = this.openInsightDialog(graphDialogFiles, null, 'Codex Insight & Graph');
         this.appendMessage(
             'assistant',
@@ -2791,25 +2798,6 @@ Gerrit.install(plugin => {
         this.isGraphRequestActive = false;
         this.setBusy(false);
       }
-    }
-
-    estimateGraphFilesSourceChars(files) {
-      const graphFiles = Array.isArray(files) ? files : [];
-      return graphFiles.reduce((total, file) => {
-        if (!file) {
-          return total;
-        }
-        if (file.content) {
-          return total + String(file.content).length;
-        }
-        if (file.base64Content) {
-          const normalized = String(file.base64Content).replace(/\s+/g, '');
-          const padding = normalized.endsWith('==') ? 2 : normalized.endsWith('=') ? 1 : 0;
-          const estimatedBytes = Math.max(0, Math.floor(normalized.length * 3 / 4) - padding);
-          return total + estimatedBytes;
-        }
-        return total;
-      }, 0);
     }
 
     buildGraphDialogFiles(response, filesCount, codeChars) {

@@ -37,7 +37,6 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -161,21 +160,6 @@ public class CodexAgentClient {
       throw new BadRequestException("input is required");
     }
 
-    GraphSource source = buildGraphSource(input);
-
-    try {
-      return runGraphOnServer(source.code, source.filePaths, input);
-    } catch (IOException e) {
-      throw new BadRequestException("Failed to run graph: " + e.getMessage());
-    }
-  }
-
-  private GraphSource buildGraphSource(CodexGraphInput input) throws BadRequestException {
-    GraphSource fromFiles = buildGraphSourceFromFiles(input.files);
-    if (fromFiles != null) {
-      return fromFiles;
-    }
-
     String code = input.code == null ? "" : input.code.trim();
     if (code.isEmpty()) {
       throw new BadRequestException("code is required");
@@ -193,58 +177,11 @@ public class CodexAgentClient {
     if (normalizedFilePaths.isEmpty()) {
       throw new BadRequestException("file_paths is required");
     }
-    return new GraphSource(code, normalizedFilePaths);
-  }
 
-  private GraphSource buildGraphSourceFromFiles(List<CodexGraphInput.GraphFile> files)
-      throws BadRequestException {
-    if (files == null || files.isEmpty()) {
-      return null;
-    }
-
-    List<String> filePaths = new ArrayList<>();
-    StringBuilder codeBuilder = new StringBuilder();
-    for (CodexGraphInput.GraphFile file : files) {
-      if (file == null) {
-        continue;
-      }
-      String normalizedPath = normalizeOptionalPath(file.path);
-      if (normalizedPath == null) {
-        continue;
-      }
-
-      String content = normalizeOptionalPath(file.content);
-      if (content == null) {
-        content = decodeGraphFileBase64(file.base64Content);
-      }
-      if (content == null || content.isEmpty()) {
-        continue;
-      }
-
-      if (codeBuilder.length() > 0) {
-        codeBuilder.append("\n\n");
-      }
-      codeBuilder.append("// FILE: ").append(normalizedPath).append("\n").append(content);
-      filePaths.add(normalizedPath);
-    }
-
-    if (filePaths.isEmpty() || codeBuilder.length() == 0) {
-      throw new BadRequestException("files is provided but contains no decodable file content");
-    }
-    return new GraphSource(codeBuilder.toString(), filePaths);
-  }
-
-  private String decodeGraphFileBase64(String base64Content) {
-    String normalized = normalizeOptionalPath(base64Content);
-    if (normalized == null) {
-      return null;
-    }
     try {
-      byte[] decoded = Base64.getDecoder().decode(normalized);
-      String value = new String(decoded, StandardCharsets.UTF_8);
-      return value == null || value.isEmpty() ? null : value;
-    } catch (IllegalArgumentException decodeError) {
-      return null;
+      return runGraphOnServer(code, normalizedFilePaths, input);
+    } catch (IOException e) {
+      throw new BadRequestException("Failed to run graph: " + e.getMessage());
     }
   }
 
@@ -764,16 +701,6 @@ public class CodexAgentClient {
       ContextFile file = new ContextFile(path, null);
       file.base64Content = base64Content;
       return file;
-    }
-  }
-
-  private static class GraphSource {
-    private final String code;
-    private final List<String> filePaths;
-
-    private GraphSource(String code, List<String> filePaths) {
-      this.code = code;
-      this.filePaths = filePaths;
     }
   }
 }
