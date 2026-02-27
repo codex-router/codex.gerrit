@@ -8,6 +8,7 @@ to supported AI agents for interactive chat.
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
 - Selector row includes `Agent`, `Model`, and `Codespaces` controls.
 - Selector row also includes a queue status indicator showing `idle`, `request active`, `waiting`, `full`, or `wait timeout`.
+- Selector row also includes an overflow-guard indicator showing context-overflow auto-compress status (`ready`, `monitoring`, `attention`).
 - Header includes a right-side `Help` button.
 - Supports `#insight` command in chat to trigger insight generation.
 - Supports `#graph` command in chat to trigger code-graph generation from selected files via `codex.serve` `POST /graph/run`.
@@ -138,6 +139,10 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 	- `Queue: waiting for slot` means backend is busy and the request is waiting.
 	- `Queue: full` means server pending queue is saturated; retry after a short delay.
 	- `Queue: wait timeout` means queue wait timed out; retry after a short delay.
+- Watch the overflow-guard indicator for context-overflow handling:
+	- `Overflow guard: ready` means auto-compress fallback is available.
+	- `Overflow guard: monitoring` means current request is being monitored for model context overflow.
+	- `Overflow guard: attention` means context overflow still failed (for example even after compressed retry), so shorten prompt/history and retry.
 
 ### Chat Session Stop Flow
 

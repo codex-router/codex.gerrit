@@ -69,6 +69,9 @@ Gerrit.install(plugin => {
       this.queueStatusValue = null;
       this.queueStatusDetail = null;
       this.queuePendingTimer = null;
+      this.overflowStatusContainer = null;
+      this.overflowStatusValue = null;
+      this.overflowStatusDetail = null;
     }
 
     connectedCallback() {
@@ -189,7 +192,22 @@ Gerrit.install(plugin => {
 
       queueStatusContainer.appendChild(queueStatusValue);
       queueStatusContainer.appendChild(queueStatusDetail);
+
+      const overflowStatusContainer = document.createElement('div');
+      overflowStatusContainer.className = 'codex-overflow-status is-ready';
+
+      const overflowStatusValue = document.createElement('span');
+      overflowStatusValue.className = 'codex-overflow-status-value';
+      overflowStatusValue.textContent = 'Overflow guard: ready';
+
+      const overflowStatusDetail = document.createElement('span');
+      overflowStatusDetail.className = 'codex-overflow-status-detail';
+      overflowStatusDetail.textContent = 'Auto-compress fallback is enabled';
+
+      overflowStatusContainer.appendChild(overflowStatusValue);
+      overflowStatusContainer.appendChild(overflowStatusDetail);
       selectors.appendChild(queueStatusContainer);
+      selectors.appendChild(overflowStatusContainer);
 
       selectors.appendChild(agentContainer);
       selectors.appendChild(modelContainer);
@@ -570,8 +588,12 @@ Gerrit.install(plugin => {
       this.queueStatusContainer = queueStatusContainer;
       this.queueStatusValue = queueStatusValue;
       this.queueStatusDetail = queueStatusDetail;
+      this.overflowStatusContainer = overflowStatusContainer;
+      this.overflowStatusValue = overflowStatusValue;
+      this.overflowStatusDetail = overflowStatusDetail;
 
       this.setQueueStatus('idle');
+      this.setOverflowStatus('ready');
 
       this.showWelcomeMessage();
       this.loadConfig();
@@ -1558,6 +1580,7 @@ Gerrit.install(plugin => {
       }
 
       this.setBusy(true);
+      this.setOverflowStatus('monitoring');
       this.setStatus(`Running ${mode}...`);
       this.pushPromptHistory(prompt);
       this.appendMessage('user', prompt);
@@ -1604,20 +1627,30 @@ Gerrit.install(plugin => {
           } else {
             this.setStatus('Done.');
           }
+          this.setOverflowStatus('ready', 'No context overflow detected in last request');
         } else {
           this.appendMessage('assistant', 'No reply received.');
           this.setStatus('No reply received.');
+          this.setOverflowStatus('ready', 'No context overflow detected in last request');
         }
       } catch (err) {
         logError('Chat request failed.', err);
         const errorMessage = this.getErrorMessage(err);
+        const overflowErrorType = this.getContextOverflowErrorType(errorMessage);
         const queueErrorType = this.getQueueErrorType(errorMessage);
-        if (queueErrorType === 'full') {
+        if (overflowErrorType === 'retry-failed') {
+          this.setOverflowStatus('failed', 'Auto-compress retry was attempted but still overflowed.');
+        } else if (overflowErrorType === 'overflow') {
+          this.setOverflowStatus('failed', 'Context overflow detected. Try a shorter prompt/history.');
+        } else if (queueErrorType === 'full') {
           this.setQueueStatus('full', 'Server queue is full. Retry shortly.');
+          this.setOverflowStatus('ready');
         } else if (queueErrorType === 'timeout') {
           this.setQueueStatus('timeout', 'Queue wait timeout. Retry shortly.');
+          this.setOverflowStatus('ready');
         } else {
           this.setQueueStatus('error', 'Last request failed.');
+          this.setOverflowStatus('ready');
         }
         this.appendMessage('assistant', `Request failed: ${errorMessage}`);
         this.setStatus(`Request failed: ${errorMessage}`);
@@ -1693,6 +1726,7 @@ Gerrit.install(plugin => {
         this.fileInput.value = '';
       }
       this.setQueueStatus('idle');
+      this.setOverflowStatus('ready');
       this.setStatus('Chat panel cleared.');
     }
 
@@ -2127,6 +2161,35 @@ Gerrit.install(plugin => {
       return '';
     }
 
+    getContextOverflowErrorType(errorMessage) {
+      const text = (errorMessage || '').toLowerCase();
+      if (!text) {
+        return '';
+      }
+
+      const hasOverflowSignal =
+          text.includes('maximum context length')
+          || text.includes('context length exceeded')
+          || text.includes('context window')
+          || text.includes('too many tokens')
+          || text.includes('token limit exceeded')
+          || text.includes('context overflow')
+          || text.includes('prompt is too long')
+          || text.includes('input is too long');
+
+      const hasCompressRetrySignal =
+          text.includes('retrying once with compressed message history')
+          || text.includes('compressed message history');
+
+      if (hasOverflowSignal && hasCompressRetrySignal) {
+        return 'retry-failed';
+      }
+      if (hasOverflowSignal) {
+        return 'overflow';
+      }
+      return '';
+    }
+
     setQueueStatus(state, detailText) {
       if (!this.queueStatusContainer || !this.queueStatusValue || !this.queueStatusDetail) {
         return;
@@ -2161,6 +2224,30 @@ Gerrit.install(plugin => {
 
       this.queueStatusValue.textContent = labels[normalizedState] || labels.idle;
       this.queueStatusDetail.textContent = detailText || details[normalizedState] || details.idle;
+    }
+
+    setOverflowStatus(state, detailText) {
+      if (!this.overflowStatusContainer || !this.overflowStatusValue || !this.overflowStatusDetail) {
+        return;
+      }
+
+      const normalizedState = state || 'ready';
+      this.overflowStatusContainer.classList.remove('is-ready', 'is-monitoring', 'is-failed');
+      this.overflowStatusContainer.classList.add(`is-${normalizedState}`);
+
+      const labels = {
+        ready: 'Overflow guard: ready',
+        monitoring: 'Overflow guard: monitoring',
+        failed: 'Overflow guard: attention'
+      };
+      const details = {
+        ready: 'Auto-compress fallback is enabled',
+        monitoring: 'Watching for model context overflow',
+        failed: 'Context overflow may require shorter input'
+      };
+
+      this.overflowStatusValue.textContent = labels[normalizedState] || labels.ready;
+      this.overflowStatusDetail.textContent = detailText || details[normalizedState] || details.ready;
     }
 
     scheduleQueueWaitingHint() {

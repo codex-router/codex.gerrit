@@ -119,6 +119,45 @@
   background: #fff7f7;
 }
 
+.codex-overflow-status {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 190px;
+  padding: 4px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4f4f4f;
+}
+
+.codex-overflow-status-value {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.codex-overflow-status-detail {
+  font-size: 11px;
+  line-height: 1.25;
+  opacity: 0.9;
+}
+
+.codex-overflow-status.is-ready {
+  border-color: #d9d9d9;
+}
+
+.codex-overflow-status.is-monitoring {
+  border-color: #b65a2a;
+  color: #7c3d1c;
+}
+
+.codex-overflow-status.is-failed {
+  border-color: #c45a5a;
+  color: #8d2e2e;
+  background: #fff7f7;
+}
+
 .codex-footer {
   margin-top: 10px;
   display: flex;

@@ -62,6 +62,13 @@
 - `Queue: wait timeout` means queue wait exceeded server timeout; retry after a short delay.
 - When queue backpressure happens, chat failure messages may include queue details from server `503` responses.
 
+## 🧠 Overflow Guard Indicator
+
+- The selector row also shows an overflow-guard status card for context-overflow protection.
+- `Overflow guard: ready` means auto-compress fallback is available.
+- `Overflow guard: monitoring` means the current request is being watched for model context overflow.
+- `Overflow guard: attention` means context overflow still failed (including compressed retry failure); shorten prompt/history and retry.
+
 ## 📎 Uploaded File Context
 
 - Patchset files are **not** included automatically.
