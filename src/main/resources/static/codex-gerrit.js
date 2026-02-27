@@ -206,8 +206,6 @@ Gerrit.install(plugin => {
 
       overflowStatusContainer.appendChild(overflowStatusValue);
       overflowStatusContainer.appendChild(overflowStatusDetail);
-      selectors.appendChild(queueStatusContainer);
-      selectors.appendChild(overflowStatusContainer);
 
       selectors.appendChild(agentContainer);
       selectors.appendChild(modelContainer);
@@ -485,6 +483,8 @@ Gerrit.install(plugin => {
 
       const inputActions = document.createElement('div');
       inputActions.className = 'codex-actions';
+      inputActions.appendChild(queueStatusContainer);
+      inputActions.appendChild(overflowStatusContainer);
       inputActions.appendChild(stopButton);
       inputActions.appendChild(clearButton);
 
