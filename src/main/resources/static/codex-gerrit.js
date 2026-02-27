@@ -483,8 +483,6 @@ Gerrit.install(plugin => {
 
       const inputActions = document.createElement('div');
       inputActions.className = 'codex-actions';
-      inputActions.appendChild(queueStatusContainer);
-      inputActions.appendChild(overflowStatusContainer);
       inputActions.appendChild(stopButton);
       inputActions.appendChild(clearButton);
 
@@ -492,6 +490,8 @@ Gerrit.install(plugin => {
       inputRow.appendChild(attachButton);
       inputRow.appendChild(inputActions);
 
+      selectors.appendChild(queueStatusContainer);
+      selectors.appendChild(overflowStatusContainer);
       footer.appendChild(selectors);
       inputPanel.appendChild(fileInput);
       inputPanel.appendChild(attachedFilesRow);

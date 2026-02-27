@@ -42,6 +42,7 @@
 .codex-selectors {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin: 0;
 }
@@ -158,6 +159,10 @@
   background: #fff7f7;
 }
 
+.codex-selectors .codex-queue-status {
+  margin-left: auto;
+}
+
 .codex-footer {
   margin-top: 10px;
   display: flex;
@@ -199,10 +204,7 @@
 .codex-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
   gap: 8px;
-  margin-left: auto;
 }
 
 .codex-mention-dropdown {
