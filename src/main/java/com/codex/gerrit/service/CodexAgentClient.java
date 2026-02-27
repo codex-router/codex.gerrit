@@ -224,7 +224,7 @@ public class CodexAgentClient {
       if (codeBuilder.length() > 0) {
         codeBuilder.append("\n\n");
       }
-      codeBuilder.append(content);
+      codeBuilder.append("// FILE: ").append(normalizedPath).append("\n").append(content);
       filePaths.add(normalizedPath);
     }
 
