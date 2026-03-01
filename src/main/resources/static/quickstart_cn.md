@@ -15,7 +15,7 @@
 - **模型（Model）**：
 	- 默认选择返回列表中的第一项。
 	- 所选模型会通过 `--model` 传给后端。
-- **Codespaces -> Open in Browser**：
+- **Codespaces -> Open in VS Code**：
 	- 当前为即将推出（coming soon）。
 - **Codespaces -> Open in Sandbox**：
 	- 会滚动并聚焦到内置的沙箱 Web Shell 面板。

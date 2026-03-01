@@ -37,8 +37,8 @@ to supported AI agents for interactive chat.
 - When one or more `@` files are mentioned, the plugin appends static-analysis guidance to focus findings on those files (bugs, security risks, null-safety, error handling, resource/concurrency risks, and performance concerns).
 - If a diff block omits file headers, `Review` can still map changes to `@`-mentioned files and show the popup.
 - If exactly one `@` file is mentioned and the reply provides only a fenced code block, the plugin synthesizes a unified diff preview for `Review`.
-- `Codespaces` includes `Open in Browser` and `Open in Sandbox`.
-- `Open in Browser` is coming soon.
+- `Codespaces` includes `Open in VS Code` and `Open in Sandbox`.
+- `Open in VS Code` is coming soon.
 - `Open in Sandbox` scrolls to and focuses the Sandbox Web Shell panel.
 - Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
 - When Codex response includes a unified diff, a popup dialog shows changed files and patch content.
@@ -114,7 +114,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Use the selector row to choose `Agent` (options are loaded from `codex.serve` `GET /agents`; the first returned item is selected by default, and if unavailable it falls back to `codex`).
 - For complex tasks, choose `team` in `Agent` to use multi-agent collaboration (parallel specialist analysis, internal debate, and final synthesis).
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
-- Use `Codespaces` → `Open in Browser` (currently coming soon).
+- Use `Codespaces` → `Open in VS Code` (currently coming soon).
 - Use `Codespaces` → `Open in Sandbox` to jump to the Sandbox Web Shell.
 - In Sandbox Web Shell, enter a command and click `Run` to execute via sandbox runtime (`/sandbox/run`).
 - Use shell `Clear` to reset the shell output area.
@@ -161,12 +161,12 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 
 `gerritBotUser` is used as a message prefix for Gerrit review messages.
 
-When using `Open in Browser` for the first time, the panel prompts for your GitHub repository URL
+When using `Open in VS Code` for the first time, the panel prompts for your GitHub repository URL
 (default: `https://github.com/codesandbox/codesandbox-client`) and stores it in browser local storage for future opens.
 
-### Codespaces: Open in Browser
+### Codespaces: Open in VS Code
 
-- `Open in Browser` is coming soon.
+- `Open in VS Code` is coming soon.
 
 ### Codespaces: Open in Sandbox
 

@@ -20,7 +20,7 @@ Gerrit.install(plugin => {
   const defaultHashCommands = ['insight', 'graph'];
   const fallbackAgents = ['codex'];
   const codespacesActions = [
-    { value: 'open-browser', label: 'Open in Browser' },
+    { value: 'open-browser', label: 'Open in VS Code' },
     { value: 'open-sandbox', label: 'Open in Sandbox' }
   ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
@@ -1118,7 +1118,7 @@ Gerrit.install(plugin => {
     }
 
     async openPatchsetFilesInBrowser() {
-      this.setStatus('Open in Browser is coming soon.');
+      this.setStatus('Open in VS Code is coming soon.');
     }
 
     async openPatchsetFilesInCursor() {

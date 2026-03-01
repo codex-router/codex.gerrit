@@ -15,7 +15,7 @@
 - **Model**:
 	- By default, the first item in the returned list is selected.
 	- The selected model is passed to the backend via `--model`.
-- **Codespaces -> Open in Browser**:
+- **Codespaces -> Open in VS Code**:
 	- Currently coming soon.
 - **Codespaces -> Open in Sandbox**:
 	- Scrolls to and focuses the built-in sandbox web shell panel.
