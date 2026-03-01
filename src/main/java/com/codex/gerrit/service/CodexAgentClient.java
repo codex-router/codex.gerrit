@@ -19,6 +19,8 @@ import com.codex.gerrit.rest.CodexGraphInput;
 import com.codex.gerrit.rest.CodexGraphResponse;
 import com.codex.gerrit.rest.CodexInsightInput;
 import com.codex.gerrit.rest.CodexInsightResponse;
+import com.codex.gerrit.rest.CodexSandboxInput;
+import com.codex.gerrit.rest.CodexSandboxResponse;
 import com.google.gerrit.extensions.restapi.BadRequestException;
 import com.google.gerrit.extensions.restapi.RestApiException;
 import com.google.gson.Gson;
@@ -182,6 +184,26 @@ public class CodexAgentClient {
       return runGraphOnServer(code, normalizedFilePaths, input);
     } catch (IOException e) {
       throw new BadRequestException("Failed to run graph: " + e.getMessage());
+    }
+  }
+
+  public CodexSandboxResponse runSandbox(CodexSandboxInput input) throws RestApiException {
+    if (config.getCodexServeUrl().isEmpty()) {
+      throw new BadRequestException("codexServeUrl is not configured");
+    }
+    if (input == null) {
+      throw new BadRequestException("input is required");
+    }
+
+    String command = input.command == null ? "" : input.command.trim();
+    if (command.isEmpty()) {
+      throw new BadRequestException("command is required");
+    }
+
+    try {
+      return runSandboxOnServer(command, input);
+    } catch (IOException e) {
+      throw new BadRequestException("Failed to run sandbox command: " + e.getMessage());
     }
   }
 
@@ -498,6 +520,104 @@ public class CodexAgentClient {
     }
 
     throw new BadRequestException("Remote server error " + responseCode + ": " + body);
+  }
+
+  private CodexSandboxResponse runSandboxOnServer(String command, CodexSandboxInput input)
+      throws IOException, RestApiException {
+    URL url = new URL(config.getCodexServeUrl() + "/sandbox/run");
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.setRequestMethod("POST");
+    conn.setRequestProperty("Content-Type", "application/json");
+    conn.setRequestProperty("Accept", "application/json");
+    conn.setDoOutput(true);
+    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+    conn.setReadTimeout(RUN_READ_TIMEOUT_MS);
+
+    JsonObject json = new JsonObject();
+    json.addProperty("command", command);
+
+    String cwd = normalizeOptionalPath(input.cwd);
+    if (cwd != null) {
+      json.addProperty("cwd", cwd);
+    }
+
+    String settingsPath = normalizeOptionalPath(input.settingsPath);
+    if (settingsPath != null) {
+      json.addProperty("settingsPath", settingsPath);
+    }
+
+    if (input.timeoutSeconds != null && input.timeoutSeconds > 0) {
+      json.addProperty("timeoutSeconds", input.timeoutSeconds);
+    }
+
+    if (input.env != null && !input.env.isEmpty()) {
+      Map<String, String> normalizedEnv = new LinkedHashMap<>();
+      for (Map.Entry<String, String> entry : input.env.entrySet()) {
+        String key = entry.getKey() == null ? "" : entry.getKey().trim();
+        if (key.isEmpty()) {
+          continue;
+        }
+        String value = entry.getValue();
+        normalizedEnv.put(key, value == null ? "" : value);
+      }
+      if (!normalizedEnv.isEmpty()) {
+        json.add("env", GSON.toJsonTree(normalizedEnv));
+      }
+    }
+
+    String jsonInputString = GSON.toJson(json);
+    try (OutputStream os = conn.getOutputStream()) {
+      byte[] payload = jsonInputString.getBytes(StandardCharsets.UTF_8);
+      os.write(payload, 0, payload.length);
+    }
+
+    int responseCode = conn.getResponseCode();
+    InputStream is =
+        (responseCode >= 200 && responseCode < 300) ? conn.getInputStream() : conn.getErrorStream();
+    String body = readText(is);
+
+    if (responseCode < 200 || responseCode >= 300) {
+      throw new BadRequestException(
+          "Remote server error " + responseCode + ": " + extractRemoteErrorDetail(body));
+    }
+    if (body.trim().isEmpty()) {
+      throw new BadRequestException("Invalid /sandbox/run response from codex.serve: empty body");
+    }
+
+    JsonObject jsonBody = GSON.fromJson(body, JsonObject.class);
+    if (jsonBody == null) {
+      throw new BadRequestException("Invalid /sandbox/run response from codex.serve");
+    }
+
+    CodexSandboxResponse response = new CodexSandboxResponse();
+    response.stdout = getAsString(jsonBody, "stdout");
+    response.stderr = getAsString(jsonBody, "stderr");
+    response.command = getAsString(jsonBody, "command");
+    response.exitCode = getAsInt(jsonBody, "exit_code", 0);
+    if (jsonBody.has("exitCode") && jsonBody.get("exitCode").isJsonPrimitive()) {
+      response.exitCode = jsonBody.get("exitCode").getAsInt();
+    }
+
+    if (jsonBody.has("timed_out") && jsonBody.get("timed_out").isJsonPrimitive()) {
+      response.timedOut = jsonBody.get("timed_out").getAsBoolean();
+    } else if (jsonBody.has("timedOut") && jsonBody.get("timedOut").isJsonPrimitive()) {
+      response.timedOut = jsonBody.get("timedOut").getAsBoolean();
+    }
+
+    if (jsonBody.has("timeout_seconds") && jsonBody.get("timeout_seconds").isJsonPrimitive()) {
+      response.timeoutSeconds = jsonBody.get("timeout_seconds").getAsDouble();
+    } else if (jsonBody.has("timeoutSeconds") && jsonBody.get("timeoutSeconds").isJsonPrimitive()) {
+      response.timeoutSeconds = jsonBody.get("timeoutSeconds").getAsDouble();
+    }
+
+    if (response.stdout == null) {
+      response.stdout = "";
+    }
+    if (response.stderr == null) {
+      response.stderr = "";
+    }
+
+    return response;
   }
 
   private List<String> fetchModelsFromServer() throws IOException, RestApiException {

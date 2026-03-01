@@ -22,6 +22,7 @@ import com.codex.gerrit.rest.CodexConfigRest;
 import com.codex.gerrit.rest.CodexGraphRest;
 import com.codex.gerrit.rest.CodexInsightRest;
 import com.codex.gerrit.rest.CodexPatchsetFilesRest;
+import com.codex.gerrit.rest.CodexSandboxRest;
 import com.google.gerrit.extensions.registration.DynamicSet;
 import com.google.gerrit.extensions.restapi.RestApiModule;
 import com.google.gerrit.extensions.webui.JavaScriptPlugin;
@@ -42,6 +43,7 @@ public class Module extends AbstractModule {
             post(REVISION_KIND, "codex-chat-stop").to(CodexChatStopRest.class);
             post(REVISION_KIND, "codex-graph").to(CodexGraphRest.class);
             post(REVISION_KIND, "codex-insight").to(CodexInsightRest.class);
+            post(REVISION_KIND, "codex-sandbox").to(CodexSandboxRest.class);
             get(REVISION_KIND, "codex-config").to(CodexConfigRest.class);
             get(REVISION_KIND, "codex-patchset-files").to(CodexPatchsetFilesRest.class);
           }

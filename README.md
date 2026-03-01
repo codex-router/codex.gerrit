@@ -7,6 +7,7 @@ to supported AI agents for interactive chat.
 
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
 - Selector row includes `Agent`, `Model`, and `Codespaces` controls.
+- Includes a built-in Sandbox Web Shell panel for running commands in sandbox runtime.
 - Selector row also includes a queue status indicator showing `idle`, `request active`, `waiting`, `full`, or `wait timeout`.
 - Selector row also includes an overflow-guard indicator showing context-overflow auto-compress status (`ready`, `monitoring`, `attention`).
 - Header includes a right-side `Help` button.
@@ -36,8 +37,9 @@ to supported AI agents for interactive chat.
 - When one or more `@` files are mentioned, the plugin appends static-analysis guidance to focus findings on those files (bugs, security risks, null-safety, error handling, resource/concurrency risks, and performance concerns).
 - If a diff block omits file headers, `Review` can still map changes to `@`-mentioned files and show the popup.
 - If exactly one `@` file is mentioned and the reply provides only a fenced code block, the plugin synthesizes a unified diff preview for `Review`.
-- `Codespaces` includes `Open in Browser`.
+- `Codespaces` includes `Open in Browser` and `Open in Sandbox`.
 - `Open in Browser` is coming soon.
+- `Open in Sandbox` scrolls to and focuses the Sandbox Web Shell panel.
 - Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
 - When Codex response includes a unified diff, a popup dialog shows changed files and patch content.
 - Popup dialog supports per-file `Keep` or `Undo` decision similar to Copilot-style review flow.
@@ -90,6 +92,7 @@ When enabled:
 - During an active chat request, the plugin can stop that session via `POST /sessions/{sessionId}/stop`.
 - Insight generation requests are proxied to `codex.serve` via `POST /insight/run`.
 - Graph generation requests are proxied to `codex.serve` via `POST /graph/run`.
+- Sandbox shell requests are proxied to `codex.serve` via `POST /sandbox/run`.
 - The plugin fetches agent options from `codex.serve` using `GET /agents`.
 - The first item returned by `GET /agents` is selected by default.
 - If `GET /agents` fails, the UI falls back to `codex`.
@@ -112,6 +115,9 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - For complex tasks, choose `team` in `Agent` to use multi-agent collaboration (parallel specialist analysis, internal debate, and final synthesis).
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
 - Use `Codespaces` → `Open in Browser` (currently coming soon).
+- Use `Codespaces` → `Open in Sandbox` to jump to the Sandbox Web Shell.
+- In Sandbox Web Shell, enter a command and click `Run` to execute via sandbox runtime (`/sandbox/run`).
+- Use shell `Clear` to reset the shell output area.
 - Click `Help` (right side of the chat header) to open the quickstart popup.
 - In quickstart popup, switch between `English` and `中文` tabs as needed.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
@@ -161,6 +167,11 @@ When using `Open in Browser` for the first time, the panel prompts for your GitH
 ### Codespaces: Open in Browser
 
 - `Open in Browser` is coming soon.
+
+### Codespaces: Open in Sandbox
+
+- `Open in Sandbox` focuses the built-in Sandbox Web Shell panel.
+- The shell executes commands through plugin endpoint `codex-sandbox`, proxied to `codex.serve` `POST /sandbox/run`.
 
 ## Reference
 

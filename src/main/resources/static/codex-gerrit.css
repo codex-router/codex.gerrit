@@ -180,6 +180,59 @@
   padding: 10px;
 }
 
+.codex-shell-panel {
+  border: 1px solid #d9d9d9;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.codex-shell-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5b3a1d;
+  margin-bottom: 8px;
+}
+
+.codex-shell-command-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.codex-shell-command-input {
+  flex: 1;
+  height: var(--codex-input-height);
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: #ffffff;
+  color: #1f1f1f;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.codex-shell-output {
+  margin: 0;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: #fcfcfc;
+  color: #1f1f1f;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  min-height: 88px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
 .codex-input-row {
   display: flex;
   align-items: flex-end;

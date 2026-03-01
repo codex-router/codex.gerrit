@@ -20,7 +20,8 @@ Gerrit.install(plugin => {
   const defaultHashCommands = ['insight', 'graph'];
   const fallbackAgents = ['codex'];
   const codespacesActions = [
-    { value: 'open-browser', label: 'Open in Browser' }
+    { value: 'open-browser', label: 'Open in Browser' },
+    { value: 'open-sandbox', label: 'Open in Sandbox' }
   ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
   const browserRepoStorageKey = `${pluginName}-browser-repo-url`;
@@ -44,6 +45,7 @@ Gerrit.install(plugin => {
       this.currentMentionTrigger = '@';
       this.hashCommands = defaultHashCommands.slice();
       this.isBusyState = false;
+      this.isShellRunning = false;
       this.activeSessionId = null;
       this.activeGraphAbortController = null;
       this.isGraphRequestActive = false;
@@ -72,6 +74,9 @@ Gerrit.install(plugin => {
       this.overflowStatusContainer = null;
       this.overflowStatusValue = null;
       this.overflowStatusDetail = null;
+      this.shellCommandInput = null;
+      this.shellRunButton = null;
+      this.shellOutput = null;
     }
 
     connectedCallback() {
@@ -108,6 +113,43 @@ Gerrit.install(plugin => {
       headerLeft.appendChild(headerTitle);
       header.appendChild(headerLeft);
       header.appendChild(helpButton);
+
+      const shellPanel = document.createElement('div');
+      shellPanel.className = 'codex-shell-panel';
+
+      const shellHeader = document.createElement('div');
+      shellHeader.className = 'codex-shell-header';
+      shellHeader.textContent = '🧪 Sandbox Web Shell';
+
+      const shellCommandRow = document.createElement('div');
+      shellCommandRow.className = 'codex-shell-command-row';
+
+      const shellCommandInput = document.createElement('input');
+      shellCommandInput.type = 'text';
+      shellCommandInput.className = 'codex-shell-command-input';
+      shellCommandInput.placeholder = 'Run command in sandbox-runtime (example: ls -la)';
+
+      const shellRunButton = document.createElement('button');
+      shellRunButton.type = 'button';
+      shellRunButton.className = 'codex-button codex-small-button';
+      shellRunButton.textContent = 'Run';
+
+      const shellClearButton = document.createElement('button');
+      shellClearButton.type = 'button';
+      shellClearButton.className = 'codex-button outline codex-small-button';
+      shellClearButton.textContent = 'Clear';
+
+      shellCommandRow.appendChild(shellCommandInput);
+      shellCommandRow.appendChild(shellRunButton);
+      shellCommandRow.appendChild(shellClearButton);
+
+      const shellOutput = document.createElement('pre');
+      shellOutput.className = 'codex-shell-output';
+      shellOutput.textContent = 'No sandbox command executed yet.';
+
+      shellPanel.appendChild(shellHeader);
+      shellPanel.appendChild(shellCommandRow);
+      shellPanel.appendChild(shellOutput);
 
       const selectors = document.createElement('div');
       selectors.className = 'codex-selectors';
@@ -499,6 +541,7 @@ Gerrit.install(plugin => {
       inputPanel.appendChild(footer);
 
       wrapper.appendChild(header);
+      wrapper.appendChild(shellPanel);
       wrapper.appendChild(output);
       wrapper.appendChild(inputPanel);
       wrapper.appendChild(mentionDropdown);
@@ -523,6 +566,14 @@ Gerrit.install(plugin => {
       input.addEventListener('click', () => this.handleInputChanged());
       attachButton.addEventListener('click', () => fileInput.click());
       fileInput.addEventListener('change', () => this.handleFilesSelected(fileInput));
+      shellRunButton.addEventListener('click', () => this.runSandboxCommand());
+      shellClearButton.addEventListener('click', () => this.clearSandboxOutput());
+      shellCommandInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          this.runSandboxCommand();
+        }
+      });
       codespacesSelect.addEventListener('change', () => this.handleCodespacesAction());
       document.addEventListener('click', event => {
         if (!this.shadowRoot || !this.shadowRoot.contains(event.target)) {
@@ -591,9 +642,13 @@ Gerrit.install(plugin => {
       this.overflowStatusContainer = overflowStatusContainer;
       this.overflowStatusValue = overflowStatusValue;
       this.overflowStatusDetail = overflowStatusDetail;
+      this.shellCommandInput = shellCommandInput;
+      this.shellRunButton = shellRunButton;
+      this.shellOutput = shellOutput;
 
       this.setQueueStatus('idle');
       this.setOverflowStatus('ready');
+      this.setShellRunning(false);
 
       this.showWelcomeMessage();
       this.loadConfig();
@@ -714,7 +769,26 @@ Gerrit.install(plugin => {
       }
       if (action === 'open-browser') {
         await this.openPatchsetFilesInBrowser();
+        return;
       }
+      if (action === 'open-sandbox') {
+        this.openSandboxShell();
+      }
+    }
+
+    openSandboxShell() {
+      if (!this.shellCommandInput) {
+        this.setStatus('Sandbox shell is unavailable in this panel.');
+        return;
+      }
+
+      const shellPanel = this.shellCommandInput.closest('.codex-shell-panel');
+      if (shellPanel && typeof shellPanel.scrollIntoView === 'function') {
+        shellPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      this.shellCommandInput.focus();
+      this.setStatus('Sandbox shell is ready. Enter a command and click Run.');
     }
 
     async openPatchsetFilesInVsCode() {
@@ -1728,6 +1802,107 @@ Gerrit.install(plugin => {
       this.setQueueStatus('idle');
       this.setOverflowStatus('ready');
       this.setStatus('Chat panel cleared.');
+    }
+
+    setShellRunning(isRunning) {
+      this.isShellRunning = !!isRunning;
+      if (this.shellRunButton) {
+        this.shellRunButton.disabled = this.isShellRunning;
+        this.shellRunButton.textContent = this.isShellRunning ? 'Running...' : 'Run';
+      }
+      if (this.shellCommandInput) {
+        this.shellCommandInput.disabled = this.isShellRunning;
+      }
+    }
+
+    clearSandboxOutput() {
+      if (this.shellOutput) {
+        this.shellOutput.textContent = 'No sandbox command executed yet.';
+      }
+      this.setStatus('Sandbox output cleared.');
+    }
+
+    renderSandboxResult(response, fallbackCommand) {
+      const safeResponse = response || {};
+      const command = (safeResponse.command || fallbackCommand || '').trim();
+      const stdout = typeof safeResponse.stdout === 'string' ? safeResponse.stdout : '';
+      const stderr = typeof safeResponse.stderr === 'string' ? safeResponse.stderr : '';
+      const exitCode = Number.isFinite(safeResponse.exitCode)
+        ? safeResponse.exitCode
+        : Number.isFinite(safeResponse.exit_code)
+          ? safeResponse.exit_code
+          : 1;
+      const timedOut = !!(safeResponse.timedOut || safeResponse.timed_out);
+
+      const parts = [];
+      if (command) {
+        parts.push(`$ ${command}`);
+      }
+      parts.push(`Exit code: ${exitCode}${timedOut ? ' (timed out)' : ''}`);
+      parts.push('');
+      parts.push('stdout:');
+      parts.push(stdout || '(empty)');
+      parts.push('');
+      parts.push('stderr:');
+      parts.push(stderr || '(empty)');
+
+      if (this.shellOutput) {
+        this.shellOutput.textContent = parts.join('\n');
+      }
+    }
+
+    async runSandboxCommand() {
+      if (this.isShellRunning) {
+        return;
+      }
+
+      if (!(await this.ensureAuthenticated())) {
+        this.setStatus('Sign in to Gerrit before running sandbox commands.');
+        return;
+      }
+
+      const command = (this.shellCommandInput && this.shellCommandInput.value || '').trim();
+      if (!command) {
+        this.setStatus('Enter a sandbox command first.');
+        return;
+      }
+
+      const changeId = this.getChangeId();
+      const revision = this.getRevisionId();
+      if (!changeId) {
+        this.setStatus('Unable to detect change id.');
+        return;
+      }
+
+      const path = this.buildRevisionRestPath(changeId, revision, 'codex-sandbox');
+      this.setShellRunning(true);
+      this.setStatus('Running sandbox command...');
+
+      try {
+        const response = await plugin.restApi().post(path, { command });
+        this.renderSandboxResult(response, command);
+
+        const exitCode = response && Number.isFinite(response.exitCode)
+          ? response.exitCode
+          : response && Number.isFinite(response.exit_code)
+            ? response.exit_code
+            : 1;
+
+        if (exitCode === 0) {
+          this.setStatus('Sandbox command completed.');
+        } else {
+          this.setStatus(`Sandbox command finished with exit ${exitCode}.`);
+        }
+      } catch (error) {
+        logError('Sandbox command failed.', error);
+        const message = this.getErrorMessage(error);
+        if (this.shellOutput) {
+          this.shellOutput.textContent = `Sandbox run failed: ${message}`;
+        }
+        this.setStatus(`Sandbox run failed: ${message}`);
+      } finally {
+        this.setShellRunning(false);
+      }
     }
 
     /**
