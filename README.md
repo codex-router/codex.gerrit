@@ -22,6 +22,7 @@ to supported AI agents for interactive chat.
 - Agent selector is populated from `codex.serve` `GET /agents`.
 - The first item returned by `GET /agents` is selected by default.
 - If `GET /agents` is unavailable, the selector falls back to `codex`.
+- If `team` is available in `Agent`, selecting it enables `codex.serve` multi-agent collaboration mode (parallel specialists + debate + synthesis).
 - Model selector shows models returned by `codex.serve` `GET /models`.
 - The first item returned by `GET /models` is selected by default.
 - `@` file mention dropdown sourced from current patchset files for context selection.
@@ -82,6 +83,7 @@ When enabled:
 - All agent requests are sent to the configured URL via HTTP POST.
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
 - The plugin sends `agent`, `stdin`, `sessionId`, and `args` (`--model` when a specific model is selected).
+- When `agent` is `team` (and backend `AGENT_LIST` includes `team`), `codex.serve` orchestrates non-`team` agents as specialists, runs them in parallel, performs an internal debate pass, then returns a synthesized final answer.
 - When `@` files are used, the plugin also sends `contextFiles` with `{path, content}` entries to `codex.serve`.
 - When files are attached by the user in the chat panel, the plugin sends them as `attachedFiles` with `{name, content}` entries; `codex.serve` accepts these via the `contextFiles` field of `POST /agent/run` using the typed `ContextFileItem` model (supports `content` for plain text or `base64Content` for binary files).
 - For compatibility with different clients and naming policies, attachment parsing also accepts common aliases: `attached_files`/`attachments`/`files` at the top level, plus `path`/`fileName`, `base64_content`/`contentBase64`, and `text`/`body` in each file item.
@@ -107,6 +109,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Use the selector row to choose `Agent` (options are loaded from `codex.serve` `GET /agents`; the first returned item is selected by default, and if unavailable it falls back to `codex`).
+- For complex tasks, choose `team` in `Agent` to use multi-agent collaboration (parallel specialist analysis, internal debate, and final synthesis).
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
 - Use `Codespaces` → `Open in Browser` (currently coming soon).
 - Click `Help` (right side of the chat header) to open the quickstart popup.

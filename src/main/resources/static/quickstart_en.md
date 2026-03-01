@@ -11,6 +11,7 @@
 - **Agent**:
 	- By default, the first item in the returned list is selected.
 	- If loading fails, it falls back to `codex`.
+	- If `team` is selected, the backend runs multi-agent collaboration: non-`team` agents work in parallel, debate internally, and synthesize one final answer.
 - **Model**:
 	- By default, the first item in the returned list is selected.
 	- The selected model is passed to the backend via `--model`.
