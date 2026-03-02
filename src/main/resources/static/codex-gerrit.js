@@ -21,7 +21,7 @@ Gerrit.install(plugin => {
   const fallbackAgents = ['codex'];
   const codespacesActions = [
     { value: 'open-browser', label: 'Open in VS Code' },
-    { value: 'open-sandbox', label: 'Open in Sandbox' }
+    { value: 'open-sandbox', label: 'Open in Browser Sandbox' }
   ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
   const browserRepoStorageKey = `${pluginName}-browser-repo-url`;

@@ -17,7 +17,7 @@
 	- The selected model is passed to the backend via `--model`.
 - **Codespaces -> Open in VS Code**:
 	- Currently coming soon.
-- **Codespaces -> Open in Sandbox**:
+- **Codespaces -> Open in Browser Sandbox**:
 	- Scrolls to and focuses the built-in sandbox web shell panel.
 
 ## ⌨️ Prompt Commands
@@ -54,7 +54,7 @@
 	- Interrupts the currently running chat session.
 - **Clear**:
 	- Clears messages, input content, and pending review state.
-- **Codespaces -> Open in Sandbox**:
+- **Codespaces -> Open in Browser Sandbox**:
 	- Jumps to the sandbox shell panel.
 	- Use `Run` to execute a command via sandbox runtime.
 	- Use `Clear` to clear shell output.

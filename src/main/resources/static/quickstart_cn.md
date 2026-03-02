@@ -17,7 +17,7 @@
 	- 所选模型会通过 `--model` 传给后端。
 - **Codespaces -> Open in VS Code**：
 	- 当前为即将推出（coming soon）。
-- **Codespaces -> Open in Sandbox**：
+- **Codespaces -> Open in Browser Sandbox**：
 	- 会滚动并聚焦到内置的沙箱 Web Shell 面板。
 
 ## ⌨️ 提示词命令
@@ -54,7 +54,7 @@
 	- 中断当前正在执行的聊天会话（session）。
 - **Clear**：
 	- 清空消息、输入内容与待审阅（pending review）状态。
-- **Codespaces -> Open in Sandbox**：
+- **Codespaces -> Open in Browser Sandbox**：
 	- 快速跳转到沙箱 Shell 面板。
 	- 使用 `Run` 通过 sandbox runtime 执行命令。
 	- 使用 `Clear` 清空 Shell 输出。
