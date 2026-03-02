@@ -772,7 +772,7 @@ Gerrit.install(plugin => {
         return;
       }
       if (action === 'open-sandbox') {
-        this.openSandboxShell();
+        await this.openInBrowserSandbox();
       }
     }
 
@@ -789,6 +789,114 @@ Gerrit.install(plugin => {
 
       this.shellCommandInput.focus();
       this.setStatus('Sandbox shell is ready. Enter a command and click Run.');
+    }
+
+    shellSingleQuote(value) {
+      const safeValue = value == null ? '' : String(value);
+      return `'${safeValue.replace(/'/g, `'"'"'`)}'`;
+    }
+
+    buildCodeSandboxUrlFromRepo(repoUrl) {
+      const normalizedRepo = this.normalizeBrowserRepoUrl(repoUrl);
+      if (!normalizedRepo) {
+        return '';
+      }
+
+      let parsed;
+      try {
+        parsed = new URL(normalizedRepo);
+      } catch (error) {
+        return '';
+      }
+
+      const hostname = (parsed.hostname || '').toLowerCase();
+      if (hostname !== 'github.com' && hostname !== 'www.github.com') {
+        return '';
+      }
+
+      const repoPath = (parsed.pathname || '').replace(/^\/+/, '').replace(/\/+$/, '');
+      if (!repoPath) {
+        return '';
+      }
+
+      return `https://codesandbox.io/p/github/${repoPath}?import=true`;
+    }
+
+    buildOpenBrowserSandboxCommand(repoUrl) {
+      const quotedRepoUrl = this.shellSingleQuote(repoUrl);
+      return [
+        `repo=${quotedRepoUrl}`,
+        'repo="${repo#https://github.com/}"',
+        'repo="${repo#http://github.com/}"',
+        'repo="${repo#github.com/}"',
+        'repo="${repo%.git}"',
+        'printf "https://codesandbox.io/p/github/%s?import=true\\n" "$repo"'
+      ].join('; ');
+    }
+
+    extractFirstHttpUrl(text) {
+      const value = typeof text === 'string' ? text : '';
+      const match = value.match(/https?:\/\/[^\s"'<>]+/i);
+      return match ? match[0] : '';
+    }
+
+    async openInBrowserSandbox() {
+      if (!(await this.ensureAuthenticated())) {
+        this.setStatus('Sign in to Gerrit before opening Browser Sandbox.');
+        return;
+      }
+
+      const repoUrl = this.getOrPromptBrowserRepoUrl();
+      if (!repoUrl) {
+        this.setStatus('Open in Browser Sandbox canceled.');
+        return;
+      }
+
+      const browserUrl = this.buildCodeSandboxUrlFromRepo(repoUrl);
+      if (!browserUrl) {
+        this.setStatus('Please provide a valid GitHub repository URL.');
+        return;
+      }
+
+      const changeId = this.getChangeId();
+      const revision = this.getRevisionId();
+      if (!changeId) {
+        this.setStatus('Unable to detect change id.');
+        return;
+      }
+
+      const path = this.buildRevisionRestPath(changeId, revision, 'codex-sandbox');
+      const command = this.buildOpenBrowserSandboxCommand(repoUrl);
+      this.setStatus('Preparing Browser Sandbox...');
+
+      try {
+        const response = await plugin.restApi().post(path, {
+          command,
+          timeoutSeconds: 30
+        });
+
+        this.renderSandboxResult(response, command);
+
+        const exitCode = response && Number.isFinite(response.exitCode)
+          ? response.exitCode
+          : response && Number.isFinite(response.exit_code)
+            ? response.exit_code
+            : 1;
+
+        if (exitCode !== 0) {
+          const stderr = response && typeof response.stderr === 'string' ? response.stderr.trim() : '';
+          throw new Error(stderr || `Sandbox command finished with exit ${exitCode}.`);
+        }
+
+        const stdoutText = response && typeof response.stdout === 'string' ? response.stdout : '';
+        const extractedUrl = this.extractFirstHttpUrl(stdoutText);
+        const targetUrl = extractedUrl || browserUrl;
+        window.open(targetUrl, '_blank', 'noopener');
+        this.setStatus('Opened Browser Sandbox.');
+      } catch (error) {
+        logError('Open in Browser Sandbox failed.', error);
+        this.setStatus(`Open in Browser Sandbox failed: ${this.getErrorMessage(error)}`);
+      }
     }
 
     async openPatchsetFilesInVsCode() {

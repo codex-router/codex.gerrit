@@ -39,7 +39,7 @@ to supported AI agents for interactive chat.
 - If exactly one `@` file is mentioned and the reply provides only a fenced code block, the plugin synthesizes a unified diff preview for `Review`.
 - `Codespaces` includes `Open in VS Code` and `Open in Browser Sandbox`.
 - `Open in VS Code` is coming soon.
-- `Open in Browser Sandbox` scrolls to and focuses the Sandbox Web Shell panel.
+- `Open in Browser Sandbox` invokes sandbox execution via plugin endpoint `codex-sandbox` (proxied to `codex.serve` `POST /sandbox/run`) and opens Browser Sandbox in a new tab.
 - Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
 - When Codex response includes a unified diff, a popup dialog shows changed files and patch content.
 - Popup dialog supports per-file `Keep` or `Undo` decision similar to Copilot-style review flow.
@@ -115,7 +115,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - For complex tasks, choose `team` in `Agent` to use multi-agent collaboration (parallel specialist analysis, internal debate, and final synthesis).
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
 - Use `Codespaces` → `Open in VS Code` (currently coming soon).
-- Use `Codespaces` → `Open in Browser Sandbox` to jump to the Sandbox Web Shell.
+- Use `Codespaces` → `Open in Browser Sandbox` to trigger sandbox execution and open Browser Sandbox in a new tab.
 - In Sandbox Web Shell, enter a command and click `Run` to execute via sandbox runtime (`/sandbox/run`).
 - Use shell `Clear` to reset the shell output area.
 - Click `Help` (right side of the chat header) to open the quickstart popup.
@@ -170,8 +170,9 @@ When using `Open in VS Code` for the first time, the panel prompts for your GitH
 
 ### Codespaces: Open in Browser Sandbox
 
-- `Open in Browser Sandbox` focuses the built-in Sandbox Web Shell panel.
-- The shell executes commands through plugin endpoint `codex-sandbox`, proxied to `codex.serve` `POST /sandbox/run`.
+- `Open in Browser Sandbox` executes a sandbox command through plugin endpoint `codex-sandbox` (proxied to `codex.serve` `POST /sandbox/run`).
+- The panel resolves a Browser Sandbox URL from sandbox output and opens it in a new browser tab.
+- If URL extraction fails, it falls back to a computed CodeSandbox URL from the configured GitHub repository URL.
 
 ## Reference
 

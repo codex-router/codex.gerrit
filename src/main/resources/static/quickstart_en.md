@@ -18,7 +18,7 @@
 - **Codespaces -> Open in VS Code**:
 	- Currently coming soon.
 - **Codespaces -> Open in Browser Sandbox**:
-	- Scrolls to and focuses the built-in sandbox web shell panel.
+	- Opens Browser Sandbox URL in a new tab.
 
 ## ⌨️ Prompt Commands
 
@@ -55,9 +55,7 @@
 - **Clear**:
 	- Clears messages, input content, and pending review state.
 - **Codespaces -> Open in Browser Sandbox**:
-	- Jumps to the sandbox shell panel.
-	- Use `Run` to execute a command via sandbox runtime.
-	- Use `Clear` to clear shell output.
+	- Opens the resolved Browser Sandbox URL in a new tab.
 
 ## 🚦 Queue Status Indicator
 

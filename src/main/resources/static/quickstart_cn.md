@@ -18,7 +18,7 @@
 - **Codespaces -> Open in VS Code**：
 	- 当前为即将推出（coming soon）。
 - **Codespaces -> Open in Browser Sandbox**：
-	- 会滚动并聚焦到内置的沙箱 Web Shell 面板。
+	- 在新标签页打开 Browser Sandbox URL。
 
 ## ⌨️ 提示词命令
 
@@ -55,9 +55,7 @@
 - **Clear**：
 	- 清空消息、输入内容与待审阅（pending review）状态。
 - **Codespaces -> Open in Browser Sandbox**：
-	- 快速跳转到沙箱 Shell 面板。
-	- 使用 `Run` 通过 sandbox runtime 执行命令。
-	- 使用 `Clear` 清空 Shell 输出。
+	- 在新标签页打开解析后的 Browser Sandbox URL。
 
 ## 🚦 队列状态指示
 
