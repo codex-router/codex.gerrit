@@ -45,7 +45,7 @@ RUN useradd -m -s /bin/bash builder \
     && chown -R builder:builder /workspace
 
 # Clone Gerrit
-RUN git clone https://gerrit.googlesource.com/gerrit -b stable-3.4 \
+RUN git clone https://github.com/craftslab/gerrit.git -b stable-3.4 --depth 1\
     && chown -R builder:builder /workspace/gerrit
 
 # Copy plugin source
@@ -67,7 +67,7 @@ RUN cd /workspace/gerrit/plugins/codex \
 
 # Initialize Gerrit submodules
 RUN git config --global --add safe.directory '*' \
-    && cd gerrit && git submodule update --init --recursive \
+    && cd gerrit && git submodule update --init --recursive --depth 1 \
     && chown -R builder:builder /workspace/gerrit
 
 # Switch to non-root user for build
