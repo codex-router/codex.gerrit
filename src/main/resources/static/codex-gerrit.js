@@ -1936,24 +1936,25 @@ Gerrit.install(plugin => {
       const command = (safeResponse.command || fallbackCommand || '').trim();
       const stdout = typeof safeResponse.stdout === 'string' ? safeResponse.stdout : '';
       const stderr = typeof safeResponse.stderr === 'string' ? safeResponse.stderr : '';
-      const exitCode = Number.isFinite(safeResponse.exitCode)
-        ? safeResponse.exitCode
-        : Number.isFinite(safeResponse.exit_code)
-          ? safeResponse.exit_code
-          : 1;
       const timedOut = !!(safeResponse.timedOut || safeResponse.timed_out);
+      const stderrText = stderr.trim();
 
       const parts = [];
       if (command) {
         parts.push(`$ ${command}`);
       }
-      parts.push(`Exit code: ${exitCode}${timedOut ? ' (timed out)' : ''}`);
-      parts.push('');
-      parts.push('stdout:');
-      parts.push(stdout || '(empty)');
-      parts.push('');
-      parts.push('stderr:');
-      parts.push(stderr || '(empty)');
+      if (timedOut) {
+        parts.push('Timed out');
+      }
+      const stdoutText = stdout.trim();
+      if (stdoutText) {
+        parts.push('');
+        parts.push(stdoutText);
+      }
+      if (stderrText) {
+        parts.push('');
+        parts.push(stderrText);
+      }
 
       if (this.shellOutput) {
         this.shellOutput.textContent = parts.join('\n');
