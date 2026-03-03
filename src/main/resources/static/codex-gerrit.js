@@ -19,6 +19,7 @@ Gerrit.install(plugin => {
   const mentionAllKeyword = 'all';
   const defaultHashCommands = ['insight', 'graph'];
   const fallbackAgents = ['codex'];
+  const sandboxTimeoutSeconds = 30;
   const codespacesActions = [
     { value: 'open-browser', label: 'Open in VS Code' },
     { value: 'open-sandbox', label: 'Open in Browser Sandbox' }
@@ -872,7 +873,7 @@ Gerrit.install(plugin => {
       try {
         const response = await plugin.restApi().post(path, {
           command,
-          timeoutSeconds: 30
+          timeoutSeconds: sandboxTimeoutSeconds
         });
 
         this.renderSandboxResult(response, command);
@@ -1987,7 +1988,10 @@ Gerrit.install(plugin => {
       this.setStatus('Running sandbox command...');
 
       try {
-        const response = await plugin.restApi().post(path, { command });
+        const response = await plugin.restApi().post(path, {
+          command,
+          timeoutSeconds: sandboxTimeoutSeconds
+        });
         this.renderSandboxResult(response, command);
 
         const exitCode = response && Number.isFinite(response.exitCode)
