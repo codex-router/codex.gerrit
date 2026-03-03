@@ -40,6 +40,7 @@ to supported AI agents for interactive chat.
 - `Codespaces` includes `Open in VS Code` and `Open in Browser Sandbox`.
 - `Open in VS Code` is coming soon.
 - `Open in Browser Sandbox` invokes sandbox execution via plugin endpoint `codex-sandbox` (proxied to `codex.serve` `POST /sandbox/run`) and opens Browser Sandbox in a new tab.
+- Sandbox requests from Gerrit UI use a short timeout (`3s`) to match codex-sandbox runtime limits; `codex.serve` may also apply a hard timeout cap.
 - Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
 - When Codex response includes a unified diff, a popup dialog shows changed files and patch content.
 - Popup dialog supports per-file `Keep` or `Undo` decision similar to Copilot-style review flow.
@@ -117,6 +118,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Use `Codespaces` → `Open in VS Code` (currently coming soon).
 - Use `Codespaces` → `Open in Browser Sandbox` to trigger sandbox execution and open Browser Sandbox in a new tab.
 - In Sandbox Web Shell, enter a command and click `Run` to execute via sandbox runtime (`/sandbox/run`).
+- Browser Sandbox and Web Shell requests use `timeoutSeconds=3` by default to avoid timeout-limit failures from upstream sandbox runtime.
 - Use shell `Clear` to reset the shell output area.
 - Click `Help` (right side of the chat header) to open the quickstart popup.
 - In quickstart popup, switch between `English` and `中文` tabs as needed.
@@ -173,6 +175,7 @@ When using `Open in VS Code` for the first time, the panel prompts for your GitH
 - `Open in Browser Sandbox` executes a sandbox command through plugin endpoint `codex-sandbox` (proxied to `codex.serve` `POST /sandbox/run`).
 - The panel resolves a Browser Sandbox URL from sandbox output and opens it in a new browser tab.
 - If URL extraction fails, it falls back to a computed CodeSandbox URL from the configured GitHub repository URL.
+- Sandbox requests use a short timeout (`3s`) and are further bounded by server-side hard cap when configured on `codex.serve`.
 
 ## Reference
 

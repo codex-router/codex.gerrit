@@ -19,7 +19,7 @@ Gerrit.install(plugin => {
   const mentionAllKeyword = 'all';
   const defaultHashCommands = ['insight', 'graph'];
   const fallbackAgents = ['codex'];
-  const sandboxTimeoutSeconds = 30;
+  const sandboxTimeoutSeconds = 3;
   const codespacesActions = [
     { value: 'open-browser', label: 'Open in VS Code' },
     { value: 'open-sandbox', label: 'Open in Browser Sandbox' }
