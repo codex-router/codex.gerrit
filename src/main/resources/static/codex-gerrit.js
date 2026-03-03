@@ -46,7 +46,7 @@ Gerrit.install(plugin => {
       this.currentMentionTrigger = '@';
       this.hashCommands = defaultHashCommands.slice();
       this.isBusyState = false;
-      this.isShellRunning = false;
+      this.isSandboxCommandRunning = false;
       this.activeSessionId = null;
       this.activeGraphAbortController = null;
       this.isGraphRequestActive = false;
@@ -75,9 +75,13 @@ Gerrit.install(plugin => {
       this.overflowStatusContainer = null;
       this.overflowStatusValue = null;
       this.overflowStatusDetail = null;
-      this.shellCommandInput = null;
-      this.shellRunButton = null;
-      this.shellOutput = null;
+      this.sandboxCommandDialogOverlay = null;
+      this.sandboxCommandDialogInput = null;
+      this.sandboxCommandDialogRun = null;
+      this.sandboxCommandDialogCancel = null;
+      this.sandboxCommandDialogOutput = null;
+      this.sandboxCommandDialogFinish = null;
+      this.sandboxCommandDialogPromise = null;
     }
 
     connectedCallback() {
@@ -114,43 +118,6 @@ Gerrit.install(plugin => {
       headerLeft.appendChild(headerTitle);
       header.appendChild(headerLeft);
       header.appendChild(helpButton);
-
-      const shellPanel = document.createElement('div');
-      shellPanel.className = 'codex-shell-panel';
-
-      const shellHeader = document.createElement('div');
-      shellHeader.className = 'codex-shell-header';
-      shellHeader.textContent = '🧪 Sandbox Web Shell';
-
-      const shellCommandRow = document.createElement('div');
-      shellCommandRow.className = 'codex-shell-command-row';
-
-      const shellCommandInput = document.createElement('input');
-      shellCommandInput.type = 'text';
-      shellCommandInput.className = 'codex-shell-command-input';
-      shellCommandInput.placeholder = 'Run command in sandbox-runtime (example: ls -la)';
-
-      const shellRunButton = document.createElement('button');
-      shellRunButton.type = 'button';
-      shellRunButton.className = 'codex-button codex-small-button';
-      shellRunButton.textContent = 'Run';
-
-      const shellClearButton = document.createElement('button');
-      shellClearButton.type = 'button';
-      shellClearButton.className = 'codex-button outline codex-small-button';
-      shellClearButton.textContent = 'Clear';
-
-      shellCommandRow.appendChild(shellCommandInput);
-      shellCommandRow.appendChild(shellRunButton);
-      shellCommandRow.appendChild(shellClearButton);
-
-      const shellOutput = document.createElement('pre');
-      shellOutput.className = 'codex-shell-output';
-      shellOutput.textContent = 'No sandbox command executed yet.';
-
-      shellPanel.appendChild(shellHeader);
-      shellPanel.appendChild(shellCommandRow);
-      shellPanel.appendChild(shellOutput);
 
       const selectors = document.createElement('div');
       selectors.className = 'codex-selectors';
@@ -524,6 +491,65 @@ Gerrit.install(plugin => {
         workspaceRootDialog.appendChild(workspaceRootDialogBody);
         workspaceRootDialogOverlay.appendChild(workspaceRootDialog);
 
+      const sandboxCommandDialogOverlay = document.createElement('div');
+      sandboxCommandDialogOverlay.className = 'codex-workspace-root-dialog-overlay hidden';
+
+      const sandboxCommandDialog = document.createElement('div');
+      sandboxCommandDialog.className = 'codex-workspace-root-dialog';
+      sandboxCommandDialog.setAttribute('role', 'dialog');
+      sandboxCommandDialog.setAttribute('aria-modal', 'true');
+      sandboxCommandDialog.addEventListener('click', event => event.stopPropagation());
+
+      const sandboxCommandDialogHeader = document.createElement('div');
+      sandboxCommandDialogHeader.className = 'codex-change-dialog-header';
+
+      const sandboxCommandDialogTitle = document.createElement('div');
+      sandboxCommandDialogTitle.className = 'codex-change-dialog-title';
+      sandboxCommandDialogTitle.textContent = 'Run Browser Sandbox Command';
+
+      sandboxCommandDialogHeader.appendChild(sandboxCommandDialogTitle);
+
+      const sandboxCommandDialogBody = document.createElement('div');
+      sandboxCommandDialogBody.className = 'codex-workspace-root-dialog-body';
+
+      const sandboxCommandDialogDescription = document.createElement('div');
+      sandboxCommandDialogDescription.className = 'codex-workspace-root-dialog-description';
+      sandboxCommandDialogDescription.textContent = 'Edit and run a shell command. This command is executed with /sandbox/run.';
+
+      const sandboxCommandDialogInput = document.createElement('input');
+      sandboxCommandDialogInput.type = 'text';
+      sandboxCommandDialogInput.className = 'codex-shell-command-input';
+      sandboxCommandDialogInput.placeholder = 'echo hello';
+
+      const sandboxCommandDialogOutput = document.createElement('pre');
+      sandboxCommandDialogOutput.className = 'codex-shell-output';
+      sandboxCommandDialogOutput.textContent = 'Enter a command, then click Run.';
+
+      const sandboxCommandDialogActions = document.createElement('div');
+      sandboxCommandDialogActions.className = 'codex-workspace-root-dialog-actions';
+
+      const sandboxCommandDialogCancel = document.createElement('button');
+      sandboxCommandDialogCancel.type = 'button';
+      sandboxCommandDialogCancel.className = 'codex-button outline codex-small-button';
+      sandboxCommandDialogCancel.textContent = 'Cancel';
+
+      const sandboxCommandDialogRun = document.createElement('button');
+      sandboxCommandDialogRun.type = 'button';
+      sandboxCommandDialogRun.className = 'codex-button codex-small-button';
+      sandboxCommandDialogRun.textContent = 'Run';
+
+      sandboxCommandDialogActions.appendChild(sandboxCommandDialogCancel);
+      sandboxCommandDialogActions.appendChild(sandboxCommandDialogRun);
+
+      sandboxCommandDialogBody.appendChild(sandboxCommandDialogDescription);
+      sandboxCommandDialogBody.appendChild(sandboxCommandDialogInput);
+      sandboxCommandDialogBody.appendChild(sandboxCommandDialogOutput);
+      sandboxCommandDialogBody.appendChild(sandboxCommandDialogActions);
+
+      sandboxCommandDialog.appendChild(sandboxCommandDialogHeader);
+      sandboxCommandDialog.appendChild(sandboxCommandDialogBody);
+      sandboxCommandDialogOverlay.appendChild(sandboxCommandDialog);
+
       const inputActions = document.createElement('div');
       inputActions.className = 'codex-actions';
       inputActions.appendChild(stopButton);
@@ -542,7 +568,6 @@ Gerrit.install(plugin => {
       inputPanel.appendChild(footer);
 
       wrapper.appendChild(header);
-      wrapper.appendChild(shellPanel);
       wrapper.appendChild(output);
       wrapper.appendChild(inputPanel);
       wrapper.appendChild(mentionDropdown);
@@ -551,6 +576,7 @@ Gerrit.install(plugin => {
       wrapper.appendChild(insightDialogOverlay);
       wrapper.appendChild(graphSelectionDialogOverlay);
       wrapper.appendChild(workspaceRootDialogOverlay);
+      wrapper.appendChild(sandboxCommandDialogOverlay);
 
       const style = document.createElement('link');
       style.rel = 'stylesheet';
@@ -567,14 +593,6 @@ Gerrit.install(plugin => {
       input.addEventListener('click', () => this.handleInputChanged());
       attachButton.addEventListener('click', () => fileInput.click());
       fileInput.addEventListener('change', () => this.handleFilesSelected(fileInput));
-      shellRunButton.addEventListener('click', () => this.runSandboxCommand());
-      shellClearButton.addEventListener('click', () => this.clearSandboxOutput());
-      shellCommandInput.addEventListener('keydown', event => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          this.runSandboxCommand();
-        }
-      });
       codespacesSelect.addEventListener('change', () => this.handleCodespacesAction());
       document.addEventListener('click', event => {
         if (!this.shadowRoot || !this.shadowRoot.contains(event.target)) {
@@ -606,6 +624,10 @@ Gerrit.install(plugin => {
         }
         if (event.key === 'Escape' && this.isGraphSelectionDialogVisible()) {
           this.closeGraphSelectionDialog();
+          return;
+        }
+        if (event.key === 'Escape' && this.isSandboxCommandDialogVisible()) {
+          this.closeSandboxCommandDialog();
         }
       });
 
@@ -643,13 +665,14 @@ Gerrit.install(plugin => {
       this.overflowStatusContainer = overflowStatusContainer;
       this.overflowStatusValue = overflowStatusValue;
       this.overflowStatusDetail = overflowStatusDetail;
-      this.shellCommandInput = shellCommandInput;
-      this.shellRunButton = shellRunButton;
-      this.shellOutput = shellOutput;
+      this.sandboxCommandDialogOverlay = sandboxCommandDialogOverlay;
+      this.sandboxCommandDialogInput = sandboxCommandDialogInput;
+      this.sandboxCommandDialogRun = sandboxCommandDialogRun;
+      this.sandboxCommandDialogCancel = sandboxCommandDialogCancel;
+      this.sandboxCommandDialogOutput = sandboxCommandDialogOutput;
 
       this.setQueueStatus('idle');
       this.setOverflowStatus('ready');
-      this.setShellRunning(false);
 
       this.showWelcomeMessage();
       this.loadConfig();
@@ -777,21 +800,6 @@ Gerrit.install(plugin => {
       }
     }
 
-    openSandboxShell() {
-      if (!this.shellCommandInput) {
-        this.setStatus('Sandbox shell is unavailable in this panel.');
-        return;
-      }
-
-      const shellPanel = this.shellCommandInput.closest('.codex-shell-panel');
-      if (shellPanel && typeof shellPanel.scrollIntoView === 'function') {
-        shellPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-
-      this.shellCommandInput.focus();
-      this.setStatus('Sandbox shell is ready. Enter a command and click Run.');
-    }
-
     shellSingleQuote(value) {
       const safeValue = value == null ? '' : String(value);
       return `'${safeValue.replace(/'/g, `'"'"'`)}'`;
@@ -866,30 +874,16 @@ Gerrit.install(plugin => {
         return;
       }
 
-      const path = this.buildRevisionRestPath(changeId, revision, 'codex-sandbox');
-      const command = this.buildOpenBrowserSandboxCommand(repoUrl);
-      this.setStatus('Preparing Browser Sandbox...');
+      const path = this.buildRevisionRestPath(changeId, revision, 'sandbox/run');
+      const defaultCommand = this.buildOpenBrowserSandboxCommand(repoUrl);
+      const runResult = await this.promptSandboxCommandDialog(defaultCommand, path);
+      if (!runResult || !runResult.response) {
+        this.setStatus('Open in Browser Sandbox canceled.');
+        return;
+      }
 
       try {
-        const response = await plugin.restApi().post(path, {
-          command,
-          timeoutSeconds: sandboxTimeoutSeconds
-        });
-
-        this.renderSandboxResult(response, command);
-
-        const exitCode = response && Number.isFinite(response.exitCode)
-          ? response.exitCode
-          : response && Number.isFinite(response.exit_code)
-            ? response.exit_code
-            : 1;
-
-        if (exitCode !== 0) {
-          const stderr = response && typeof response.stderr === 'string' ? response.stderr.trim() : '';
-          throw new Error(stderr || `Sandbox command finished with exit ${exitCode}.`);
-        }
-
-        const stdoutText = response && typeof response.stdout === 'string' ? response.stdout : '';
+        const stdoutText = typeof runResult.response.stdout === 'string' ? runResult.response.stdout : '';
         const extractedUrl = this.extractFirstHttpUrl(stdoutText);
         const targetUrl = extractedUrl || browserUrl;
         window.open(targetUrl, '_blank', 'noopener');
@@ -1913,25 +1907,17 @@ Gerrit.install(plugin => {
       this.setStatus('Chat panel cleared.');
     }
 
-    setShellRunning(isRunning) {
-      this.isShellRunning = !!isRunning;
-      if (this.shellRunButton) {
-        this.shellRunButton.disabled = this.isShellRunning;
-        this.shellRunButton.textContent = this.isShellRunning ? 'Running...' : 'Run';
+    getSandboxExitCode(response) {
+      if (response && Number.isFinite(response.exitCode)) {
+        return response.exitCode;
       }
-      if (this.shellCommandInput) {
-        this.shellCommandInput.disabled = this.isShellRunning;
+      if (response && Number.isFinite(response.exit_code)) {
+        return response.exit_code;
       }
+      return 1;
     }
 
-    clearSandboxOutput() {
-      if (this.shellOutput) {
-        this.shellOutput.textContent = 'No sandbox command executed yet.';
-      }
-      this.setStatus('Sandbox output cleared.');
-    }
-
-    renderSandboxResult(response, fallbackCommand) {
+    renderSandboxResultText(response, fallbackCommand) {
       const safeResponse = response || {};
       const command = (safeResponse.command || fallbackCommand || '').trim();
       const stdout = typeof safeResponse.stdout === 'string' ? safeResponse.stdout : '';
@@ -1956,66 +1942,156 @@ Gerrit.install(plugin => {
         parts.push(stderrText);
       }
 
-      if (this.shellOutput) {
-        this.shellOutput.textContent = parts.join('\n');
-      }
+      return parts.join('\n');
     }
 
-    async runSandboxCommand() {
-      if (this.isShellRunning) {
-        return;
-      }
-
-      if (!(await this.ensureAuthenticated())) {
-        this.setStatus('Sign in to Gerrit before running sandbox commands.');
-        return;
-      }
-
-      const command = (this.shellCommandInput && this.shellCommandInput.value || '').trim();
-      if (!command) {
-        this.setStatus('Enter a sandbox command first.');
-        return;
-      }
-
+    async runSandboxCommandRequest(command, path) {
       const changeId = this.getChangeId();
       const revision = this.getRevisionId();
       if (!changeId) {
-        this.setStatus('Unable to detect change id.');
-        return;
+        throw new Error('Unable to detect change id.');
       }
 
-      const path = this.buildRevisionRestPath(changeId, revision, 'codex-sandbox');
-      this.setShellRunning(true);
-      this.setStatus('Running sandbox command...');
+      const runPath = path || this.buildRevisionRestPath(changeId, revision, 'sandbox/run');
+      return plugin.restApi().post(runPath, {
+        command,
+        timeoutSeconds: sandboxTimeoutSeconds
+      });
+    }
 
-      try {
-        const response = await plugin.restApi().post(path, {
-          command,
-          timeoutSeconds: sandboxTimeoutSeconds
-        });
-        this.renderSandboxResult(response, command);
-
-        const exitCode = response && Number.isFinite(response.exitCode)
-          ? response.exitCode
-          : response && Number.isFinite(response.exit_code)
-            ? response.exit_code
-            : 1;
-
-        if (exitCode === 0) {
-          this.setStatus('Sandbox command completed.');
-        } else {
-          this.setStatus(`Sandbox command finished with exit ${exitCode}.`);
-        }
-      } catch (error) {
-        logError('Sandbox command failed.', error);
-        const message = this.getErrorMessage(error);
-        if (this.shellOutput) {
-          this.shellOutput.textContent = `Sandbox run failed: ${message}`;
-        }
-        this.setStatus(`Sandbox run failed: ${message}`);
-      } finally {
-        this.setShellRunning(false);
+    setSandboxCommandDialogRunning(isRunning) {
+      this.isSandboxCommandRunning = !!isRunning;
+      if (this.sandboxCommandDialogRun) {
+        this.sandboxCommandDialogRun.disabled = this.isSandboxCommandRunning;
+        this.sandboxCommandDialogRun.textContent = this.isSandboxCommandRunning ? 'Running...' : 'Run';
       }
+      if (this.sandboxCommandDialogInput) {
+        this.sandboxCommandDialogInput.disabled = this.isSandboxCommandRunning;
+      }
+      if (this.sandboxCommandDialogCancel) {
+        this.sandboxCommandDialogCancel.disabled = this.isSandboxCommandRunning;
+      }
+    }
+
+    closeSandboxCommandDialog() {
+      if (this.sandboxCommandDialogOverlay) {
+        this.sandboxCommandDialogOverlay.classList.add('hidden');
+      }
+      if (typeof this.sandboxCommandDialogFinish === 'function') {
+        this.sandboxCommandDialogFinish(null);
+      }
+    }
+
+    isSandboxCommandDialogVisible() {
+      return !!(
+          this.sandboxCommandDialogOverlay
+          && !this.sandboxCommandDialogOverlay.classList.contains('hidden'));
+    }
+
+    promptSandboxCommandDialog(defaultCommand, path) {
+      if (this.sandboxCommandDialogPromise) {
+        return this.sandboxCommandDialogPromise;
+      }
+
+      this.sandboxCommandDialogPromise = new Promise(resolve => {
+        const overlay = this.sandboxCommandDialogOverlay;
+        const input = this.sandboxCommandDialogInput;
+        const runButton = this.sandboxCommandDialogRun;
+        const cancelButton = this.sandboxCommandDialogCancel;
+        const output = this.sandboxCommandDialogOutput;
+
+        if (!overlay || !input || !runButton || !cancelButton || !output) {
+          this.sandboxCommandDialogPromise = null;
+          resolve(null);
+          return;
+        }
+
+        let done = false;
+        const cleanup = () => {
+          overlay.removeEventListener('click', onOverlayClick);
+          input.removeEventListener('keydown', onInputKeydown);
+          runButton.removeEventListener('click', onRunClick);
+          cancelButton.removeEventListener('click', onCancelClick);
+        };
+        const finish = value => {
+          if (done) {
+            return;
+          }
+          done = true;
+          cleanup();
+          this.setSandboxCommandDialogRunning(false);
+          overlay.classList.add('hidden');
+          this.sandboxCommandDialogFinish = null;
+          this.sandboxCommandDialogPromise = null;
+          resolve(value || null);
+        };
+
+        const runCommand = async () => {
+          if (this.isSandboxCommandRunning) {
+            return;
+          }
+          const command = (input.value || '').trim();
+          if (!command) {
+            this.setStatus('Enter a sandbox command first.');
+            return;
+          }
+
+          this.setSandboxCommandDialogRunning(true);
+          this.setStatus('Running sandbox command...');
+
+          try {
+            const response = await this.runSandboxCommandRequest(command, path);
+            output.textContent = this.renderSandboxResultText(response, command);
+            const exitCode = this.getSandboxExitCode(response);
+
+            if (exitCode === 0) {
+              this.setStatus('Sandbox command completed.');
+              finish({ command, response });
+            } else {
+              this.setStatus(`Sandbox command finished with exit ${exitCode}.`);
+            }
+          } catch (error) {
+            logError('Sandbox command failed.', error);
+            const message = this.getErrorMessage(error);
+            output.textContent = `Sandbox run failed: ${message}`;
+            this.setStatus(`Sandbox run failed: ${message}`);
+          } finally {
+            this.setSandboxCommandDialogRunning(false);
+          }
+        };
+
+        const onOverlayClick = () => finish(null);
+        const onCancelClick = () => finish(null);
+        const onRunClick = () => runCommand();
+        const onInputKeydown = event => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            finish(null);
+            return;
+          }
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            runCommand();
+          }
+        };
+
+        overlay.addEventListener('click', onOverlayClick);
+        input.addEventListener('keydown', onInputKeydown);
+        runButton.addEventListener('click', onRunClick);
+        cancelButton.addEventListener('click', onCancelClick);
+
+        this.sandboxCommandDialogFinish = finish;
+        input.value = defaultCommand || '';
+        output.textContent = 'Enter a command, then click Run.';
+        this.setSandboxCommandDialogRunning(false);
+        overlay.classList.remove('hidden');
+        window.setTimeout(() => {
+          input.focus();
+          input.select();
+        }, 0);
+      });
+
+      return this.sandboxCommandDialogPromise;
     }
 
     /**
