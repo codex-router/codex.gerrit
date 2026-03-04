@@ -15,10 +15,11 @@
 - **Model**:
 	- By default, the first item in the returned list is selected.
 	- The selected model is passed to the backend via `--model`.
+- **Codespaces -> Open in Browser Sandbox**:
+	- Opens a popup dialog with sandbox web shell.
+	- Run commands in sandbox runtime directly from the dialog.
 - **Codespaces -> Open in VS Code**:
 	- Currently coming soon.
-- **Codespaces -> Open in Browser Sandbox**:
-	- Opens Browser Sandbox URL in a new tab.
 
 ## ⌨️ Prompt Commands
 
@@ -55,7 +56,8 @@
 - **Clear**:
 	- Clears messages, input content, and pending review state.
 - **Codespaces -> Open in Browser Sandbox**:
-	- Opens the resolved Browser Sandbox URL in a new tab.
+	- Opens a popup dialog for sandbox command execution.
+	- Use `Run` to execute and `Clear` to reset command output.
 
 ## 🚦 Queue Status Indicator
 

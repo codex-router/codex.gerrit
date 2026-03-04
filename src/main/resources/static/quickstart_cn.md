@@ -15,10 +15,11 @@
 - **模型（Model）**：
 	- 默认选择返回列表中的第一项。
 	- 所选模型会通过 `--model` 传给后端。
+- **Codespaces -> Open in Browser Sandbox**：
+	- 打开包含 Sandbox Web Shell 的弹窗对话框。
+	- 可在弹窗中直接执行 sandbox-runtime 命令。
 - **Codespaces -> Open in VS Code**：
 	- 当前为即将推出（coming soon）。
-- **Codespaces -> Open in Browser Sandbox**：
-	- 在新标签页打开 Browser Sandbox URL。
 
 ## ⌨️ 提示词命令
 
@@ -55,7 +56,8 @@
 - **Clear**：
 	- 清空消息、输入内容与待审阅（pending review）状态。
 - **Codespaces -> Open in Browser Sandbox**：
-	- 在新标签页打开解析后的 Browser Sandbox URL。
+	- 打开用于执行 sandbox 命令的弹窗对话框。
+	- 使用 `Run` 执行命令，使用 `Clear` 清空命令输出。
 
 ## 🚦 队列状态指示
 

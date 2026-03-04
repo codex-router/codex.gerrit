@@ -21,12 +21,10 @@ Gerrit.install(plugin => {
   const fallbackAgents = ['codex'];
   const sandboxTimeoutSeconds = 3;
   const codespacesActions = [
-    { value: 'open-browser', label: 'Open in VS Code' },
-    { value: 'open-sandbox', label: 'Open in Browser Sandbox' }
+    { value: 'open-sandbox', label: 'Open in Browser Sandbox' },
+    { value: 'open-browser', label: 'Open in VS Code' }
   ];
   const workspaceRootStorageKey = `${pluginName}-workspace-root`;
-  const browserRepoStorageKey = `${pluginName}-browser-repo-url`;
-  const defaultBrowserRepoUrl = 'https://github.com/codesandbox/codesandbox-client';
   const log = (...args) => console.log(logPrefix, ...args);
   const warn = (...args) => console.warn(logPrefix, ...args);
   const logError = (...args) => console.error(logPrefix, ...args);
@@ -78,6 +76,7 @@ Gerrit.install(plugin => {
       this.shellCommandInput = null;
       this.shellRunButton = null;
       this.shellOutput = null;
+      this.shellDialogOverlay = null;
     }
 
     connectedCallback() {
@@ -118,10 +117,6 @@ Gerrit.install(plugin => {
       const shellPanel = document.createElement('div');
       shellPanel.className = 'codex-shell-panel';
 
-      const shellHeader = document.createElement('div');
-      shellHeader.className = 'codex-shell-header';
-      shellHeader.textContent = '🧪 Sandbox Web Shell';
-
       const shellCommandRow = document.createElement('div');
       shellCommandRow.className = 'codex-shell-command-row';
 
@@ -148,9 +143,40 @@ Gerrit.install(plugin => {
       shellOutput.className = 'codex-shell-output';
       shellOutput.textContent = 'No sandbox command executed yet.';
 
-      shellPanel.appendChild(shellHeader);
       shellPanel.appendChild(shellCommandRow);
       shellPanel.appendChild(shellOutput);
+
+      const shellDialogOverlay = document.createElement('div');
+      shellDialogOverlay.className = 'codex-quickstart-dialog-overlay hidden';
+
+      const shellDialog = document.createElement('div');
+      shellDialog.className = 'codex-workspace-root-dialog codex-shell-dialog';
+      shellDialog.setAttribute('role', 'dialog');
+      shellDialog.setAttribute('aria-modal', 'true');
+      shellDialog.addEventListener('click', event => event.stopPropagation());
+
+      const shellDialogHeader = document.createElement('div');
+      shellDialogHeader.className = 'codex-change-dialog-header';
+
+      const shellDialogTitle = document.createElement('div');
+      shellDialogTitle.className = 'codex-change-dialog-title';
+      shellDialogTitle.textContent = '🧪 Open in Browser Sandbox';
+
+      const shellDialogClose = document.createElement('button');
+      shellDialogClose.type = 'button';
+      shellDialogClose.className = 'codex-button outline codex-dialog-close';
+      shellDialogClose.textContent = 'Close';
+
+      shellDialogHeader.appendChild(shellDialogTitle);
+      shellDialogHeader.appendChild(shellDialogClose);
+
+      const shellDialogBody = document.createElement('div');
+      shellDialogBody.className = 'codex-workspace-root-dialog-body codex-shell-dialog-body';
+      shellDialogBody.appendChild(shellPanel);
+
+      shellDialog.appendChild(shellDialogHeader);
+      shellDialog.appendChild(shellDialogBody);
+      shellDialogOverlay.appendChild(shellDialog);
 
       const selectors = document.createElement('div');
       selectors.className = 'codex-selectors';
@@ -542,10 +568,10 @@ Gerrit.install(plugin => {
       inputPanel.appendChild(footer);
 
       wrapper.appendChild(header);
-      wrapper.appendChild(shellPanel);
       wrapper.appendChild(output);
       wrapper.appendChild(inputPanel);
       wrapper.appendChild(mentionDropdown);
+      wrapper.appendChild(shellDialogOverlay);
       wrapper.appendChild(changeDialogOverlay);
       wrapper.appendChild(quickstartDialogOverlay);
       wrapper.appendChild(insightDialogOverlay);
@@ -575,6 +601,8 @@ Gerrit.install(plugin => {
           this.runSandboxCommand();
         }
       });
+      shellDialogClose.addEventListener('click', () => this.closeShellDialog());
+      shellDialogOverlay.addEventListener('click', () => this.closeShellDialog());
       codespacesSelect.addEventListener('change', () => this.handleCodespacesAction());
       document.addEventListener('click', event => {
         if (!this.shadowRoot || !this.shadowRoot.contains(event.target)) {
@@ -606,6 +634,10 @@ Gerrit.install(plugin => {
         }
         if (event.key === 'Escape' && this.isGraphSelectionDialogVisible()) {
           this.closeGraphSelectionDialog();
+          return;
+        }
+        if (event.key === 'Escape' && this.isShellDialogVisible()) {
+          this.closeShellDialog();
         }
       });
 
@@ -646,6 +678,7 @@ Gerrit.install(plugin => {
       this.shellCommandInput = shellCommandInput;
       this.shellRunButton = shellRunButton;
       this.shellOutput = shellOutput;
+      this.shellDialogOverlay = shellDialogOverlay;
 
       this.setQueueStatus('idle');
       this.setOverflowStatus('ready');
@@ -773,131 +806,18 @@ Gerrit.install(plugin => {
         return;
       }
       if (action === 'open-sandbox') {
-        await this.openInBrowserSandbox();
+        this.openSandboxShell();
       }
     }
 
     openSandboxShell() {
-      if (!this.shellCommandInput) {
+      if (!this.shellDialogOverlay || !this.shellCommandInput) {
         this.setStatus('Sandbox shell is unavailable in this panel.');
         return;
       }
-
-      const shellPanel = this.shellCommandInput.closest('.codex-shell-panel');
-      if (shellPanel && typeof shellPanel.scrollIntoView === 'function') {
-        shellPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-
+      this.shellDialogOverlay.classList.remove('hidden');
       this.shellCommandInput.focus();
       this.setStatus('Sandbox shell is ready. Enter a command and click Run.');
-    }
-
-    shellSingleQuote(value) {
-      const safeValue = value == null ? '' : String(value);
-      return `'${safeValue.replace(/'/g, `'"'"'`)}'`;
-    }
-
-    buildCodeSandboxUrlFromRepo(repoUrl) {
-      const normalizedRepo = this.normalizeBrowserRepoUrl(repoUrl);
-      if (!normalizedRepo) {
-        return '';
-      }
-
-      let parsed;
-      try {
-        parsed = new URL(normalizedRepo);
-      } catch (error) {
-        return '';
-      }
-
-      const hostname = (parsed.hostname || '').toLowerCase();
-      if (hostname !== 'github.com' && hostname !== 'www.github.com') {
-        return '';
-      }
-
-      const repoPath = (parsed.pathname || '').replace(/^\/+/, '').replace(/\/+$/, '');
-      if (!repoPath) {
-        return '';
-      }
-
-      return `https://codesandbox.io/p/github/${repoPath}?import=true`;
-    }
-
-    buildOpenBrowserSandboxCommand(repoUrl) {
-      const quotedRepoUrl = this.shellSingleQuote(repoUrl);
-      return [
-        `repo=${quotedRepoUrl}`,
-        'repo="${repo#https://github.com/}"',
-        'repo="${repo#http://github.com/}"',
-        'repo="${repo#github.com/}"',
-        'repo="${repo%.git}"',
-        'printf "https://codesandbox.io/p/github/%s?import=true\\n" "$repo"'
-      ].join('; ');
-    }
-
-    extractFirstHttpUrl(text) {
-      const value = typeof text === 'string' ? text : '';
-      const match = value.match(/https?:\/\/[^\s"'<>]+/i);
-      return match ? match[0] : '';
-    }
-
-    async openInBrowserSandbox() {
-      if (!(await this.ensureAuthenticated())) {
-        this.setStatus('Sign in to Gerrit before opening Browser Sandbox.');
-        return;
-      }
-
-      const repoUrl = this.getOrPromptBrowserRepoUrl();
-      if (!repoUrl) {
-        this.setStatus('Open in Browser Sandbox canceled.');
-        return;
-      }
-
-      const browserUrl = this.buildCodeSandboxUrlFromRepo(repoUrl);
-      if (!browserUrl) {
-        this.setStatus('Please provide a valid GitHub repository URL.');
-        return;
-      }
-
-      const changeId = this.getChangeId();
-      const revision = this.getRevisionId();
-      if (!changeId) {
-        this.setStatus('Unable to detect change id.');
-        return;
-      }
-
-      const path = this.buildRevisionRestPath(changeId, revision, 'codex-sandbox');
-      const command = this.buildOpenBrowserSandboxCommand(repoUrl);
-      this.setStatus('Preparing Browser Sandbox...');
-
-      try {
-        const response = await plugin.restApi().post(path, {
-          command,
-          timeoutSeconds: sandboxTimeoutSeconds
-        });
-
-        this.renderSandboxResult(response, command);
-
-        const exitCode = response && Number.isFinite(response.exitCode)
-          ? response.exitCode
-          : response && Number.isFinite(response.exit_code)
-            ? response.exit_code
-            : 1;
-
-        if (exitCode !== 0) {
-          const stderr = response && typeof response.stderr === 'string' ? response.stderr.trim() : '';
-          throw new Error(stderr || `Sandbox command finished with exit ${exitCode}.`);
-        }
-
-        const stdoutText = response && typeof response.stdout === 'string' ? response.stdout : '';
-        const extractedUrl = this.extractFirstHttpUrl(stdoutText);
-        const targetUrl = extractedUrl || browserUrl;
-        window.open(targetUrl, '_blank', 'noopener');
-        this.setStatus('Opened Browser Sandbox.');
-      } catch (error) {
-        logError('Open in Browser Sandbox failed.', error);
-        this.setStatus(`Open in Browser Sandbox failed: ${this.getErrorMessage(error)}`);
-      }
     }
 
     async openPatchsetFilesInVsCode() {
@@ -1616,23 +1536,6 @@ Gerrit.install(plugin => {
       return inferredPath;
     }
 
-    getOrPromptBrowserRepoUrl() {
-      const savedRepo = window.localStorage.getItem(browserRepoStorageKey);
-      const promptDefault = savedRepo || defaultBrowserRepoUrl;
-      const repoUrl = window.prompt(
-          'Enter your GitHub repository URL (e.g. https://github.com/codesandbox/codesandbox-client).',
-          promptDefault);
-      if (repoUrl === null) {
-        return '';
-      }
-      const normalized = this.normalizeBrowserRepoUrl(repoUrl);
-      if (!normalized) {
-        return '';
-      }
-      window.localStorage.setItem(browserRepoStorageKey, normalized);
-      return normalized;
-    }
-
     joinPaths(rootPath, relativePath) {
       const root = this.normalizePath(rootPath).replace(/\/+$/, '');
       const file = this.normalizePath(relativePath).replace(/^\/+/, '');
@@ -1903,6 +1806,7 @@ Gerrit.install(plugin => {
       this.pendingFileChanges = [];
       this.closeFileChangesDialog();
       this.closeInsightDialog();
+      this.closeShellDialog();
       this.attachedFiles = [];
       this.renderAttachedFileChips();
       if (this.fileInput) {
@@ -2855,6 +2759,10 @@ Gerrit.install(plugin => {
       return !!(this.insightDialogOverlay && !this.insightDialogOverlay.classList.contains('hidden'));
     }
 
+    isShellDialogVisible() {
+      return !!(this.shellDialogOverlay && !this.shellDialogOverlay.classList.contains('hidden'));
+    }
+
     isGraphSelectionDialogVisible() {
       return !!(this.graphSelectionDialogOverlay && !this.graphSelectionDialogOverlay.classList.contains('hidden'));
     }
@@ -2871,6 +2779,12 @@ Gerrit.install(plugin => {
     closeQuickstartDialog() {
       if (this.quickstartDialogOverlay) {
         this.quickstartDialogOverlay.classList.add('hidden');
+      }
+    }
+
+    closeShellDialog() {
+      if (this.shellDialogOverlay) {
+        this.shellDialogOverlay.classList.add('hidden');
       }
     }
 

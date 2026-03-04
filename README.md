@@ -7,7 +7,8 @@ to supported AI agents for interactive chat.
 
 - Chat panel in the change footer with selector row, prompt input, actions, status, and output.
 - Selector row includes `Agent`, `Model`, and `Codespaces` controls.
-- Includes a built-in Sandbox Web Shell panel for running commands in sandbox runtime.
+- `Codespaces` includes `Open in Browser Sandbox` and `Open in VS Code`.
+- `Open in Browser Sandbox` opens a popup dialog with Sandbox Web Shell for running commands in sandbox runtime.
 - Selector row also includes a queue status indicator showing `idle`, `request active`, `waiting`, `full`, or `wait timeout`.
 - Selector row also includes an overflow-guard indicator showing context-overflow auto-compress status (`ready`, `monitoring`, `attention`).
 - Header includes a right-side `Help` button.
@@ -37,9 +38,8 @@ to supported AI agents for interactive chat.
 - When one or more `@` files are mentioned, the plugin appends static-analysis guidance to focus findings on those files (bugs, security risks, null-safety, error handling, resource/concurrency risks, and performance concerns).
 - If a diff block omits file headers, `Review` can still map changes to `@`-mentioned files and show the popup.
 - If exactly one `@` file is mentioned and the reply provides only a fenced code block, the plugin synthesizes a unified diff preview for `Review`.
-- `Codespaces` includes `Open in VS Code` and `Open in Browser Sandbox`.
 - `Open in VS Code` is coming soon.
-- `Open in Browser Sandbox` invokes sandbox execution via plugin endpoint `codex-sandbox` (proxied to `codex.serve` `POST /sandbox/run`) and opens Browser Sandbox in a new tab.
+- `Open in Browser Sandbox` opens a popup shell dialog and runs commands via plugin endpoint `codex-sandbox` (proxied to `codex.serve` `POST /sandbox/run`).
 - Sandbox requests from Gerrit UI use a short timeout (`3s`) to match codex-sandbox runtime limits; `codex.serve` may also apply a hard timeout cap.
 - Chat mode is the default input mode and returns a reply in the UI using the selected agent and model.
 - When Codex response includes a unified diff, a popup dialog shows changed files and patch content.
@@ -115,11 +115,11 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - Use the selector row to choose `Agent` (options are loaded from `codex.serve` `GET /agents`; the first returned item is selected by default, and if unavailable it falls back to `codex`).
 - For complex tasks, choose `team` in `Agent` to use multi-agent collaboration (parallel specialist analysis, internal debate, and final synthesis).
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
-- Use `Codespaces` → `Open in VS Code` (currently coming soon).
-- Use `Codespaces` → `Open in Browser Sandbox` to trigger sandbox execution and open Browser Sandbox in a new tab.
-- In Sandbox Web Shell, enter a command and click `Run` to execute via sandbox runtime (`/sandbox/run`).
-- Browser Sandbox and Web Shell requests use `timeoutSeconds=3` by default to avoid timeout-limit failures from upstream sandbox runtime.
+- Use `Codespaces` → `Open in Browser Sandbox` to open the sandbox shell popup dialog.
+- In the popup shell, enter a command and click `Run` to execute via sandbox runtime (`/sandbox/run`).
 - Use shell `Clear` to reset the shell output area.
+- Use `Codespaces` → `Open in VS Code` (currently coming soon).
+- Sandbox shell requests use `timeoutSeconds=3` by default to avoid timeout-limit failures from upstream sandbox runtime.
 - Click `Help` (right side of the chat header) to open the quickstart popup.
 - In quickstart popup, switch between `English` and `中文` tabs as needed.
 - Type `@` in the prompt to pick files from the current patchset and include them as context.
@@ -163,18 +163,15 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 
 `gerritBotUser` is used as a message prefix for Gerrit review messages.
 
-When using `Open in VS Code` for the first time, the panel prompts for your GitHub repository URL
-(default: `https://github.com/codesandbox/codesandbox-client`) and stores it in browser local storage for future opens.
-
 ### Codespaces: Open in VS Code
 
 - `Open in VS Code` is coming soon.
 
 ### Codespaces: Open in Browser Sandbox
 
-- `Open in Browser Sandbox` executes a sandbox command through plugin endpoint `codex-sandbox` (proxied to `codex.serve` `POST /sandbox/run`).
-- The panel resolves a Browser Sandbox URL from sandbox output and opens it in a new browser tab.
-- If URL extraction fails, it falls back to a computed CodeSandbox URL from the configured GitHub repository URL.
+- `Open in Browser Sandbox` opens a popup shell dialog from the `Codespaces` dropdown.
+- In the dialog, `Run` executes sandbox commands through plugin endpoint `codex-sandbox` (proxied to `codex.serve` `POST /sandbox/run`).
+- `Clear` resets the shell output area in the dialog.
 - Sandbox requests use a short timeout (`3s`) and are further bounded by server-side hard cap when configured on `codex.serve`.
 
 ## Reference

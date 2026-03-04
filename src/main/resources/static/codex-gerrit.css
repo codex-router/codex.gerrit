@@ -188,6 +188,14 @@
   margin-bottom: 12px;
 }
 
+.codex-shell-dialog {
+  width: min(860px, 94vw);
+}
+
+.codex-shell-dialog-body .codex-shell-panel {
+  margin-bottom: 0;
+}
+
 .codex-shell-header {
   font-size: 12px;
   font-weight: 600;
