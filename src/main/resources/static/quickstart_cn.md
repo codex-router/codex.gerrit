@@ -18,6 +18,7 @@
 - **Codespaces -> Open in Browser Sandbox**：
 	- 打开包含 Sandbox Web Shell 的弹窗对话框。
 	- 可在弹窗中直接执行 sandbox-runtime 命令。
+	- sandbox runtime 已预装 `codexc`（构建时从 `codex-router/codex.compiler` 最新 release 安装）。
 - **Codespaces -> Open in VS Code**：
 	- 当前为即将推出（coming soon）。
 
@@ -58,6 +59,7 @@
 - **Codespaces -> Open in Browser Sandbox**：
 	- 打开用于执行 sandbox 命令的弹窗对话框。
 	- 使用 `Run` 执行命令，使用 `Clear` 清空命令输出。
+	- 可直接使用已预装的 `codexc` 命令。
 
 ## 🚦 队列状态指示
 

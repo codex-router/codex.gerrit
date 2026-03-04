@@ -18,6 +18,7 @@
 - **Codespaces -> Open in Browser Sandbox**:
 	- Opens a popup dialog with sandbox web shell.
 	- Run commands in sandbox runtime directly from the dialog.
+	- Sandbox runtime includes `codexc`, installed from the latest `codex-router/codex.compiler` release.
 - **Codespaces -> Open in VS Code**:
 	- Currently coming soon.
 
@@ -58,6 +59,7 @@
 - **Codespaces -> Open in Browser Sandbox**:
 	- Opens a popup dialog for sandbox command execution.
 	- Use `Run` to execute and `Clear` to reset command output.
+	- `codexc` is available in the sandbox runtime.
 
 ## 🚦 Queue Status Indicator
 

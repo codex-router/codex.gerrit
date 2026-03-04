@@ -9,6 +9,7 @@ to supported AI agents for interactive chat.
 - Selector row includes `Agent`, `Model`, and `Codespaces` controls.
 - `Codespaces` includes `Open in Browser Sandbox` and `Open in VS Code`.
 - `Open in Browser Sandbox` opens a popup dialog with Sandbox Web Shell for running commands in sandbox runtime.
+- Sandbox runtime image installs `codexc` from the latest `codex-router/codex.compiler` GitHub release.
 - Selector row also includes a queue status indicator showing `idle`, `request active`, `waiting`, `full`, or `wait timeout`.
 - Selector row also includes an overflow-guard indicator showing context-overflow auto-compress status (`ready`, `monitoring`, `attention`).
 - Header includes a right-side `Help` button.
@@ -117,6 +118,7 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
 - Use `Codespaces` → `Open in Browser Sandbox` to open the sandbox shell popup dialog.
 - In the popup shell, enter a command and click `Run` to execute via sandbox runtime (`/sandbox/run`).
+- Sandbox runtime includes `codexc` preinstalled from the latest `codex-router/codex.compiler` release.
 - Use shell `Clear` to reset the shell output area.
 - Use `Codespaces` → `Open in VS Code` (currently coming soon).
 - Sandbox shell requests use `timeoutSeconds=3` by default to avoid timeout-limit failures from upstream sandbox runtime.
