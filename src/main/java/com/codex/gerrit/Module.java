@@ -44,7 +44,6 @@ public class Module extends AbstractModule {
             post(REVISION_KIND, "codex-graph").to(CodexGraphRest.class);
             post(REVISION_KIND, "codex-insight").to(CodexInsightRest.class);
             post(REVISION_KIND, "codex-sandbox").to(CodexSandboxRest.class);
-            post(REVISION_KIND, "sandbox/run").to(CodexSandboxRest.class);
             get(REVISION_KIND, "codex-config").to(CodexConfigRest.class);
             get(REVISION_KIND, "codex-patchset-files").to(CodexPatchsetFilesRest.class);
           }
