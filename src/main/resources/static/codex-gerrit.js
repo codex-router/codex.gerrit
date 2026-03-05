@@ -160,7 +160,7 @@ Gerrit.install(plugin => {
 
       const shellDialogTitle = document.createElement('div');
       shellDialogTitle.className = 'codex-change-dialog-title';
-      shellDialogTitle.textContent = '🧪 Open in Browser Sandbox';
+      shellDialogTitle.textContent = '🧪 Browser Sandbox';
 
       const shellDialogClose = document.createElement('button');
       shellDialogClose.type = 'button';
