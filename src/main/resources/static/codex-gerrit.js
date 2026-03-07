@@ -117,8 +117,8 @@ Gerrit.install(plugin => {
       const collapseButton = document.createElement('button');
       collapseButton.type = 'button';
       collapseButton.className = 'codex-button outline codex-small-button codex-collapse-button';
-      collapseButton.setAttribute('aria-expanded', 'false');
-      collapseButton.setAttribute('aria-label', 'Expand Codex Chat');
+      collapseButton.setAttribute('aria-expanded', 'true');
+      collapseButton.setAttribute('aria-label', 'Collapse Codex Chat');
 
       headerLeft.appendChild(headerTitle);
       header.appendChild(headerLeft);
@@ -708,7 +708,7 @@ Gerrit.install(plugin => {
       this.setQueueStatus('idle');
       this.setOverflowStatus('ready');
       this.setShellRunning(false);
-      this.setCollapsed(true);
+      this.setCollapsed(false);
 
       this.showWelcomeMessage();
       this.loadConfig();
