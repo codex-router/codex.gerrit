@@ -77,7 +77,7 @@ Gerrit.install(plugin => {
       this.shellRunButton = null;
       this.shellOutput = null;
       this.shellDialogOverlay = null;
-      this.isCollapsed = true;
+      this.isCollapsed = false;
     }
 
     connectedCallback() {
