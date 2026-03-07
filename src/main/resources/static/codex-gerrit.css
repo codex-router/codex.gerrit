@@ -16,6 +16,10 @@
   box-sizing: border-box;
 }
 
+.codex-chat.is-collapsed {
+  padding-bottom: 0;
+}
+
 .codex-header {
   display: flex;
   align-items: center;
@@ -29,14 +33,34 @@
   color: #5b3a1d;
 }
 
+.codex-chat.is-collapsed .codex-header {
+  margin-bottom: 0;
+}
+
 .codex-header-left {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
+.codex-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .codex-header-title {
   white-space: nowrap;
+}
+
+.codex-chat-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.codex-chat-body[hidden] {
+  display: none;
 }
 
 .codex-selectors {
@@ -520,6 +544,10 @@
 
 .codex-help-button {
   height: 28px;
+}
+
+.codex-collapse-button {
+  min-width: 96px;
 }
 
 .codex-change-dialog-overlay {

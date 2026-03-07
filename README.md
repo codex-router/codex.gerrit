@@ -25,6 +25,7 @@ to supported AI agents for interactive chat.
 - Agent selector is populated from `codex.serve` `GET /agents`.
 - The first item returned by `GET /agents` is selected by default.
 - If `GET /agents` is unavailable, the selector falls back to `codex`.
+- Depending on backend configuration, `Agent` may include entries such as `codex`, `kimi`, `opencode`, `qwen`, `openclaw`, and `team`.
 - If `team` is available in `Agent`, selecting it enables `codex.serve` multi-agent collaboration mode (parallel specialists + debate + synthesis).
 - Model selector shows models returned by `codex.serve` `GET /models`.
 - The first item returned by `GET /models` is selected by default.
@@ -88,6 +89,8 @@ When enabled:
 - The server must support the `codex.serve` API protocol (NDJSON streaming).
 - The plugin sends `agent`, `stdin`, `sessionId`, and `args` (`--model` when a specific model is selected).
 - When `agent` is `team` (and backend `AGENT_LIST` includes `team`), `codex.serve` orchestrates non-`team` agents as specialists, runs them in parallel, performs an internal debate pass, then returns a synthesized final answer.
+- When `agent` is `openclaw` (and backend `AGENT_LIST` includes `openclaw`), `codex.serve` routes the request to the OpenClaw TUI runner in its configured Docker Compose project.
+- For `agent: "openclaw"`, backend OpenClaw gateway settings determine the actual model/tool runtime; the Gerrit `Model` dropdown selection is forwarded for protocol consistency but may be ignored by the backend runner.
 - When `@` files are used, the plugin also sends `contextFiles` with `{path, content}` entries to `codex.serve`.
 - When files are attached by the user in the chat panel, the plugin sends them as `attachedFiles` with `{name, content}` entries; `codex.serve` accepts these via the `contextFiles` field of `POST /agent/run` using the typed `ContextFileItem` model (supports `content` for plain text or `base64Content` for binary files).
 - For compatibility with different clients and naming policies, attachment parsing also accepts common aliases: `attached_files`/`attachments`/`files` at the top level, plus `path`/`fileName`, `base64_content`/`contentBase64`, and `text`/`body` in each file item.
@@ -114,8 +117,11 @@ The model dropdown is populated from `codex.serve` `GET /models`.
 
 - Open any change page and scroll to the bottom to find the Codex Chat panel.
 - Use the selector row to choose `Agent` (options are loaded from `codex.serve` `GET /agents`; the first returned item is selected by default, and if unavailable it falls back to `codex`).
-- For complex tasks, choose `team` in `Agent` to use multi-agent collaboration (parallel specialist analysis, internal debate, and final synthesis).
+- Depending on backend configuration, the `Agent` selector can expose `openclaw` in addition to the standard CLI agents and `team`.
+- For complex tasks, choose `team` in `Agent` to use multi-agent collaboration (parallel specialist analysis, internal debate, and final synthesis across all enabled non-`team` agents).
+- Choose `openclaw` in `Agent` when the backend is configured for OpenClaw Docker Compose execution; this sends the prompt through the OpenClaw gateway/TUI flow.
 - `Model` shows models loaded from `codex.serve`; the first returned item is selected by default, and you can optionally choose a specific model.
+- When `Agent` is `openclaw`, the selected `Model` value may not affect execution because OpenClaw uses its own gateway/model configuration on the backend.
 - Use `Codespaces` → `Open in Browser Sandbox` to open the sandbox shell popup dialog.
 - In the popup shell, enter a command and click `Run` to execute via sandbox runtime (`/sandbox/run`).
 - Sandbox runtime includes `codexc` preinstalled from the latest `codex-router/codex.compiler` release.

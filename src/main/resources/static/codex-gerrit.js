@@ -77,6 +77,7 @@ Gerrit.install(plugin => {
       this.shellRunButton = null;
       this.shellOutput = null;
       this.shellDialogOverlay = null;
+      this.isCollapsed = true;
     }
 
     connectedCallback() {
@@ -110,9 +111,23 @@ Gerrit.install(plugin => {
       helpButton.className = 'codex-button outline codex-small-button codex-help-button';
       helpButton.textContent = 'Help';
 
+      const headerActions = document.createElement('div');
+      headerActions.className = 'codex-header-actions';
+
+      const collapseButton = document.createElement('button');
+      collapseButton.type = 'button';
+      collapseButton.className = 'codex-button outline codex-small-button codex-collapse-button';
+      collapseButton.setAttribute('aria-expanded', 'false');
+      collapseButton.setAttribute('aria-label', 'Expand Codex Chat');
+
       headerLeft.appendChild(headerTitle);
       header.appendChild(headerLeft);
-      header.appendChild(helpButton);
+      headerActions.appendChild(helpButton);
+      headerActions.appendChild(collapseButton);
+      header.appendChild(headerActions);
+
+      const body = document.createElement('div');
+      body.className = 'codex-chat-body';
 
       const shellPanel = document.createElement('div');
       shellPanel.className = 'codex-shell-panel';
@@ -567,10 +582,12 @@ Gerrit.install(plugin => {
       inputPanel.appendChild(inputRow);
       inputPanel.appendChild(footer);
 
+      body.appendChild(output);
+      body.appendChild(inputPanel);
+      body.appendChild(mentionDropdown);
+
       wrapper.appendChild(header);
-      wrapper.appendChild(output);
-      wrapper.appendChild(inputPanel);
-      wrapper.appendChild(mentionDropdown);
+      wrapper.appendChild(body);
       wrapper.appendChild(shellDialogOverlay);
       wrapper.appendChild(changeDialogOverlay);
       wrapper.appendChild(quickstartDialogOverlay);
@@ -586,6 +603,7 @@ Gerrit.install(plugin => {
       this.shadowRoot.appendChild(wrapper);
       log('Panel DOM mounted. Loading models...');
 
+      collapseButton.addEventListener('click', () => this.toggleCollapsed());
       stopButton.addEventListener('click', () => this.stopChat());
       clearButton.addEventListener('click', () => this.clearChatPanel());
       input.addEventListener('input', () => this.handleInputChanged());
@@ -620,6 +638,10 @@ Gerrit.install(plugin => {
       quickstartChineseButton.addEventListener('click', () => this.setQuickstartLanguage('cn'));
 
       this.shadowRoot.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !this.isCollapsed && this.isMentionDropdownVisible()) {
+          this.hideMentionDropdown();
+          return;
+        }
         if (event.key === 'Escape' && this.isQuickstartDialogVisible()) {
           this.closeQuickstartDialog();
           return;
@@ -642,6 +664,8 @@ Gerrit.install(plugin => {
       });
 
       this.input = input;
+  this.wrapper = wrapper;
+  this.body = body;
       this.agentSelect = agentSelect;
       this.modelSelect = modelSelect;
       this.codespacesSelect = codespacesSelect;
@@ -679,13 +703,40 @@ Gerrit.install(plugin => {
       this.shellRunButton = shellRunButton;
       this.shellOutput = shellOutput;
       this.shellDialogOverlay = shellDialogOverlay;
+      this.collapseButton = collapseButton;
 
       this.setQueueStatus('idle');
       this.setOverflowStatus('ready');
       this.setShellRunning(false);
+      this.setCollapsed(true);
 
       this.showWelcomeMessage();
       this.loadConfig();
+    }
+
+    toggleCollapsed() {
+      this.setCollapsed(!this.isCollapsed);
+    }
+
+    setCollapsed(isCollapsed) {
+      this.isCollapsed = !!isCollapsed;
+      if (this.wrapper) {
+        this.wrapper.classList.toggle('is-collapsed', this.isCollapsed);
+      }
+      if (this.body) {
+        this.body.hidden = this.isCollapsed;
+      }
+      if (this.collapseButton) {
+        this.collapseButton.textContent = this.isCollapsed ? '▸ Expand' : '▾ Collapse';
+        this.collapseButton.setAttribute('aria-expanded', String(!this.isCollapsed));
+        this.collapseButton.setAttribute(
+            'aria-label',
+            this.isCollapsed ? 'Expand Codex Chat' : 'Collapse Codex Chat');
+        this.collapseButton.title = this.isCollapsed ? 'Expand Codex Chat' : 'Collapse Codex Chat';
+      }
+      if (this.isCollapsed) {
+        this.hideMentionDropdown();
+      }
     }
 
     showWelcomeMessage() {
